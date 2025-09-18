@@ -16,7 +16,7 @@ module.exports = {
     if (!channel) {
       return interaction.reply({ content: 'Você precisa estar em um canal de voz para usar este comando.', ephemeral: true });
     }
-
+    
     const permissions = channel.permissionsFor(client.user);
     if (!permissions.has('Connect') || !permissions.has('Speak')) {
         return interaction.reply({ content: 'Eu preciso de permissão para entrar e falar no seu canal de voz!', ephemeral: true });
@@ -24,44 +24,76 @@ module.exports = {
 
     await interaction.deferReply();
 
-    // Passar o objeto de usuário inteiro como 'requester'
     const resolve = await client.riffy.resolve({ query: query, requester: interaction.user });
     const { loadType, tracks, playlistInfo } = resolve;
-
+    
     const player = client.riffy.players.get(interaction.guildId) || client.riffy.createConnection({
         guildId: interaction.guildId,
         voiceChannel: channel.id,
         textChannel: interaction.channelId,
         deaf: true,
     });
-
+    
     const destroyTimeout = player.get("destroyTimeout");
     if (destroyTimeout) clearTimeout(destroyTimeout);
 
     const embed = new EmbedBuilder().setColor(client.config.colors.primary);
 
-    if (loadType === 'PLAYLIST_LOADED') {
-        for (const track of tracks) {
+    // CORREÇÃO: Todos os casos agora estão em letras minúsculas para corresponder à resposta do Lavalink.
+    switch (loadType) {
+        case 'playlist':
+            for (const track of tracks) {
+                player.queue.add(track);
+            }
+            embed.setTitle("✅ Playlist Adicionada")
+                 .setDescription(`**${playlistInfo.name}** com **${tracks.length}** músicas foi adicionada à fila.`);
+            await interaction.editReply({ embeds: [embed] });
+            if (!player.playing && !player.paused) {
+                // Tenta usar o método de reprodução correto com base na API do riffy
+                try {
+                    player.play();
+                } catch (error) {
+                    console.error("Error playing track:", error);
+                    // Método alternativo se play() não existir
+                    if (typeof player.start === 'function') {
+                        player.start();
+                    }
+                }
+            }
+            break;
+
+        case 'search':
+        case 'track':
+            const track = tracks.shift();
             player.queue.add(track);
-        }
-        embed.setTitle("✅ Playlist Adicionada")
-             .setDescription(`**${playlistInfo.name}** com **${tracks.length}** músicas foi adicionada à fila.`);
+            embed.setTitle("👍 Adicionado à Fila")
+                 .setDescription(`[${track.info.title}](${track.info.uri})`);
+            await interaction.editReply({ embeds: [embed] });
+            if (!player.playing && !player.paused) {
+                // Tenta usar o método de reprodução correto com base na API do riffy
+                try {
+                    // Garante que a música será reproduzida completamente
+                    player.play({ track: track });
+                } catch (error) {
+                    console.error("Error playing track:", error);
+                    // Método alternativo se play() não existir
+                    if (typeof player.start === 'function') {
+                        player.start(track);
+                    }
+                }
+            }
+            break;
 
-        await interaction.editReply({ embeds: [embed] });
-        if (!player.playing && !player.paused) player.play();
+        case 'empty':
+            return interaction.editReply({ content: '❌ Não encontrei nenhum resultado para essa busca.', ephemeral: true });
 
-    } else if (loadType === 'SEARCH_RESULT' || loadType === 'TRACK_LOADED') {
-        const track = tracks.shift();
-        player.queue.add(track);
+        case 'error':
+            console.error("Lavalink load failed. Resolve object:", resolve);
+            return interaction.editReply({ content: '🔥 Ocorreu um erro ao tentar carregar a música. Verifique os logs do seu servidor Lavalink.', ephemeral: true });
 
-        embed.setTitle("👍 Adicionado à Fila")
-             .setDescription(`[${track.info.title}](${track.info.uri})`);
-
-        await interaction.editReply({ embeds: [embed] });
-        if (!player.playing && !player.paused) player.play();
-
-    } else {
-        return interaction.editReply({ content: '❌ Não encontrei nenhum resultado para essa busca.', ephemeral: true });
+        default:
+            console.warn(`[Debug] Tipo de carga desconhecido: ${loadType}`);
+            return interaction.editReply({ content: '❓ Ocorreu um resultado inesperado do serviço de música.', ephemeral: true });
     }
   }
 };
