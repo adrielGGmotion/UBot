@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-locale-key="dashboard_server_page_title">Gerenciar Servidor</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --accent: #9900FF;
+      --accent-rgb: 153, 0, 255;
+      --text: #f0f6fc;
+      --muted: #8b949e;
+      --radius: 14px;
+      --gap: 20px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Orbitron", system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+    .main-container { display: flex; width: 100%; }
+    .sidebar { width: 240px; background: var(--panel); padding: 20px; display: flex; flex-direction: column; gap: 20px; border-right: 1px solid rgba(255,255,255,0.05); }
+    .sidebar-header h1 { font-size: 1.2rem; color: var(--accent); text-align: center; }
+    .sidebar-nav { display: flex; flex-direction: column; gap: 12px; }
+    .nav-link { text-decoration: none; padding: 10px 14px; border-radius: var(--radius); color: var(--muted); transition: all 0.2s; }
+    .nav-link:hover { background: rgba(var(--accent-rgb), 0.1); color: var(--text); }
+    .nav-link.active { background: var(--accent); color: white; font-weight: 600; }
+    .dashboard-grid { flex: 1; display: grid; grid-template-columns: 1fr; gap: var(--gap); padding: var(--gap); align-content: start; }
+    .widget { background: var(--panel); border-radius: var(--radius); padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 16px; }
+    .widget h2 { font-size: 1.1rem; color: var(--accent); margin-bottom: 10px; }
+    .sub-widget { background: rgba(255,255,255,0.02); padding: 15px; border-radius: var(--radius); }
+    .sub-widget h3 { font-size: 0.95rem; color: var(--muted); margin-bottom: 10px; }
+    .profile-form, .form-group { display: flex; flex-direction: column; gap: 12px; }
+    .form-input, .form-select, .form-textarea, .form-number { width: 100%; padding: 10px; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text); font-size: 0.95rem; }
+    .form-textarea { min-height: 120px; resize: vertical; }
+    .form-input:focus, .form-select:focus, .form-textarea:focus, .form-number:focus { outline: none; border: 1px solid var(--accent); background: rgba(var(--accent-rgb), 0.1); }
+    .form-button { background: var(--accent); color: white; font-weight: 600; padding: 12px; border: none; border-radius: var(--radius); cursor: pointer; transition: background 0.2s; }
+    .form-button:hover { background: color-mix(in srgb, var(--accent) 90%, black); }
+    #panel-ai-container { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+    .checkbox-group { display: flex; align-items: center; gap: 8px; }
+    .faq-item button { background-color: #f87171; color: white; border: none; padding: 4px 8px; font-size: 0.8em; border-radius: 4px; cursor: pointer; float: right; }
+    .chat-tester { display: flex; flex-direction: column; height: 100%; }
+    .chat-tester-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .chat-tester-header button { background: none; border: 1px solid var(--muted); color: var(--muted); padding: 5px 10px; border-radius: var(--radius); cursor: pointer; }
+    .chat-tester-display { flex-grow: 1; background: rgba(0,0,0,0.2); border-radius: var(--radius); padding: 10px; overflow-y: auto; min-height: 300px; display: flex; flex-direction: column; gap: 10px; }
+    .chat-message { padding: 8px 12px; border-radius: var(--radius); max-width: 80%; word-wrap: break-word; }
+    .user-message { background: var(--accent); color: white; align-self: flex-end; }
+    .bot-message { background: rgba(255,255,255,0.1); color: var(--text); align-self: flex-start; }
+    .chat-tester-input { display: flex; gap: 10px; margin-top: 10px; }
+    .chat-tester-input input { flex-grow: 1; }
+    @media (max-width: 1200px) { #panel-ai-container { grid-template-columns: 1fr; } }
+    @media (max-width: 768px) { .sidebar { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="main-container">
+    <aside class="sidebar">
+      <div class="sidebar-header"><h1 id="bot-name" data-locale-key="dashboard_loading"></h1></div>
+      <nav class="sidebar-nav" id="server-nav-links"></nav>
+    </aside>
+
+    <main class="dashboard-grid">
+      <div class="widget">
+        <h2 id="server-name-title" data-locale-key="dashboard_loading_server"></h2>
+      </div>
+      
+      <div id="panel-ai" class="settings-panel">
+        <div id="panel-ai-container">
+          <div class="widget">
+            <h2 data-locale-key="dashboard_server_ai_settings"></h2>
+            <div class="sub-widget">
+              <h3 data-locale-key="dashboard_server_ai_channels"></h3>
+              <div id="channels-list" class="channels-list"></div>
+            </div>
+            <div class="sub-widget">
+              <h3 data-locale-key="dashboard_server_chatbot_settings"></h3>
+              <form id="chatbot-settings-form" class="profile-form">
+                
+                <div class="form-group">
+                  <label for="ai-context-limit" data-locale-key="dashboard_server_ai_context_limit_label">Limite de Contexto</label>
+                  <input type="number" id="ai-context-limit" class="form-number" min="1" max="50" value="15">
+                  <small style="color:var(--muted); font-size:0.8rem;" data-locale-key="dashboard_server_ai_context_limit_desc">Nº de mensagens que o bot lembra. (1-50)</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="ai-personality" data-locale-key="dashboard_server_ai_personality_label"></label>
+                  <textarea id="ai-personality" class="form-textarea" data-locale-placeholder-key="dashboard_server_ai_personality_placeholder"></textarea>
+                </div>
+                <div class="form-group">
+                  <label for="ai-examples" data-locale-key="dashboard_server_ai_examples_label"></label>
+                  <textarea id="ai-examples" class="form-textarea" data-locale-placeholder-key="dashboard_server_ai_examples_placeholder"></textarea>
+                </div>
+              </form>
+            </div>
+          </div>
+          <div class="widget">
+            <div class="chat-tester">
+              <div class="chat-tester-header">
+                <h2 data-locale-key="dashboard_server_ai_tester_title"></h2>
+                <button id="clear-chat-btn" data-locale-key="dashboard_server_ai_tester_clear_button"></button>
+              </div>
+              <div id="chat-display" class="chat-tester-display"></div>
+              <div class="chat-tester-input">
+                <input type="text" id="chat-input" class="form-input" data-locale-placeholder-key="dashboard_server_ai_tester_input_placeholder">
+                <button id="send-chat-btn" class="form-button" data-locale-key="dashboard_server_ai_tester_send_button"></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="panel-faq" class="widget settings-panel" style="display: none;">
+        <h2 data-locale-key="dashboard_server_faq_settings"></h2>
+        <div id="faq-list" class="faq-list"></div>
+        <div class="profile-form">
+          <input type="text" id="faq-new-question" class="form-input" data-locale-placeholder-key="dashboard_server_faq_new_question_placeholder">
+          <textarea id="faq-new-answer" class="form-textarea" data-locale-placeholder-key="dashboard_server_faq_new_answer_placeholder"></textarea>
+          <button id="faq-add-btn" class="form-button" data-locale-key="dashboard_server_faq_add_button"></button>
+        </div>
+      </div>
+
+      <div id="panel-notifications" class="widget settings-panel" style="display: none;">
+        <h2 data-locale-key="dashboard_server_notifications_title"></h2>
+        <div id="repos-list" class="faq-list"></div>
+        <div class="profile-form">
+          <input type="text" id="repo-new-name" class="form-input" data-locale-placeholder-key="dashboard_server_notifications_repo_placeholder">
+          <select id="repo-new-channel" class="form-select"></select>
+          <button id="repo-add-btn" class="form-button" data-locale-key="dashboard_server_notifications_add_button"></button>
+        </div>
+      </div>
+
+      <div class="widget">
+        <button id="save-settings-btn" class="form-button" data-locale-key="dashboard_server_save_button"></button>
+        <p id="save-status" class="status-message"></p>
+      </div>
+    </main>
+  </div>
+  <script src="auth.js"></script>
+  <script src="translator.js"></script>
+  <script src="server.js"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-locale-key="dashboard_stats_page_title">Estatísticas - Ubot Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 data-locale-key="dashboard_stats_title">Estatísticas de Uso</h1>
+            <p><a href="/" class="nav-link" data-locale-key="dashboard_back_to_home_button">Voltar para a Home</a></p>
+        </header>
+        <main class="stats-container">
+            <div class="stat-card">
+                <h2 data-locale-key="dashboard_stats_total_commands">Total de Comandos Usados</h2>
+                <p id="total-commands">-</p>
+            </div>
+            <div class="chart-container">
+                <canvas id="command-chart"></canvas>
+            </div>
+        </main>
+    </div>
+    <script src="translator.js"></script>
+    <script src="stats.js"></script>
+</body>
+</html>

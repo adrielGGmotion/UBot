@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <script src="auth.js"></script> <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-locale-key="dashboard_title">Ubot Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --accent: #9900FF;
+      --accent-rgb: 153, 0, 255;
+      --text: #f0f6fc;
+      --muted: #8b949e;
+      --radius: 14px;
+      --gap: 16px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Orbitron", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+    }
+
+    .main-container {
+      display: flex;
+      width: 100%;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 240px;
+      background: var(--panel);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      border-right: 1px solid rgba(255,255,255,0.05);
+    }
+    .sidebar-header h1 {
+      font-size: 1.2rem;
+      color: var(--accent);
+      text-align: center;
+    }
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .nav-link {
+      text-decoration: none;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      transition: all 0.2s;
+    }
+    .nav-link:hover {
+      background: rgba(var(--accent-rgb), 0.1);
+      color: var(--text);
+    }
+    .nav-link.active {
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+    }
+
+    /* Dashboard grid */
+    .dashboard-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: var(--gap);
+      padding: var(--gap);
+      align-content: start;
+    }
+
+    .widget {
+      background: var(--panel);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .widget h2 {
+      font-size: 1rem;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    .stat-card p {
+      font-size: 2rem;
+      font-weight: bold;
+      color: var(--accent);
+    }
+
+    .large-widget {
+      grid-column: span 2;
+    }
+    
+    .chart-container {
+        position: relative;
+        width: 100%;
+        height: 300px;
+    }
+
+    #guilds-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 20px;
+    }
+    
+    .guild-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 10px;
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.03);
+      text-decoration: none;
+      color: var(--muted);
+      transition: background-color 0.2s;
+    }
+    .guild-item:hover {
+      background: rgba(var(--accent-rgb), 0.1);
+      color: var(--text);
+    }
+    .guild-item img, .guild-icon-placeholder {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+    }
+    .guild-icon-placeholder {
+      background-color: var(--bg);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 1.8rem;
+    }
+
+    /* Formulário */
+    .profile-form {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+    .form-group label {
+        margin-bottom: 5px;
+        font-size: 0.9rem;
+        color: var(--muted);
+    }
+    .form-group input {
+        background-color: var(--bg);
+        color: var(--text);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 1rem;
+    }
+    .form-button {
+        background-color: var(--accent);
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+    .form-button:hover {
+        opacity: 0.9;
+    }
+    .status-message {
+        margin-top: 10px;
+        font-weight: bold;
+        min-height: 1.2em;
+    }
+
+    /* Responsividade */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .dashboard-grid { grid-template-columns: 1fr; }
+      .large-widget { grid-column: span 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="main-container">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1 id="bot-name">Carregando...</h1>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-link active" data-locale-key="nav_overview">Visão Geral</a>
+      </nav>
+    </aside>
+
+    <main class="dashboard-grid">
+      <div class="widget stat-card">
+        <h2 data-locale-key="dashboard_servers_title">Servidores</h2>
+        <p id="guild-count">-</p>
+      </div>
+      <div class="widget stat-card">
+        <h2 data-locale-key="dashboard_stats_total_commands">Total de Comandos</h2>
+        <p id="total-commands">-</p>
+      </div>
+      <div class="widget large-widget chart-container">
+        <h2 data-locale-key="dashboard_stats_command_usage">Uso de Comandos</h2>
+        <canvas id="command-chart"></canvas>
+      </div>
+      <div class="widget large-widget" id="guilds-widget">
+        <h2 data-locale-key="dashboard_my_servers_title">Meus Servidores</h2>
+        <div id="guilds-list"></div>
+      </div>
+      <div class="widget large-widget">
+          <h2 data-locale-key="dashboard_profile_title">Gerenciar Perfil</h2>
+          <form id="profile-form" class="profile-form">
+              <div class="form-group">
+                  <label for="username" data-locale-key="dashboard_profile_username">Nome de Usuário</label>
+                  <input type="text" id="username" placeholder="Bot name placeholder here">
+              </div>
+              <div class="form-group">
+                  <label for="avatar" data-locale-key="dashboard_profile_avatar">URL do Avatar</label>
+                  <input type="text" id="avatar" placeholder="https://exemplo.com/imagem.png">
+              </div>
+              <button type="submit" class="form-button" data-locale-key="dashboard_profile_save_button">Salvar Alterações</button>
+          </form>
+          <p id="profile-status" class="status-message"></p>
+      </div>
+      <div class="widget stat-card" id="bot-status-widget">
+        <h2 data-locale-key="dashboard_bot_status_title">Status do Bot</h2>
+        <p id="bot-status">-</p>
+        <div style="font-size:0.95em;color:var(--muted)">
+          <span id="bot-uptime"></span> | <span id="bot-latency"></span>
+        </div>
+      </div>
+      <div class="widget large-widget" id="help-widget">
+        <h2 data-locale-key="dashboard_help_title">Ajuda & Links Rápidos</h2>
+        <ul style="padding-left:18px">
+          <li><a href="https://github.com/adrieIgg/Ubot" target="_blank" style="color:var(--accent)">GitHub: Código Fonte do Bot</a></li>
+          <li><a href="https://discord.com/developers/docs" target="_blank" style="color:var(--accent)">Documentação Discord API</a></li>
+          <li><a href="https://www.chartjs.org/docs/latest/" target="_blank" style="color:var(--accent)">Chart.js Tutorial</a></li>
+        </ul>
+      </div>
+    </main>
+  </div>
+
+  <script src="translator.js"></script>
+  <script src="script.js"></script>
+  <script>
+    // Random colors for charts
+    function randomColor() {
+      return `hsl(${Math.floor(Math.random()*360)}, 70%, 50%)`;
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.Chart) {
+        const originalUpdate = Chart.prototype.update;
+        Chart.prototype.update = function(...args) {
+          if (this.config.data && this.config.data.datasets) {
+            this.config.data.datasets.forEach(ds => {
+              if (!ds.backgroundColor) { // Only if there's no color set
+                ds.backgroundColor = randomColor();
+              }
+            });
+          }
+          originalUpdate.apply(this, args);
+        };
+      }
+    });
+  </script>
+</body>
+</html>
