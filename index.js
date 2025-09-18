@@ -440,29 +440,35 @@ async function startDashboard() {
         client.riffyManager.connect();
         console.log("[RiffyManager] ✅ Gerenciador de eventos do Riffy conectado.");
 
-      console.log(client.getLocale('bot_ready', { user: readyClient.user.tag }));
-      const { statuses, statusrouter } = client.config;
-      const intervalMs = typeof statusrouter === 'number' ? statusrouter : 15000;
-      if (!Array.isArray(statuses) || !statuses.length) return;
-      let i = 0;
-      const setPresence = async () => {
-        const status = statuses[i];
-        if (status && status.name) {
-          try {
-            const activityTypeString = (status.type || 'PLAYING').toUpperCase();
-            const activityType = ActivityType[activityTypeString] ?? ActivityType.Playing;
-            await readyClient.user.setPresence({
-              activities: [{ name: status.name, type: activityType }],
-              status: 'online',
-            });
-          } catch (error) {
-            console.error('Failed to set presence:', error);
-          }
-        }
-        i = (i + 1) % statuses.length;
-      };
-      setPresence();
-      setInterval(setPresence, intervalMs);
+        // Moved the raw event listener here to prevent a race condition
+        client.on("raw", (d) => {
+            // Riffy is initialized in the clientReady event, so this should be safe
+            client.riffy.updateVoiceState(d);
+        });
+
+        console.log(client.getLocale('bot_ready', { user: readyClient.user.tag }));
+        const { statuses, statusrouter } = client.config;
+        const intervalMs = typeof statusrouter === 'number' ? statusrouter : 15000;
+        if (!Array.isArray(statuses) || !statuses.length) return;
+        let i = 0;
+        const setPresence = async () => {
+            const status = statuses[i];
+            if (status && status.name) {
+                try {
+                    const activityTypeString = (status.type || 'PLAYING').toUpperCase();
+                    const activityType = ActivityType[activityTypeString] ?? ActivityType.Playing;
+                    await readyClient.user.setPresence({
+                        activities: [{ name: status.name, type: activityType }],
+                        status: 'online',
+                    });
+                } catch (error) {
+                    console.error('Failed to set presence:', error);
+                }
+            }
+            i = (i + 1) % statuses.length;
+        };
+        setPresence();
+        setInterval(setPresence, intervalMs);
     });
 
     const token = process.env.TOKEN;
