@@ -12,7 +12,7 @@ module.exports = {
     }
 
     const player = client.riffy.players.get(interaction.guildId);
-    if (!player || !player.playing) {
+    if (!player) {
       return interaction.reply({ content: 'Não estou tocando nada no momento.', ephemeral: true });
     }
 

@@ -21,6 +21,7 @@ class RiffyManager {
         this.client.riffy.on("nodeError", (node, error) => this.onNodeError(node, error));
         this.client.riffy.on("nodeDisconnect", (node, reason) => this.onNodeDisconnect(node, reason));
         this.client.riffy.on("trackStart", (player, track) => this.onTrackStart(player, track));
+        this.client.riffy.on("trackEnd", (player, track, payload) => this.onTrackEnd(player, track, payload));
         this.client.riffy.on("queueEnd", player => this.onQueueEnd(player));
         this.client.riffy.on("playerDestroy", player => this.onPlayerDestroy(player));
     }
@@ -71,6 +72,18 @@ class RiffyManager {
         player.set("destroyTimeout", setTimeout(() => {
             player.destroy();
         }, 120000)); // 2 minutes
+    }
+
+    async onTrackEnd(player, track, payload) {
+        // If the track ended because it was stopped, don't play the next one
+        if (payload && payload.reason === 'stopped') {
+            return;
+        }
+
+        // Play the next track if there is one
+        if (player.queue.length > 0) {
+            player.play();
+        }
     }
 
     onPlayerDestroy(player) {
