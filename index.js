@@ -443,7 +443,9 @@ async function startDashboard() {
         // Moved the raw event listener here to prevent a race condition
         client.on("raw", (d) => {
             // Riffy is initialized in the clientReady event, so this should be safe
-            client.riffy.updateVoiceState(d);
+            if (client.riffy) {
+                client.riffy.updateVoiceState(d);
+            }
         });
 
         console.log(client.getLocale('bot_ready', { user: readyClient.user.tag }));
