@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const guildId = urlParams.get('id');
     let dataFromAPI = {};
     let chatHistory = [];
+    let musicDataInterval;
 
     function getElement(id, critical = true) {
         const element = document.getElementById(id);
@@ -22,12 +23,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleAuthError(response) {
         if (response.status === 401) {
             localStorage.removeItem('dashboard-token');
+            if (musicDataInterval) clearInterval(musicDataInterval);
             window.location.href = '/login.html';
             return true;
         }
         return false;
     }
-    
+
     // --- Elementos do DOM ---
     const botNameElement = getElement('bot-name');
     const serverNameTitle = getElement('server-name-title');
@@ -36,11 +38,207 @@ document.addEventListener('DOMContentLoaded', () => {
     const serverNavContainer = getElement('server-nav-links');
     const panels = {
         ai: getElement('panel-ai'),
+        music: getElement('panel-music'),
         faq: getElement('panel-faq'),
         notifications: getElement('panel-notifications')
     };
 
+    // --- Lógica de Música ---
+    async function fetchMusicData() {
+        try {
+            const token = localStorage.getItem('dashboard-token');
+            const response = await fetch(`/api/guilds/${guildId}/music`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (handleAuthError(response)) return;
+            const data = await response.json();
+            updateMusicPanel(data);
+        } catch (error) {
+            console.error("Failed to fetch music data:", error);
+        }
+    }
+
+    function updateMusicPanel(data) {
+        const npTitle = getElement('np-song-title');
+        const queueList = getElement('queue-list');
+
+        if (data.playing && data.nowPlaying) {
+            npTitle.textContent = data.nowPlaying.title;
+        } else {
+            npTitle.textContent = i18n.t('dashboard_server_music_nothing_playing');
+        }
+
+        if (data.queue && data.queue.length > 0) {
+            queueList.innerHTML = data.queue.map((track, i) => `<p>${i + 1}. ${track.title}</p>`).join('');
+        } else {
+            queueList.innerHTML = `<p>${i18n.t('dashboard_server_music_queue_empty')}</p>`;
+        }
+    }
+
+    async function controlMusicPlayer(action) {
+        try {
+            const token = localStorage.getItem('dashboard-token');
+            await fetch(`/api/guilds/${guildId}/music/control`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ action })
+            });
+            fetchMusicData(); // Refresh data after action
+        } catch (error) {
+            console.error(`Failed to execute music action '${action}':`, error);
+        }
+    }
+
     // --- Lógica do Testador de Chat ---
+    // ... (código do chat inalterado)
+
+    // --- Construção da Página e Painéis ---
+    function buildPageContent(data) {
+        dataFromAPI = data;
+        const { availableChannels, settings } = data;
+        buildAiPanel(availableChannels, settings.aiChannelIds, settings.aiConfig);
+        buildFaqPanel(settings.faq);
+        buildNotificationsPanel(availableChannels, settings.githubRepos);
+        buildMusicPanel(settings.musicConfig);
+        setupNavigation();
+    }
+
+    function buildMusicPanel(musicConfig = {}) {
+        getElement('music-dj-role').value = (musicConfig && musicConfig.djRole) || 'DJ';
+        getElement('music-pause-btn').addEventListener('click', () => controlMusicPlayer('pause'));
+        getElement('music-resume-btn').addEventListener('click', () => controlMusicPlayer('resume'));
+        getElement('music-skip-btn').addEventListener('click', () => controlMusicPlayer('skip'));
+    }
+
+    function buildAiPanel(channels = [], selectedIds = [], config = {}) {
+        // ... (código do painel de IA inalterado)
+    }
+
+    function buildFaqPanel(faqData = []) {
+        // ... (código do painel de FAQ inalterado)
+    }
+
+    function buildNotificationsPanel(availableChannels = [], repos = []) {
+        // ... (código do painel de notificações inalterado)
+    }
+
+    function setupNavigation() {
+        serverNavContainer.innerHTML = `
+            <a href="/" class="nav-link" data-locale-key="nav_overview"></a>
+            <a href="#" class="nav-link active" data-panel="ai" data-locale-key="nav_chatbot"></a>
+            <a href="#" class="nav-link" data-panel="music" data-locale-key="nav_music"></a>
+            <a href="#" class="nav-link" data-panel="faq" data-locale-key="nav_faq"></a>
+            <a href="#" class="nav-link" data-panel="notifications" data-locale-key="nav_notifications"></a>
+            <a href="/connect-tree.html?id=${guildId}" class="nav-link" data-locale-key="nav_connect_tree"></a>`;
+
+        serverNavContainer.querySelectorAll('[data-locale-key]').forEach(el => el.textContent = i18n.t(el.dataset.localeKey));
+
+        const navLinks = serverNavContainer.querySelectorAll('.nav-link[data-panel]');
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                navLinks.forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+                Object.values(panels).forEach(p => p.style.display = 'none');
+                panels[link.dataset.panel].style.display = 'block';
+
+                if (link.dataset.panel === 'music') {
+                    fetchMusicData();
+                    if (!musicDataInterval) {
+                        musicDataInterval = setInterval(fetchMusicData, 5000); // Poll every 5 seconds
+                    }
+                } else {
+                    if (musicDataInterval) {
+                        clearInterval(musicDataInterval);
+                        musicDataInterval = null;
+                    }
+                }
+            });
+        });
+        panels.music.style.display = 'none';
+        panels.faq.style.display = 'none';
+        panels.notifications.style.display = 'none';
+    }
+
+    async function initializePage() {
+        await applyTranslations();
+        try {
+            const token = localStorage.getItem('dashboard-token');
+            const infoRes = await fetch('/api/info', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (handleAuthError(infoRes)) return;
+            if (!infoRes.ok) throw new Error('Info API response not OK');
+            const infoData = await infoRes.json();
+
+            botNameElement.textContent = infoData.bot.tag || 'Bot Offline';
+            const primaryColor = infoData.colors.primary || '#0d1117';
+            const accentColor = infoData.colors.accent1 || '#9900FF';
+            document.documentElement.style.setProperty('--bg', primaryColor);
+            document.documentElement.style.setProperty('--panel', `rgba(${hexToRgb(accentColor)}, 0.1)`);
+            document.documentElement.style.setProperty('--accent', accentColor);
+            document.documentElement.style.setProperty('--accent-rgb', hexToRgb(accentColor));
+
+            if (!guildId) throw new Error('ID do Servidor não fornecido na URL.');
+
+            const [settingsRes, guildsRes] = await Promise.all([
+                fetch(`/api/guilds/${guildId}/settings`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch('/api/guilds', { headers: { 'Authorization': `Bearer ${token}` } })
+            ]);
+
+            if (handleAuthError(settingsRes) || handleAuthError(guildsRes)) return;
+            if (!settingsRes.ok) throw new Error(`Server settings API returned ${settingsRes.status}`);
+            if (!guildsRes.ok) throw new Error(`Guilds API returned ${guildsRes.status}`);
+
+            const data = await settingsRes.json();
+            const guilds = await guildsRes.json();
+            const currentGuild = guilds.find(g => g.id === guildId);
+
+            if (!currentGuild) throw new Error('Servidor não encontrado.');
+
+            serverNameTitle.textContent = i18n.t('dashboard_server_managing_title', { serverName: currentGuild.name });
+            buildPageContent(data);
+
+        } catch (error) {
+            serverNameTitle.textContent = i18n.t('dashboard_server_error_loading');
+            console.error("Erro na inicialização:", error);
+        }
+    }
+
+    saveButton.addEventListener('click', async () => {
+        const aiChannelIds = Array.from(document.querySelectorAll('#channels-list input:checked')).map(cb => cb.value);
+
+        const aiConfig = {
+            personality: getElement('ai-personality').value,
+            examples: getElement('ai-examples').value,
+            contextLimit: parseInt(getElement('ai-context-limit').value, 10) || 15
+        };
+
+        const musicConfig = {
+            djRole: getElement('music-dj-role').value.trim()
+        };
+
+        const faq = (dataFromAPI.settings && dataFromAPI.settings.faq) ? dataFromAPI.settings.faq : [];
+        const githubRepos = (dataFromAPI.settings && dataFromAPI.settings.githubRepos) ? dataFromAPI.settings.githubRepos : [];
+
+        saveStatus.textContent = i18n.t('dashboard_server_saving_status');
+        try {
+            const token = localStorage.getItem('dashboard-token');
+            const response = await fetch(`/api/guilds/${guildId}/settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ aiChannelIds, aiConfig, faq, githubRepos, musicConfig })
+            });
+            if (handleAuthError(response)) return;
+            if (!response.ok) throw new Error('Response not OK');
+            saveStatus.textContent = i18n.t('dashboard_server_saved_success_status');
+            saveStatus.style.color = '#4ade80';
+        } catch (error) {
+            saveStatus.textContent = i18n.t('dashboard_server_saved_fail_status');
+            saveStatus.style.color = '#f87171';
+        }
+        setTimeout(() => { saveStatus.textContent = ''; }, 3000);
+    });
+
+    // Re-colocando as funções de chat que foram omitidas para abreviar
     const chatDisplay = getElement('chat-display');
     const chatInput = getElement('chat-input');
     const sendChatBtn = getElement('send-chat-btn');
@@ -64,16 +262,13 @@ document.addEventListener('DOMContentLoaded', () => {
         chatInput.disabled = true;
         sendChatBtn.disabled = true;
 
-        // Pega os valores atuais dos campos
         const currentConfig = {
             personality: getElement('ai-personality').value,
             examples: getElement('ai-examples').value,
             contextLimit: parseInt(getElement('ai-context-limit').value, 10) || 15
         };
-
-        // Respeita o limite de contexto no teste
         const historyForAPI = chatHistory.slice(-currentConfig.contextLimit);
-        
+
         try {
             const token = localStorage.getItem('dashboard-token');
             const response = await fetch('/api/test-ai', {
@@ -82,41 +277,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ history: historyForAPI, config: currentConfig })
             });
             if (handleAuthError(response)) return;
-            if (!response.ok) throw new Error('Falha na API de teste');
-
             const data = await response.json();
             addMessageToChat('bot', data.reply);
             chatHistory.push({ role: 'assistant', content: data.reply });
-
         } catch (error) {
             addMessageToChat('bot', i18n.t('dashboard_server_ai_tester_error'));
-            console.error('Chat test error:', error);
         } finally {
             chatInput.disabled = false;
             sendChatBtn.disabled = false;
             chatInput.focus();
         }
     }
-
     sendChatBtn.addEventListener('click', sendChatMessage);
-    chatInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') sendChatMessage();
-    });
-    clearChatBtn.addEventListener('click', () => {
-        chatDisplay.innerHTML = '';
-        chatHistory = [];
-    });
+    chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChatMessage(); });
+    clearChatBtn.addEventListener('click', () => { chatDisplay.innerHTML = ''; chatHistory = []; });
 
-    // --- Construção da Página e Painéis ---
-    function buildPageContent(data) {
-        dataFromAPI = data;
-        const { availableChannels, settings } = data;
-        buildAiPanel(availableChannels, settings.aiChannelIds, settings.aiConfig);
-        buildFaqPanel(settings.faq);
-        buildNotificationsPanel(availableChannels, settings.githubRepos);
-        setupNavigation();
-    }
-
+    // Re-colocando o build dos painéis que foram omitidos
     function buildAiPanel(channels = [], selectedIds = [], config = {}) {
         const listDiv = getElement('channels-list');
         listDiv.innerHTML = '';
@@ -124,13 +300,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const isChecked = (selectedIds || []).includes(ch.id);
             listDiv.innerHTML += `<div class="checkbox-group"><input type="checkbox" id="${ch.id}" value="${ch.id}" ${isChecked ? 'checked' : ''}><label for="${ch.id}">#${ch.name}</label></div>`;
         });
-        
-        // Carrega as configurações nos campos
         getElement('ai-personality').value = config.personality || '';
         getElement('ai-examples').value = config.examples || '';
         getElement('ai-context-limit').value = config.contextLimit || 15;
     }
-    
+
     function buildFaqPanel(faqData = []) {
         const faqListDiv = getElement('faq-list');
         const faqAddBtn = getElement('faq-add-btn');
@@ -153,15 +327,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         render();
         faqAddBtn.addEventListener('click', () => {
-            const newQuestionInput = getElement('faq-new-question');
-            const newAnswerInput = getElement('faq-new-answer');
-            const question = newQuestionInput.value.trim();
-            const answer = newAnswerInput.value.trim();
-            if (question && answer) {
-                faqData.push({ question, answer });
+            const q = getElement('faq-new-question').value.trim();
+            const a = getElement('faq-new-answer').value.trim();
+            if (q && a) {
+                faqData.push({ question: q, answer: a });
                 render();
-                newQuestionInput.value = '';
-                newAnswerInput.value = '';
+                getElement('faq-new-question').value = '';
+                getElement('faq-new-answer').value = '';
             }
         });
     }
@@ -192,118 +364,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         render();
         repoAddBtn.addEventListener('click', () => {
-            const newRepoNameInput = getElement('repo-new-name');
-            const repo = newRepoNameInput.value.trim().toLowerCase();
-            if (repo.match(/^[a-z0-9-]+\/[a-z0-9-._]+$/)) {
-                repos.push({ repo, channelId: newRepoChannelSelect.value });
+            const repoName = getElement('repo-new-name').value.trim().toLowerCase();
+            if (repoName.match(/^[a-z0-9-]+\/[a-z0-9-._]+$/)) {
+                repos.push({ repo: repoName, channelId: newRepoChannelSelect.value });
                 render();
-                newRepoNameInput.value = '';
+                getElement('repo-new-name').value = '';
             } else {
                 alert(i18n.t('dashboard_server_notifications_invalid_repo_format_alert'));
             }
         });
     }
 
-    function setupNavigation() {
-        serverNavContainer.innerHTML = `
-            <a href="/" class="nav-link" data-locale-key="nav_overview"></a>
-            <a href="#" class="nav-link active" data-panel="ai" data-locale-key="nav_chatbot"></a>
-            <a href="#" class="nav-link" data-panel="faq" data-locale-key="nav_faq"></a>
-            <a href="#" class="nav-link" data-panel="notifications" data-locale-key="nav_notifications"></a>
-            <a href="/connect-tree.html?id=${guildId}" class="nav-link" data-locale-key="nav_connect_tree"></a>`;
-     
-        // Aplica a tradução aos links recém-criados
-        serverNavContainer.querySelectorAll('[data-locale-key]').forEach(el => el.textContent = i18n.t(el.dataset.localeKey));
-
-        const navLinks = serverNavContainer.querySelectorAll('.nav-link[data-panel]');
-        navLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                navLinks.forEach(l => l.classList.remove('active'));
-                link.classList.add('active');
-                Object.values(panels).forEach(p => p.style.display = 'none');
-                panels[link.dataset.panel].style.display = 'block';
-            });
-        });
-        panels.faq.style.display = 'none';
-        panels.notifications.style.display = 'none';
-    }
-
-    async function initializePage() {
-        // Espera as traduções carregarem antes de continuar
-        await applyTranslations();
-        try {
-            const token = localStorage.getItem('dashboard-token');
-            const infoRes = await fetch('/api/info', { headers: { 'Authorization': `Bearer ${token}` } });
-            if (handleAuthError(infoRes)) return;
-            if (!infoRes.ok) throw new Error('Info API response not OK');
-            const infoData = await infoRes.json();
-            
-            botNameElement.textContent = infoData.bot.tag || 'Bot Offline';
-            const primaryColor = infoData.colors.primary || '#0d1117';
-            const accentColor = infoData.colors.accent1 || '#9900FF';
-            document.documentElement.style.setProperty('--bg', primaryColor);
-            document.documentElement.style.setProperty('--panel', `rgba(${hexToRgb(accentColor)}, 0.1)`);
-            document.documentElement.style.setProperty('--accent', accentColor);
-            document.documentElement.style.setProperty('--accent-rgb', hexToRgb(accentColor));
-
-            if (!guildId) throw new Error('ID do Servidor não fornecido na URL.');
-
-            const [settingsRes, guildsRes] = await Promise.all([
-                fetch(`/api/guilds/${guildId}/settings`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                fetch('/api/guilds', { headers: { 'Authorization': `Bearer ${token}` } })
-            ]);
-            
-            if (handleAuthError(settingsRes) || handleAuthError(guildsRes)) return;
-            if (!settingsRes.ok) throw new Error(`Server settings API returned ${settingsRes.status}`);
-            if (!guildsRes.ok) throw new Error(`Guilds API returned ${guildsRes.status}`);
-
-            const data = await settingsRes.json();
-            const guilds = await guildsRes.json();
-            const currentGuild = guilds.find(g => g.id === guildId);
-
-            if (!currentGuild) throw new Error('Servidor não encontrado.');
-            
-            serverNameTitle.textContent = i18n.t('dashboard_server_managing_title', { serverName: currentGuild.name });
-            buildPageContent(data);
-
-        } catch (error) {
-            serverNameTitle.textContent = i18n.t('dashboard_server_error_loading');
-            console.error("Erro na inicialização:", error);
-        }
-    }
-    
-    saveButton.addEventListener('click', async () => {
-        const aiChannelIds = Array.from(document.querySelectorAll('#channels-list input:checked')).map(cb => cb.value);
-        
-        // Pega todos os valores do form de IA
-        const aiConfig = {
-            personality: getElement('ai-personality').value,
-            examples: getElement('ai-examples').value,
-            contextLimit: parseInt(getElement('ai-context-limit').value, 10) || 15
-        };
-
-        const faq = dataFromAPI.settings.faq || [];
-        const githubRepos = dataFromAPI.settings.githubRepos || [];
-
-        saveStatus.textContent = i18n.t('dashboard_server_saving_status');
-        try {
-            const token = localStorage.getItem('dashboard-token');
-            const response = await fetch(`/api/guilds/${guildId}/settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ aiChannelIds, aiConfig, faq, githubRepos })
-            });
-            if (handleAuthError(response)) return;
-            if (!response.ok) throw new Error('Response not OK');
-            saveStatus.textContent = i18n.t('dashboard_server_saved_success_status');
-            saveStatus.style.color = '#4ade80';
-        } catch (error) {
-            saveStatus.textContent = i18n.t('dashboard_server_saved_fail_status');
-            saveStatus.style.color = '#f87171';
-        }
-        setTimeout(() => { saveStatus.textContent = ''; }, 3000);
-    });
 
     // Placeholders traduzidos
     getElement('ai-personality').placeholder = i18n.t('dashboard_server_ai_personality_placeholder');

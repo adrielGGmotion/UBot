@@ -15,11 +15,11 @@
   "music": {
     "nodes": [
       {
-        "host": "lavalink.jirayu.net",
-        "port": 13592,
-        "password": "youshallnotpass",
+        "host": "your_lavalink_host",
+        "port": 2333,
+        "password": "your_lavalink_password",
         "secure": false,
-        "name": "NODE"
+        "name": "Main Node"
       }
     ],
     "defaultVolume": 80,

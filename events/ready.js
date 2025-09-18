@@ -4,7 +4,8 @@ module.exports = {
   name: 'ready',
   once: true,
   async execute(client) {
-    await require('../features/riffyManager.js').init(client);
+    // A inicialização do Riffy foi movida para o index.js para evitar duplicação.
+    // O evento 'clientReady' no index.js agora cuida disso.
     console.log(client.getLocale('bot_ready', { user: client.user.tag }));
 
     const { statuses, statusrouter } = client.config;
