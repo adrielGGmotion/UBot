@@ -49,16 +49,7 @@ module.exports = {
                  .setDescription(`**${playlistInfo.name}** com **${tracks.length}** músicas foi adicionada à fila.`);
             await interaction.editReply({ embeds: [embed] });
             if (!player.playing && !player.paused) {
-                // Tenta usar o método de reprodução correto com base na API do riffy
-                try {
-                    player.play();
-                } catch (error) {
-                    console.error("Error playing track:", error);
-                    // Método alternativo se play() não existir
-                    if (typeof player.start === 'function') {
-                        player.start();
-                    }
-                }
+                player.play();
             }
             break;
 
@@ -70,17 +61,7 @@ module.exports = {
                  .setDescription(`[${track.info.title}](${track.info.uri})`);
             await interaction.editReply({ embeds: [embed] });
             if (!player.playing && !player.paused) {
-                // Tenta usar o método de reprodução correto com base na API do riffy
-                try {
-                    // Garante que a música será reproduzida completamente
-                    player.play({ track: track });
-                } catch (error) {
-                    console.error("Error playing track:", error);
-                    // Método alternativo se play() não existir
-                    if (typeof player.start === 'function') {
-                        player.start(track);
-                    }
-                }
+                player.play();
             }
             break;
 
