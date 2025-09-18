@@ -2,7 +2,8 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { Client, Collection, GatewayIntentBits, Partials, REST, Routes, EmbedBuilder, ActivityType } = require('discord.js');
-const { Riffy } = require("riffy"); // Adicionado o import do Riffy que estava faltando
+const { Riffy } = require("riffy");
+const RiffyManager = require('./features/riffyManager.js');
 const express = require('express');
 const crypto = require('crypto');
 
@@ -21,7 +22,20 @@ try {
     language: 'en',
     activateDashboard: false,
     useExternalSettings: false,
-    enabledCommands: {}
+    enabledCommands: {},
+    music: {
+      nodes: [
+        {
+          host: process.env.LAVALINK_HOST || "localhost",
+          port: parseInt(process.env.LAVALINK_PORT, 10) || 2333,
+          password: process.env.LAVALINK_PASSWORD || "youshallnotpass",
+          secure: process.env.LAVALINK_SECURE === 'true',
+          name: "Default Node"
+        }
+      ],
+      defaultVolume: 80,
+      djRole: "DJ"
+    }
   };
 }
 
@@ -62,8 +76,10 @@ async function loadFeatures() {
         try {
             const feature = require(path.join(featuresDir, file));
             const featureName = path.parse(file).name;
-            client.features.set(featureName, feature);
-            console.log(`Loaded feature: ${featureName}`);
+            if (featureName !== 'riffyManager') { // Don't load RiffyManager as a generic feature
+                client.features.set(featureName, feature);
+                console.log(`Loaded feature: ${featureName}`);
+            }
         } catch (err) {
             console.error(`Failed to load feature from ${file}: ${err.message}`);
         }
@@ -267,19 +283,19 @@ async function startDashboard() {
       res.status(404).json({ error: 'Language file not found.' });
     }
   });
-  
+
   app.get('/api/guilds/:guildId/settings', authMiddleware, async (req, res) => {
     if (!client.db) return res.status(503).json({ error: 'Database not connected.' });
     const { guildId } = req.params;
     try {
       const guild = await client.guilds.fetch(guildId);
       if (!guild) return res.status(404).json({ error: 'Guild not found.' });
-      const settingsCollection = client.getDbCollection('server-settings');
+      const settingsCollection = client.db.collection('server-settings');
       let settings = await settingsCollection.findOne({ guildId });
       if (!settings) {
-        settings = { guildId, aiChannelIds: [], aiConfig: {}, faq: [], githubRepos: [] };
+        settings = { guildId, aiChannelIds: [], aiConfig: {}, faq: [], githubRepos: [], musicConfig: { djRole: 'DJ' } };
       }
-      const channels = guild.channels.cache.filter(c => c.type === 0).map(c => ({ id: c.id, name: c.name }));
+      const channels = guild.channels.cache.filter(c => c.isTextBased()).map(c => ({ id: c.id, name: c.name }));
       res.json({ settings, availableChannels: channels });
     } catch (error) {
       console.error(`[API] Error fetching settings for guild ${guildId}:`, error);
@@ -290,15 +306,67 @@ async function startDashboard() {
   app.post('/api/guilds/:guildId/settings', authMiddleware, async (req, res) => {
     if (!client.db) return res.status(503).json({ error: 'Database not connected.' });
     const { guildId } = req.params;
-    const { aiChannelIds, aiConfig, faq, githubRepos } = req.body;
-    const settingsCollection = client.getDbCollection('server-settings');
+    const { aiChannelIds, aiConfig, faq, githubRepos, musicConfig } = req.body;
+    const settingsCollection = client.db.collection('server-settings');
     await settingsCollection.updateOne(
       { guildId },
-      { $set: { aiChannelIds, aiConfig, faq, githubRepos } },
+      { $set: { aiChannelIds, aiConfig, faq, githubRepos, musicConfig } },
       { upsert: true }
     );
     res.status(200).json({ success: 'Settings updated.' });
   });
+
+  // --- NOVOS ENDPOINTS DE MÚSICA ---
+  app.get('/api/guilds/:guildId/music', authMiddleware, (req, res) => {
+    const { guildId } = req.params;
+    const player = client.riffy.players.get(guildId);
+
+    if (!player) {
+      return res.json({ playing: false });
+    }
+
+    const { queue, state, volume, loop } = player;
+    const nowPlaying = queue.current;
+
+    res.json({
+        playing: state === 'CONNECTED',
+        paused: player.paused,
+        nowPlaying: nowPlaying ? { title: nowPlaying.info.title, author: nowPlaying.info.author, uri: nowPlaying.info.uri } : null,
+        queue: queue.map(track => ({ title: track.info.title, author: track.info.author, uri: track.info.uri })),
+        volume,
+        loop
+    });
+  });
+
+  app.post('/api/guilds/:guildId/music/control', authMiddleware, (req, res) => {
+    const { guildId } = req.params;
+    const { action } = req.body;
+    const player = client.riffy.players.get(guildId);
+
+    if (!player) {
+        return res.status(404).json({ error: 'Player não encontrado.' });
+    }
+
+    try {
+        switch(action) {
+            case 'pause':
+                player.pause(true);
+                break;
+            case 'resume':
+                player.pause(false);
+                break;
+            case 'skip':
+                player.stop();
+                break;
+            default:
+                return res.status(400).json({ error: 'Ação inválida.' });
+        }
+        res.status(200).json({ success: `Ação '${action}' executada.` });
+    } catch (error) {
+        res.status(500).json({ error: 'Falha ao controlar o player.' });
+    }
+  });
+
 
   app.post('/api/bot/profile', authMiddleware, async (req, res) => {
     const { username, avatar } = req.body;
@@ -327,7 +395,7 @@ async function startDashboard() {
   });
 
   app.use('/', express.static(path.join(ROOT, 'dashboard', 'public')));
-  
+
   app.listen(port, () => console.log(client.getLocale('log_dashboard_running', { port: port })));
 }
 
@@ -344,12 +412,13 @@ async function startDashboard() {
     await startDashboard();
 
     client.once('clientReady', async (readyClient) => {
-        const nodes = [{
-            host: process.env.LAVALINK_HOST,
-            port: parseInt(process.env.LAVALINK_PORT, 10),
-            password: process.env.LAVALINK_PASSWORD,
-            secure: process.env.LAVALINK_SECURE === 'true',
-        }];
+        const nodes = client.config.music.nodes.map(node => ({
+            host: node.host,
+            port: node.port,
+            password: node.password,
+            secure: node.secure,
+            name: node.name
+        }));
 
         client.riffy = new Riffy(
             client,
@@ -359,23 +428,17 @@ async function startDashboard() {
                     const guild = client.guilds.cache.get(payload.d.guild_id);
                     if (guild) guild.shard.send(payload);
                 },
+                defaultSearchPlatform: "ytmsearch",
+                restVersion: "v4"
             }
         );
 
-        client.riffy.init(readyClient.user.id);
-        console.log("[RIFFY] ✅ Riffy inicializado corretamente!");
+        await client.riffy.init(readyClient.user.id);
+        console.log("[RIFFY] ✅ Riffy inicializado com o ID do cliente.");
 
-        client.riffy.on("nodeConnect", node => console.log(`[RIFFY] ✅ Node "${node.name}" conectado.`));
-        client.riffy.on("nodeError", (node, error) => console.error(`[RIFFY] ❌ Erro no Node "${node.name}": ${error.message}`));
-        client.riffy.on("trackStart", (player, track) => {
-            const channel = client.channels.cache.get(player.textChannel);
-            if (channel) channel.send(`Tocando agora: **${track.info.title}**`);
-        });
-        client.riffy.on("queueEnd", (player) => {
-            const channel = client.channels.cache.get(player.textChannel);
-            if (channel) channel.send("A fila de músicas acabou.");
-            player.destroy();
-        });
+        client.riffyManager = new RiffyManager(client);
+        client.riffyManager.connect();
+        console.log("[RiffyManager] ✅ Gerenciador de eventos do Riffy conectado.");
 
       console.log(client.getLocale('bot_ready', { user: readyClient.user.tag }));
       const { statuses, statusrouter } = client.config;
@@ -401,7 +464,7 @@ async function startDashboard() {
       setPresence();
       setInterval(setPresence, intervalMs);
     });
-    
+
     const token = process.env.TOKEN;
     if (!token) {
       console.error(client.getLocale('err_missing_token'));

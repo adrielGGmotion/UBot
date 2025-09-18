@@ -11,5 +11,18 @@
   "language": "en",
   "activateDashboard": true,
   "useExternalSettings": true,
-  "enabledCommands": {}
+  "enabledCommands": {},
+  "music": {
+    "nodes": [
+      {
+        "host": "localhost",
+        "port": 2333,
+        "password": "youshallnotpass",
+        "secure": false,
+        "name": "Default Node"
+      }
+    ],
+    "defaultVolume": 80,
+    "djRole": "DJ"
+  }
 }
