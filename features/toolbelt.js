@@ -110,6 +110,18 @@ const tools = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'list_channels',
+      description: 'Lista todos os canais (de texto e voz) visíveis no servidor, junto com seus IDs, nomes e tipos.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
+  },
 ];
 
 /**
@@ -161,6 +173,26 @@ const getToolFunctions = (client) => ({
       return { success: false, content: 'Ocorreu um erro ao tentar listar os canais de texto.' };
     }
   },
+  list_channels: async (_, originalMessage) => {
+    try {
+      const guild = originalMessage.guild;
+      if (!guild) {
+        return { success: false, content: 'Esta função só pode ser usada dentro de um servidor.' };
+      }
+
+      const channels = guild.channels.cache
+        .map(channel => ({
+          id: channel.id,
+          name: channel.name,
+          type: channel.isTextBased() ? 'text' : (channel.isVoiceBased() ? 'voice' : 'unknown'),
+        }));
+
+      return { success: true, content: JSON.stringify(channels, null, 2) };
+    } catch (error) {
+      console.error('Erro ao listar todos os canais:', error);
+      return { success: false, content: 'Ocorreu um erro ao tentar listar os canais.' };
+    }
+  },
   join_voice_channel: async ({ channel_id }, originalMessage) => {
     try {
       const guild = originalMessage.guild;
@@ -175,7 +207,7 @@ const getToolFunctions = (client) => ({
         return { success: false, content: 'O sistema de música (Riffy) não parece estar inicializado.' };
       }
 
-      client.riffy.create({
+      client.riffy.createConnection({
         guildId: guild.id,
         voiceChannel: voiceChannel.id,
         textChannel: originalMessage.channel.id,
@@ -212,11 +244,25 @@ const getToolFunctions = (client) => ({
       return { success: false, content: 'Ocorreu um erro ao listar os membros.' };
     }
   },
-  get_user_avatar: async ({ user_id }) => {
+  get_user_avatar: async ({ user_id }, originalMessage) => {
     try {
-      const user = await client.users.fetch(user_id);
+      let user;
+      // Tenta buscar pelo ID primeiro (método mais confiável)
+      try {
+        user = await client.users.fetch(user_id);
+      } catch (e) {
+        // Se falhar, pode não ser um ID. Tenta buscar pelo nome no servidor.
+        if (originalMessage.guild) {
+          const members = await originalMessage.guild.members.search({ query: user_id, limit: 1 });
+          const member = members.first();
+          if (member) {
+            user = member.user;
+          }
+        }
+      }
+
       if (!user) {
-        return { success: false, content: `Usuário com ID ${user_id} não encontrado.` };
+        return { success: false, content: `Usuário "${user_id}" não encontrado.` };
       }
 
       const avatarURL = user.displayAvatarURL({ dynamic: true, size: 512 });

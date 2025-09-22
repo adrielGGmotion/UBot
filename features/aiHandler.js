@@ -4,7 +4,6 @@ const { tools, getToolFunctions } = require('./toolbelt.js');
 // Inicializa o cliente da API
 const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
 });
 
 /**
@@ -125,7 +124,7 @@ async function generateResponse(client, message) {
 
     // Primeira chamada à API, agora com ferramentas
     const completion = await openai.chat.completions.create({
-      model: "deepseek/deepseek-r1:free",
+      model: "x-ai/grok-4-fast:free",
       messages: messagesForAPI,
       tools: tools, // Informa à IA quais ferramentas ela pode usar
       tool_choice: "auto",
@@ -161,7 +160,7 @@ async function generateResponse(client, message) {
 
       // Segunda chamada à API com os resultados das ferramentas
       const secondCompletion = await openai.chat.completions.create({
-        model: "deepseek/deepseek-r1:free",
+        model: "x-ai/grok-4-fast:free",
         messages: messagesForAPI,
       });
 
@@ -228,7 +227,7 @@ async function generateStandaloneResponse(history, aiConfig) {
      const systemPrompt = { role: 'system', content: aiConfig.personality || "Você é um bot de teste." };
      const messagesForAPI = [systemPrompt, ...history];
      const completion = await openai.chat.completions.create({
-       model: "deepseek/deepseek-r1:free",
+       model: "x-ai/grok-4-fast:free",
        messages: messagesForAPI,
      });
      return completion.choices[0].message.content;
