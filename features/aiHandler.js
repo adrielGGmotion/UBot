@@ -6,29 +6,63 @@ const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
 });
 
+const IMAGE_URL_REGEX = /\b(https?:\/\/[^\s]+?\.(?:png|jpe?g|gif|webp))\b/i;
+
 /**
- * Busca e formata o histórico de mensagens do canal, identificando cada usuário pelo nome.
+ * Busca e formata o histórico de mensagens do canal, agora com capacidade de incluir imagens.
  * @param {import('discord.js').Message} message - A mensagem que acionou o bot.
  * @param {import('discord.js').Client} client - O cliente do Discord.
  * @param {number} limit - O número de mensagens a serem buscadas.
- * @returns {Promise<{role: string, content: string}[]>} - O histórico formatado da conversa.
+ * @returns {Promise<{role: string, content: (string | object)[]}[]>} - O histórico formatado.
  */
 async function fetchConversationHistory(message, client, limit) {
   const lastMessages = await message.channel.messages.fetch({ limit });
   const conversation = [];
 
   for (const msg of Array.from(lastMessages.values()).reverse()) {
-    const embedContent = msg.embeds?.length > 0
-      ? ` [Bot Embed Content: ${msg.embeds.map(e => `${e.title || ''} ${e.description || ''}`.trim()).join(' ')}]`
-      : '';
+    const textContent = msg.content;
+    let imageUrl = null;
 
-    const content = `${msg.content}${embedContent}`.trim();
-
-    if (msg.author.id === client.user.id) {
-      conversation.push({ role: 'assistant', content });
-    } else {
-      conversation.push({ role: 'user', content: `${msg.author.username}: ${content}` });
+    // Prioriza anexos
+    if (msg.attachments.size > 0) {
+      const attachment = msg.attachments.first();
+      if (attachment.contentType?.startsWith('image/')) {
+        imageUrl = attachment.url;
+      }
     }
+
+    // Se não houver anexo, procura por um link de imagem no texto
+    if (!imageUrl) {
+      const match = textContent.match(IMAGE_URL_REGEX);
+      if (match) {
+        imageUrl = match[0];
+      }
+    }
+
+    const contentPayload = [];
+    // Adiciona o texto do usuário, com o nome dele
+    const userText = msg.author.id === client.user.id ? textContent : `${msg.author.username}: ${textContent}`;
+    contentPayload.push({ type: 'text', text: userText });
+
+    // Se uma imagem foi encontrada, adiciona ao payload
+    if (imageUrl) {
+      contentPayload.push({
+        type: 'image_url',
+        image_url: {
+          url: imageUrl,
+        },
+      });
+    }
+
+    const role = msg.author.id === client.user.id ? 'assistant' : 'user';
+
+    // Para mensagens sem imagem, o content pode ser uma string simples para compatibilidade.
+    // Para mensagens com imagem, DEVE ser um array.
+    const finalContent = contentPayload.length === 1 && !imageUrl
+        ? contentPayload[0].text
+        : contentPayload;
+
+    conversation.push({ role, content: finalContent });
   }
 
   return conversation;
