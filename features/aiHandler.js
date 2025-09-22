@@ -1,4 +1,5 @@
 const OpenAI = require('openai');
+const { tools, getToolFunctions } = require('./toolbelt.js');
 
 // Inicializa o cliente da API
 const openai = new OpenAI({
@@ -18,7 +19,7 @@ async function fetchConversationHistory(message, client, limit) {
   const conversation = [];
 
   for (const msg of Array.from(lastMessages.values()).reverse()) {
-    const embedContent = msg.embeds?.length > 0 
+    const embedContent = msg.embeds?.length > 0
       ? ` [Bot Embed Content: ${msg.embeds.map(e => `${e.title || ''} ${e.description || ''}`.trim()).join(' ')}]`
       : '';
 
@@ -43,7 +44,7 @@ async function fetchConversationHistory(message, client, limit) {
 function findRelevantFAQ(faqList, userMessage) {
   if (!faqList || faqList.length === 0) return '';
   const lowerUserMessage = userMessage.toLowerCase();
-  
+
   const foundFaq = faqList.find(faq => {
     const keywords = faq.question.toLowerCase().split(' ').filter(word => word.length > 3);
     return keywords.some(key => lowerUserMessage.includes(key));
@@ -98,7 +99,7 @@ function constructSystemPrompt(aiConfig, faqContext, guildName, botName) {
 
 
 /**
- * Função principal que gera a resposta da IA.
+ * Função principal que gera a resposta da IA, agora com capacidade de usar ferramentas.
  */
 async function generateResponse(client, message) {
   try {
@@ -107,7 +108,6 @@ async function generateResponse(client, message) {
         return client.getLocale('err_ai_response');
     }
 
-    // CORREÇÃO: Usando o método correto e simplificando
     if (message.channel.isTextBased()) {
         await message.channel.sendTyping();
     }
@@ -123,11 +123,60 @@ async function generateResponse(client, message) {
 
     const messagesForAPI = [{ role: 'system', content: systemPromptContent }, ...conversation];
 
+    // Primeira chamada à API, agora com ferramentas
     const completion = await openai.chat.completions.create({
       model: "deepseek/deepseek-r1:free",
       messages: messagesForAPI,
+      tools: tools, // Informa à IA quais ferramentas ela pode usar
+      tool_choice: "auto",
     });
-    const responseContent = completion.choices[0].message.content;
+
+    const responseMessage = completion.choices[0].message;
+
+    // Verifica se a IA quer usar uma ferramenta
+    const toolCalls = responseMessage.tool_calls;
+    if (toolCalls) {
+      // Adiciona a resposta da IA (com os tool_calls) ao histórico
+      messagesForAPI.push(responseMessage);
+
+      const availableFunctions = getToolFunctions(client);
+
+      // Executa cada ferramenta que a IA solicitou
+      for (const toolCall of toolCalls) {
+        const functionName = toolCall.function.name;
+        const functionToCall = availableFunctions[functionName];
+        const functionArgs = JSON.parse(toolCall.function.arguments);
+
+        // Passa a mensagem original para a função da ferramenta ter contexto
+        const functionResponse = await functionToCall(functionArgs, message);
+
+        // Adiciona o resultado da execução da ferramenta ao histórico
+        messagesForAPI.push({
+          tool_call_id: toolCall.id,
+          role: 'tool',
+          name: functionName,
+          content: JSON.stringify(functionResponse),
+        });
+      }
+
+      // Segunda chamada à API com os resultados das ferramentas
+      const secondCompletion = await openai.chat.completions.create({
+        model: "deepseek/deepseek-r1:free",
+        messages: messagesForAPI,
+      });
+
+      // A resposta final da IA, agora ciente do resultado das ferramentas
+      const finalResponse = secondCompletion.choices[0].message.content;
+
+      if (finalResponse && client.db) {
+        const aiUsageLogs = client.getDbCollection('ai-usage-logs');
+        await aiUsageLogs.insertOne({ guildId: message.guild.id, userId: message.author.id, timestamp: new Date() });
+      }
+      return finalResponse;
+    }
+
+    // Se não houver tool calls, retorna a resposta de texto normal
+    const responseContent = responseMessage.content;
 
     if (responseContent && client.db) {
       const aiUsageLogs = client.getDbCollection('ai-usage-logs');
@@ -185,7 +234,7 @@ async function generateStandaloneResponse(history, aiConfig) {
      return completion.choices[0].message.content;
 }
 
-module.exports = { 
+module.exports = {
   processMessage,
   generateStandaloneResponse
 };
