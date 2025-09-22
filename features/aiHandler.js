@@ -122,12 +122,18 @@ async function generateResponse(client, message) {
 
     const messagesForAPI = [{ role: 'system', content: systemPromptContent }, ...conversation];
 
+    // Filtra as ferramentas com base nas configurações do servidor
+    const allToolNames = tools.map(t => t.function.name);
+    const enabledTools = aiConfig.enabledTools || allToolNames;
+    const filteredTools = tools.filter(t => enabledTools.includes(t.function.name));
+
+
     // Primeira chamada à API, agora com ferramentas
     const completion = await openai.chat.completions.create({
       model: "x-ai/grok-4-fast:free",
       messages: messagesForAPI,
-      tools: tools, // Informa à IA quais ferramentas ela pode usar
-      tool_choice: "auto",
+      tools: filteredTools.length > 0 ? filteredTools : undefined,
+      tool_choice: filteredTools.length > 0 ? "auto" : "none",
     });
 
     const responseMessage = completion.choices[0].message;

@@ -110,8 +110,30 @@ document.addEventListener('DOMContentLoaded', () => {
         getElement('music-skip-btn').addEventListener('click', () => controlMusicPlayer('skip'));
     }
 
-    function buildAiPanel(channels = [], selectedIds = [], config = {}) {
-        // ... (código do painel de IA inalterado)
+    function buildAiPanel(channels = [], selectedIds = [], config = {}, allTools = []) {
+        const listDiv = getElement('channels-list');
+        listDiv.innerHTML = '';
+        channels.forEach(ch => {
+            const isChecked = (selectedIds || []).includes(ch.id);
+            listDiv.innerHTML += `<div class="checkbox-group"><input type="checkbox" id="${ch.id}" value="${ch.id}" ${isChecked ? 'checked' : ''}><label for="${ch.id}">#${ch.name}</label></div>`;
+        });
+
+        getElement('ai-personality').value = config.personality || '';
+        getElement('ai-examples').value = config.examples || '';
+        getElement('ai-context-limit').value = config.contextLimit || 15;
+
+        const toolsListDiv = getElement('ai-tools-list');
+        toolsListDiv.innerHTML = '';
+        const enabledTools = config.enabledTools || allTools; // Se não definido, todos são permitidos
+
+        allTools.forEach(toolName => {
+            const isChecked = enabledTools.includes(toolName);
+            toolsListDiv.innerHTML += `
+                <div class="checkbox-group">
+                    <input type="checkbox" id="tool-${toolName}" value="${toolName}" ${isChecked ? 'checked' : ''}>
+                    <label for="tool-${toolName}">${toolName}</label>
+                </div>`;
+        });
     }
 
     function buildFaqPanel(faqData = []) {
@@ -164,10 +186,24 @@ document.addEventListener('DOMContentLoaded', () => {
         await applyTranslations();
         try {
             const token = localStorage.getItem('dashboard-token');
-            const infoRes = await fetch('/api/info', { headers: { 'Authorization': `Bearer ${token}` } });
-            if (handleAuthError(infoRes)) return;
-            if (!infoRes.ok) throw new Error('Info API response not OK');
+            if (!token) {
+                window.location.href = '/login.html';
+                return;
+            }
+
+            const [infoRes, settingsRes, guildsRes, toolsRes] = await Promise.all([
+                fetch('/api/info', { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch(`/api/guilds/${guildId}/settings`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch('/api/guilds', { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch('/api/ai-tools', { headers: { 'Authorization': `Bearer ${token}` } })
+            ]);
+
+            if ([infoRes, settingsRes, guildsRes, toolsRes].some(res => handleAuthError(res))) return;
+
             const infoData = await infoRes.json();
+            const data = await settingsRes.json();
+            const guilds = await guildsRes.json();
+            const allTools = await toolsRes.json();
 
             botNameElement.textContent = infoData.bot.tag || 'Bot Offline';
             const primaryColor = infoData.colors.primary || '#0d1117';
@@ -177,25 +213,18 @@ document.addEventListener('DOMContentLoaded', () => {
             document.documentElement.style.setProperty('--accent', accentColor);
             document.documentElement.style.setProperty('--accent-rgb', hexToRgb(accentColor));
 
-            if (!guildId) throw new Error('ID do Servidor não fornecido na URL.');
-
-            const [settingsRes, guildsRes] = await Promise.all([
-                fetch(`/api/guilds/${guildId}/settings`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                fetch('/api/guilds', { headers: { 'Authorization': `Bearer ${token}` } })
-            ]);
-
-            if (handleAuthError(settingsRes) || handleAuthError(guildsRes)) return;
-            if (!settingsRes.ok) throw new Error(`Server settings API returned ${settingsRes.status}`);
-            if (!guildsRes.ok) throw new Error(`Guilds API returned ${guildsRes.status}`);
-
-            const data = await settingsRes.json();
-            const guilds = await guildsRes.json();
             const currentGuild = guilds.find(g => g.id === guildId);
-
             if (!currentGuild) throw new Error('Servidor não encontrado.');
 
             serverNameTitle.textContent = i18n.t('dashboard_server_managing_title', { serverName: currentGuild.name });
-            buildPageContent(data);
+
+            dataFromAPI = data;
+            const { availableChannels, settings } = data;
+            buildAiPanel(availableChannels, settings.aiChannelIds, settings.aiConfig, allTools.tools);
+            buildFaqPanel(settings.faq);
+            buildNotificationsPanel(availableChannels, settings.githubRepos);
+            buildMusicPanel(settings.musicConfig);
+            setupNavigation();
 
         } catch (error) {
             serverNameTitle.textContent = i18n.t('dashboard_server_error_loading');
@@ -205,11 +234,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     saveButton.addEventListener('click', async () => {
         const aiChannelIds = Array.from(document.querySelectorAll('#channels-list input:checked')).map(cb => cb.value);
+        const enabledTools = Array.from(document.querySelectorAll('#ai-tools-list input:checked')).map(cb => cb.value);
 
         const aiConfig = {
             personality: getElement('ai-personality').value,
             examples: getElement('ai-examples').value,
-            contextLimit: parseInt(getElement('ai-context-limit').value, 10) || 15
+            contextLimit: parseInt(getElement('ai-context-limit').value, 10) || 15,
+            enabledTools: enabledTools
         };
 
         const musicConfig = {

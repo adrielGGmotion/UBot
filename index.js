@@ -394,6 +394,18 @@ async function startDashboard() {
       }
   });
 
+  app.get('/api/ai-tools', authMiddleware, (req, res) => {
+    try {
+        // Usa require para obter uma cópia fresca toda vez, ou pode ser cacheado.
+        const { tools } = require('./features/toolbelt.js');
+        const toolNames = tools.map(t => t.function.name);
+        res.json({ tools: toolNames });
+    } catch (error) {
+        console.error('[API] /api/ai-tools error:', error);
+        res.status(500).json({ error: 'Falha ao carregar as ferramentas da IA.' });
+    }
+  });
+
   app.use('/', express.static(path.join(ROOT, 'dashboard', 'public')));
 
   app.listen(port, () => console.log(client.getLocale('log_dashboard_running', { port: port })));
