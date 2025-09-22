@@ -122,6 +122,93 @@ const tools = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+        name: 'play_music',
+        description: 'Toca uma música ou a adiciona na fila. Requer o nome ou URL da música.',
+        parameters: {
+            type: 'object',
+            properties: {
+                query: {
+                    type: 'string',
+                    description: 'O nome da música ou um link (YouTube, Spotify, etc.) para tocar.'
+                },
+            },
+            required: ['query'],
+        },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+        name: 'pause_music',
+        description: 'Pausa a reprodução da música atual no servidor.',
+        parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+        },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+        name: 'resume_music',
+        description: 'Retoma a reprodução da música que estava pausada.',
+        parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+        },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+        name: 'skip_music',
+        description: 'Pula a música atual e começa a tocar a próxima da fila.',
+        parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+        },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+        name: 'stop_music',
+        description: 'Para a música completamente, limpa a fila e desconecta o bot do canal de voz.',
+        parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+        },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+        name: 'get_id',
+        description: 'Obtém o ID de um usuário, canal, cargo ou mensagem com base no nome ou conteúdo.',
+        parameters: {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    description: 'O tipo de item para buscar o ID (user, channel, role, message).',
+                    enum: ['user', 'channel', 'role', 'message']
+                },
+                query: {
+                    type: 'string',
+                    description: 'O nome (para user, channel, role) ou conteúdo (para message) para pesquisar.'
+                },
+            },
+            required: ['type', 'query'],
+        },
+    },
+  },
 ];
 
 /**
@@ -270,6 +357,105 @@ const getToolFunctions = (client) => ({
     } catch (error) {
       console.error('Erro ao buscar avatar do usuário:', error);
       return { success: false, content: 'Ocorreu um erro ao tentar buscar a foto de perfil.' };
+    }
+  },
+  play_music: async ({ query }, originalMessage) => {
+    try {
+        const guild = originalMessage.guild;
+        if (!guild) return { success: false, content: 'Comando de música apenas em servidores.' };
+
+        const member = await guild.members.fetch(originalMessage.author.id);
+        const voiceChannel = member.voice.channel;
+        if (!voiceChannel) return { success: false, content: 'Você precisa estar em um canal de voz.' };
+
+        if (!client.riffy) return { success: false, content: 'Sistema de música não inicializado.' };
+
+        const resolve = await client.riffy.resolve({ query, requester: originalMessage.author });
+        const { loadType, tracks } = resolve;
+
+        if (loadType === 'empty' || tracks.length === 0) {
+            return { success: false, content: `Nenhuma música encontrada para "${query}".` };
+        }
+
+        const player = client.riffy.players.get(guild.id) || client.riffy.createConnection({
+            guildId: guild.id,
+            voiceChannel: voiceChannel.id,
+            textChannel: originalMessage.channel.id,
+            deaf: true,
+        });
+
+        const track = tracks.shift();
+        player.queue.add(track);
+
+        if (!player.playing && !player.paused) {
+            player.play();
+        }
+
+        return { success: true, content: `Adicionado à fila: "${track.info.title}".` };
+    } catch (error) {
+        console.error('Erro ao tocar música:', error);
+        return { success: false, content: 'Ocorreu um erro ao tentar tocar a música.' };
+    }
+  },
+  pause_music: async (_, originalMessage) => {
+      const player = client.riffy.players.get(originalMessage.guild.id);
+      if (!player) return { success: false, content: 'Não estou tocando nada.' };
+      player.pause(true);
+      return { success: true, content: 'Música pausada.' };
+  },
+  resume_music: async (_, originalMessage) => {
+      const player = client.riffy.players.get(originalMessage.guild.id);
+      if (!player) return { success: false, content: 'Não estou tocando nada.' };
+      player.pause(false);
+      return { success: true, content: 'Música retomada.' };
+  },
+  skip_music: async (_, originalMessage) => {
+      const player = client.riffy.players.get(originalMessage.guild.id);
+      if (!player) return { success: false, content: 'Não estou tocando nada.' };
+      player.stop();
+      return { success: true, content: 'Música pulada.' };
+  },
+  stop_music: async (_, originalMessage) => {
+      const player = client.riffy.players.get(originalMessage.guild.id);
+      if (player) {
+          player.destroy();
+          return { success: true, content: 'Música parada e fila limpa.' };
+      }
+      return { success: false, content: 'Não estou tocando nada.' };
+  },
+  get_id: async ({ type, query }, originalMessage) => {
+    const guild = originalMessage.guild;
+    if (!guild) return { success: false, content: 'Não foi possível encontrar a guilda.' };
+    let found;
+
+    try {
+        switch (type) {
+            case 'user':
+                const members = await guild.members.search({ query, limit: 1 });
+                found = members.first();
+                break;
+            case 'channel':
+                found = guild.channels.cache.find(c => c.name.toLowerCase() === query.toLowerCase());
+                break;
+            case 'role':
+                found = guild.roles.cache.find(r => r.name.toLowerCase() === query.toLowerCase());
+                break;
+            case 'message':
+                 const messages = await originalMessage.channel.messages.fetch({ limit: 100 });
+                 found = messages.find(m => m.content.includes(query));
+                 break;
+            default:
+                return { success: false, content: `Tipo inválido: ${type}` };
+        }
+
+        if (found) {
+            return { success: true, content: `O ID para "${query}" (${type}) é: ${found.id}` };
+        } else {
+            return { success: false, content: `Nenhum ${type} encontrado para "${query}".` };
+        }
+    } catch (error) {
+        console.error(`Erro ao buscar ID para ${type} "${query}":`, error);
+        return { success: false, content: `Ocorreu um erro ao buscar o ID.` };
     }
   },
 });
