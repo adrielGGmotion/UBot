@@ -35,57 +35,61 @@ async function imageToBase64(url, contentType = 'image/jpeg') {
  */
 async function fetchConversationHistory(message, client, limit) {
   const lastMessages = await message.channel.messages.fetch({ limit });
-  const conversation = [];
 
+  const intermediateHistory = [];
+  let isMultimodal = false;
+
+  // Primeira passagem: processa e coleta dados de todas as mensagens
   for (const msg of Array.from(lastMessages.values()).reverse()) {
-    const textContent = msg.content;
-    const contentPayload = [];
     const role = msg.author.id === client.user.id ? 'assistant' : 'user';
-
-    // Adiciona o texto do usuário, com o nome dele
-    const userText = role === 'user' ? `${msg.author.username}: ${textContent}` : textContent;
-    contentPayload.push({ type: 'text', text: userText });
+    const textContent = role === 'user' ? `${msg.author.username}: ${msg.content}` : msg.content;
 
     let imageDataSource = null;
-
-    // Prioriza anexos
     if (msg.attachments.size > 0) {
       const attachment = msg.attachments.first();
       if (attachment.contentType?.startsWith('image/')) {
         imageDataSource = { url: attachment.url, contentType: attachment.contentType };
+        isMultimodal = true;
       }
     }
-
-    // Se não houver anexo, procura por um link de imagem no texto
     if (!imageDataSource) {
-      const match = textContent.match(IMAGE_URL_REGEX);
+      const match = msg.content.match(IMAGE_URL_REGEX);
       if (match) {
-        // Para links, não temos o contentType exato, então usamos um padrão.
         imageDataSource = { url: match[0], contentType: 'image/jpeg' };
+        isMultimodal = true;
       }
     }
 
-    // Se uma fonte de imagem foi encontrada, baixa e converte para base64
-    if (imageDataSource) {
-      const base64Image = await imageToBase64(imageDataSource.url, imageDataSource.contentType);
-      if (base64Image) {
-        contentPayload.push({
-          type: 'image_url',
-          image_url: {
-            url: base64Image,
-          },
-        });
-      }
-    }
-
-    // Para mensagens sem imagem, o content pode ser uma string simples para compatibilidade.
-    // Para mensagens com imagem, DEVE ser um array.
-    const finalContent = contentPayload.length > 1 ? contentPayload : userText;
-
-    conversation.push({ role, content: finalContent });
+    intermediateHistory.push({
+      role,
+      textContent,
+      imageDataSource
+    });
   }
 
-  return conversation;
+  const finalConversation = [];
+
+  // Segunda passagem: formata a saída com base na presença de imagens
+  for (const item of intermediateHistory) {
+    if (isMultimodal) {
+      const contentPayload = [{ type: 'text', text: item.textContent }];
+      if (item.imageDataSource) {
+        const base64Image = await imageToBase64(item.imageDataSource.url, item.imageDataSource.contentType);
+        if (base64Image) {
+          contentPayload.push({
+            type: 'image_url',
+            image_url: { url: base64Image },
+          });
+        }
+      }
+      finalConversation.push({ role: item.role, content: contentPayload });
+    } else {
+      // Se não for multimodal, envia apenas o texto como string
+      finalConversation.push({ role: item.role, content: item.textContent });
+    }
+  }
+
+  return finalConversation;
 }
 
 /**
