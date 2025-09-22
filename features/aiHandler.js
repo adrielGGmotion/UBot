@@ -1,4 +1,5 @@
 const OpenAI = require('openai');
+const axios = require('axios');
 const { tools, getToolFunctions } = require('./toolbelt.js');
 
 // Inicializa o cliente da API
@@ -6,29 +7,82 @@ const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
 });
 
+const IMAGE_URL_REGEX = /\b(https?:\/\/[^\s]+?\.(?:png|jpe?g|gif|webp))\b/i;
+
 /**
- * Busca e formata o histórico de mensagens do canal, identificando cada usuário pelo nome.
+ * Baixa uma imagem de uma URL e a converte para base64.
+ * @param {string} url - A URL da imagem.
+ * @param {string} [contentType='image/jpeg'] - O tipo MIME da imagem.
+ * @returns {Promise<string|null>} - A string base64 da imagem ou null se falhar.
+ */
+async function imageToBase64(url, contentType = 'image/jpeg') {
+  try {
+    const response = await axios.get(url, { responseType: 'arraybuffer' });
+    const base64 = Buffer.from(response.data, 'binary').toString('base64');
+    return `data:${contentType};base64,${base64}`;
+  } catch (error) {
+    console.error(`Falha ao baixar ou converter imagem da URL: ${url}`, error);
+    return null;
+  }
+}
+
+/**
+ * Busca e formata o histórico de mensagens do canal, incluindo imagens como dados base64.
  * @param {import('discord.js').Message} message - A mensagem que acionou o bot.
  * @param {import('discord.js').Client} client - O cliente do Discord.
  * @param {number} limit - O número de mensagens a serem buscadas.
- * @returns {Promise<{role: string, content: string}[]>} - O histórico formatado da conversa.
+ * @returns {Promise<{role: string, content: (string | object)[]}[]>} - O histórico formatado.
  */
 async function fetchConversationHistory(message, client, limit) {
   const lastMessages = await message.channel.messages.fetch({ limit });
   const conversation = [];
 
   for (const msg of Array.from(lastMessages.values()).reverse()) {
-    const embedContent = msg.embeds?.length > 0
-      ? ` [Bot Embed Content: ${msg.embeds.map(e => `${e.title || ''} ${e.description || ''}`.trim()).join(' ')}]`
-      : '';
+    const textContent = msg.content;
+    const contentPayload = [];
+    const role = msg.author.id === client.user.id ? 'assistant' : 'user';
 
-    const content = `${msg.content}${embedContent}`.trim();
+    // Adiciona o texto do usuário, com o nome dele
+    const userText = role === 'user' ? `${msg.author.username}: ${textContent}` : textContent;
+    contentPayload.push({ type: 'text', text: userText });
 
-    if (msg.author.id === client.user.id) {
-      conversation.push({ role: 'assistant', content });
-    } else {
-      conversation.push({ role: 'user', content: `${msg.author.username}: ${content}` });
+    let imageDataSource = null;
+
+    // Prioriza anexos
+    if (msg.attachments.size > 0) {
+      const attachment = msg.attachments.first();
+      if (attachment.contentType?.startsWith('image/')) {
+        imageDataSource = { url: attachment.url, contentType: attachment.contentType };
+      }
     }
+
+    // Se não houver anexo, procura por um link de imagem no texto
+    if (!imageDataSource) {
+      const match = textContent.match(IMAGE_URL_REGEX);
+      if (match) {
+        // Para links, não temos o contentType exato, então usamos um padrão.
+        imageDataSource = { url: match[0], contentType: 'image/jpeg' };
+      }
+    }
+
+    // Se uma fonte de imagem foi encontrada, baixa e converte para base64
+    if (imageDataSource) {
+      const base64Image = await imageToBase64(imageDataSource.url, imageDataSource.contentType);
+      if (base64Image) {
+        contentPayload.push({
+          type: 'image_url',
+          image_url: {
+            url: base64Image,
+          },
+        });
+      }
+    }
+
+    // Para mensagens sem imagem, o content pode ser uma string simples para compatibilidade.
+    // Para mensagens com imagem, DEVE ser um array.
+    const finalContent = contentPayload.length > 1 ? contentPayload : userText;
+
+    conversation.push({ role, content: finalContent });
   }
 
   return conversation;
