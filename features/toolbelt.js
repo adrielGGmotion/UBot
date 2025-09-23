@@ -63,6 +63,44 @@ const tools = [
         },
     },
   },
+  {
+    type: 'function',
+    function: {
+        name: 'save_user_memory',
+        description: 'Salva uma informação sobre o usuário que está interagindo. Use para lembrar preferências, detalhes pessoais, ou qualquer coisa que o usuário te peça para lembrar sobre ele.',
+        parameters: {
+            type: 'object',
+            properties: {
+                key: {
+                    type: 'string',
+                    description: 'A chave ou nome da informação a ser lembrada (ex: "cor favorita", "nome do cachorro").'
+                },
+                value: {
+                    type: 'string',
+                    description: 'O valor da informação a ser salva (ex: "azul", "Rex").'
+                },
+            },
+            required: ['key', 'value'],
+        },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+        name: 'get_user_memory',
+        description: 'Recupera uma informação previamente salva sobre o usuário que está interagindo. Use para buscar dados e personalizar suas respostas.',
+        parameters: {
+            type: 'object',
+            properties: {
+                key: {
+                    type: 'string',
+                    description: 'A chave ou nome da informação que você quer recuperar (ex: "cor favorita").'
+                },
+            },
+            required: ['key'],
+        },
+    },
+  },
   // Ferramentas de canais de voz e fotos de perfil serão adicionadas aqui.
   {
     type: 'function',
@@ -216,6 +254,45 @@ const tools = [
  * @param {import('discord.js').Client} client - O cliente do Discord.
  */
 const getToolFunctions = (client) => ({
+  save_user_memory: async ({ key, value }, originalMessage) => {
+    const memories = client.getDbCollection('user-memories');
+    const userId = originalMessage.author.id;
+    const userTag = originalMessage.author.tag;
+
+    try {
+      await memories.updateOne(
+        { userId, key },
+        { $set: { value, userTag, updatedAt: new Date() } },
+        { upsert: true }
+      );
+      console.log(`[Memory] Saved memory for user ${userTag} (${userId}): { ${key}: "${value}" }`);
+      return { success: true, content: `Ok, lembrei que "${key}" é "${value}" para você.` };
+    } catch (error) {
+      console.error('Erro ao salvar memória do usuário:', error);
+      return { success: false, content: 'Ocorreu um erro ao tentar salvar essa informação.' };
+    }
+  },
+
+  get_user_memory: async ({ key }, originalMessage) => {
+    const memories = client.getDbCollection('user-memories');
+    const userId = originalMessage.author.id;
+    const userTag = originalMessage.author.tag;
+
+    try {
+      const memory = await memories.findOne({ userId, key });
+      if (memory) {
+        console.log(`[Memory] Retrieved memory for user ${userTag} (${userId}): { ${key}: "${memory.value}" }`);
+        return { success: true, content: `Informação encontrada para a chave "${key}": ${memory.value}` };
+      } else {
+        console.log(`[Memory] No memory found for user ${userTag} (${userId}) with key "${key}"`);
+        return { success: false, content: `Não encontrei nenhuma informação com a chave "${key}" para você.` };
+      }
+    } catch (error) {
+      console.error('Erro ao recuperar memória do usuário:', error);
+      return { success: false, content: 'Ocorreu um erro ao tentar buscar essa informação.' };
+    }
+  },
+
   delete_message: async ({ message_id, reason }, originalMessage) => {
     try {
       const messageToDelete = await originalMessage.channel.messages.fetch(message_id);

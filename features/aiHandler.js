@@ -111,6 +111,14 @@ function constructSystemPrompt(aiConfig, faqContext, guildName, botName) {
   }
   // --- FIM DA PERSONALIDADE E EXEMPLOS ---
 
+  // --- MEMÓRIA DO USUÁRIO ---
+  systemPrompt += "## Memória do Usuário\n";
+  systemPrompt += "Você tem a capacidade de lembrar e esquecer informações sobre os usuários. Use as seguintes ferramentas para gerenciar sua memória:\n";
+  systemPrompt += "- `save_user_memory({key: 'nome_da_info', value: 'valor_da_info'})`: Para guardar um detalhe sobre o usuário com quem você está falando. Seja proativo e salve detalhes que parecem importantes.\n";
+  systemPrompt += "- `get_user_memory({key: 'nome_da_info'})`: Para recuperar um detalhe que você salvou anteriormente sobre o usuário.\n";
+  systemPrompt += "Sempre que um usuário mencionar um detalhe pessoal (como nome, preferências, etc.), use `save_user_memory`. Antes de responder, considere usar `get_user_memory` para ver se você já sabe algo sobre ele e personalize sua resposta.\n\n";
+
+
   // --- REGRAS DE SEGURANÇA ADICIONADAS AQUI ---
   systemPrompt += "## REGRAS DE COMPORTAMENTO OBRIGATÓRIAS\n";
   systemPrompt += "INDEPENDENTE DA SUA PERSONALIDADE, você DEVE seguir estas regras SEMPRE:\n";
