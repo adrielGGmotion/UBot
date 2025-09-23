@@ -23,7 +23,6 @@ async function fetchConversationHistory(message, client, limit) {
     const textContent = msg.content;
     let imageUrl = null;
 
-    // Prioriza anexos
     if (msg.attachments.size > 0) {
       const attachment = msg.attachments.first();
       if (attachment.contentType?.startsWith('image/')) {
@@ -31,7 +30,6 @@ async function fetchConversationHistory(message, client, limit) {
       }
     }
 
-    // Se não houver anexo, procura por um link de imagem no texto
     if (!imageUrl) {
       const match = textContent.match(IMAGE_URL_REGEX);
       if (match) {
@@ -40,11 +38,9 @@ async function fetchConversationHistory(message, client, limit) {
     }
 
     const contentPayload = [];
-    // Adiciona o texto do usuário, com o nome dele
     const userText = msg.author.id === client.user.id ? textContent : `${msg.author.username}: ${textContent}`;
     contentPayload.push({ type: 'text', text: userText });
 
-    // Se uma imagem foi encontrada, adiciona ao payload
     if (imageUrl) {
       contentPayload.push({
         type: 'image_url',
@@ -55,9 +51,6 @@ async function fetchConversationHistory(message, client, limit) {
     }
 
     const role = msg.author.id === client.user.id ? 'assistant' : 'user';
-
-    // Para mensagens sem imagem, o content pode ser uma string simples para compatibilidade.
-    // Para mensagens com imagem, DEVE ser um array.
     const finalContent = contentPayload.length === 1 && !imageUrl
         ? contentPayload[0].text
         : contentPayload;
@@ -70,9 +63,6 @@ async function fetchConversationHistory(message, client, limit) {
 
 /**
  * Procura por uma pergunta relevante na base de conhecimento (FAQ) do servidor.
- * @param {object[]} faqList - A lista de perguntas e respostas do FAQ.
- * @param {string} userMessage - A mensagem do usuário para buscar correspondência.
- * @returns {string} - Uma string formatada com a entrada do FAQ, se encontrada.
  */
 function findRelevantFAQ(faqList, userMessage) {
   if (!faqList || faqList.length === 0) return '';
@@ -92,7 +82,6 @@ function findRelevantFAQ(faqList, userMessage) {
 
 /**
  * Constrói o prompt de sistema final com todas as informações de contexto e regras de segurança.
- * @returns {string} - O prompt de sistema completo para guiar a IA.
  */
 function constructSystemPrompt(aiConfig, faqContext, guildName, botName) {
   const today = new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -100,7 +89,6 @@ function constructSystemPrompt(aiConfig, faqContext, guildName, botName) {
   let systemPrompt = `Você é um assistente de IA conversacional. Seu nome é ${botName}. Você está atualmente no servidor Discord chamado "${guildName}". Hoje é ${today}.\n`;
   systemPrompt += "Sua diretriz principal é ser útil e envolvente. Você DEVE diferenciar os usuários na conversa pelos seus nomes e responder à última mensagem, considerando todo o histórico.\n\n";
 
-  // --- PERSONALIDADE E EXEMPLOS ADICIONADOS AQUI ---
   if (aiConfig.personality) {
     systemPrompt += "## Sua Personalidade (Definida pelo Usuário)\n";
     systemPrompt += aiConfig.personality + '\n\n';
@@ -109,26 +97,24 @@ function constructSystemPrompt(aiConfig, faqContext, guildName, botName) {
   if (aiConfig.examples) {
     systemPrompt += "## Exemplos de Estilo de Resposta\nSiga estes exemplos para o seu estilo de resposta:\n" + aiConfig.examples + '\n';
   }
-  // --- FIM DA PERSONALIDADE E EXEMPLOS ---
 
-  // --- MEMÓRIA DO USUÁRIO ---
   systemPrompt += "## Memória do Usuário\n";
   systemPrompt += "Você tem a capacidade de lembrar e esquecer informações sobre os usuários. Use as seguintes ferramentas para gerenciar sua memória:\n";
-  systemPrompt += "- `save_user_memory({key: 'nome_da_info', value: 'valor_da_info'})`: Para guardar um detalhe sobre o usuário com quem você está falando. Seja proativo e salve detalhes que parecem importantes.\n";
-  systemPrompt += "- `get_user_memory({key: 'nome_da_info'})`: Para recuperar um detalhe que você salvou anteriormente sobre o usuário.\n";
-  systemPrompt += "Sempre que um usuário mencionar um detalhe pessoal (como nome, preferências, etc.), use `save_user_memory`. Antes de responder, considere usar `get_user_memory` para ver se você já sabe algo sobre ele e personalize sua resposta.\n\n";
+  systemPrompt += "- `save_user_memory({key: 'nome_da_info', value: 'valor_da_info'})`: Para guardar um detalhe sobre o usuário com quem você está falando.\n";
+  systemPrompt += "- `get_user_memory({key: 'nome_da_info'})`: Para recuperar um detalhe que você salvou anteriormente sobre o usuário.\n\n";
 
+  systemPrompt += "## Pesquisa na Web\n";
+  systemPrompt += "Você tem a capacidade de pesquisar na internet usando o Google para encontrar informações atuais ou sobre tópicos específicos.\n";
+  systemPrompt += "- `google_search({query: 'termo_de_busca'})`: Use esta ferramenta quando a pergunta do usuário exigir conhecimento atual, notícias, ou informações que você não possui.\n\n";
 
-  // --- REGRAS DE SEGURANÇA ADICIONADAS AQUI ---
   systemPrompt += "## REGRAS DE COMPORTAMENTO OBRIGATÓRIAS\n";
   systemPrompt += "INDEPENDENTE DA SUA PERSONALIDADE, você DEVE seguir estas regras SEMPRE:\n";
   systemPrompt += "1. NUNCA use discurso de ódio, calúnias, ofensas pesadas ou termos pejorativos.\n";
   systemPrompt += "2. NUNCA promova ou incentive violência, automutilação ou qualquer ato perigoso.\n";
-  systemPrompt += "3. SEJA RESPEITOSO com todos os usuários. Sarcasmo é permitido, mas NUNCA deve se transformar em um ataque pessoal ou insulto direto.\n";
+  systemPrompt += "3. SEJA RESPEITOSO com todos os usuários.\n";
   systemPrompt += "4. NÃO crie conteúdo que seja sexualmente explícito ou inapropriado.\n";
-  systemPrompt += "5. Sua função é ser uma presença positiva e segura na comunidade. Priorize isso acima de tudo.\n\n"
-   systemPrompt += "6. Você não deve utilizar emojis, ao menos que esteja na personalidade que você possa.\n\n";
-  // --- FIM DAS REGRAS DE SEGURANÇA ---
+  systemPrompt += "5. Sua função é ser uma presença positiva e segura na comunidade.\n\n";
+  systemPrompt += "6. Você não deve utilizar emojis, ao menos que esteja na personalidade que você possa.\n\n";
 
   if (faqContext) {
     systemPrompt += faqContext + '\n';
@@ -136,28 +122,6 @@ function constructSystemPrompt(aiConfig, faqContext, guildName, botName) {
 
   systemPrompt += "\n---\nLembre-se das suas regras de comportamento obrigatórias e responda à última mensagem do usuário.";
   return systemPrompt;
-}
-
-
-/**
- * Formata as anotações de citação de URL da resposta da IA.
- * @param {object[]} annotations - A lista de anotações da mensagem da IA.
- * @returns {string} - Uma string formatada com as fontes, ou uma string vazia.
- */
-function formatURLCitations(annotations) {
-  if (!annotations || annotations.length === 0) {
-    return '';
-  }
-
-  const citations = annotations
-    .filter(anno => anno.type === 'url_citation')
-    .map(anno => `[${anno.url_citation.title}](${anno.url_citation.url})`);
-
-  if (citations.length > 0) {
-    return `\n\n**Fontes:**\n- ${citations.join('\n- ')}`;
-  }
-
-  return '';
 }
 
 /**
@@ -178,12 +142,7 @@ async function generateResponse(client, message) {
     const serverSettings = await settingsCollection.findOne({ guildId: message.guild.id }) || {};
     const aiConfig = serverSettings.aiConfig || {};
     const contextLimit = aiConfig.contextLimit || 15;
-
-    // Determina o modelo e se a pesquisa na web está ativa
-    let model = aiConfig.model || 'openai/gpt-4o'; // Default model
-    if (aiConfig.webSearch === true) {
-      model += ':online';
-    }
+    const model = aiConfig.model || 'x-ai/grok-4-fast:free';
 
     const conversation = await fetchConversationHistory(message, client, contextLimit);
     const faqContext = findRelevantFAQ(serverSettings.faq, message.content);
@@ -191,13 +150,10 @@ async function generateResponse(client, message) {
 
     const messagesForAPI = [{ role: 'system', content: systemPromptContent }, ...conversation];
 
-    // Filtra as ferramentas com base nas configurações do servidor
     const allToolNames = tools.map(t => t.function.name);
     const enabledTools = aiConfig.enabledTools || allToolNames;
     const filteredTools = tools.filter(t => enabledTools.includes(t.function.name));
 
-
-    // Primeira chamada à API, agora com ferramentas
     const completion = await openai.chat.completions.create({
       model: model,
       messages: messagesForAPI,
@@ -206,16 +162,11 @@ async function generateResponse(client, message) {
     });
 
     const responseMessage = completion.choices[0].message;
-    let finalResponseContent = responseMessage.content || '';
-    const citations = formatURLCitations(responseMessage.annotations);
 
-    // Verifica se a IA quer usar uma ferramenta
     const toolCalls = responseMessage.tool_calls;
     if (toolCalls) {
       messagesForAPI.push(responseMessage);
-
       const availableFunctions = getToolFunctions(client);
-
       for (const toolCall of toolCalls) {
         const functionName = toolCall.function.name;
         const functionToCall = availableFunctions[functionName];
@@ -229,25 +180,23 @@ async function generateResponse(client, message) {
         });
       }
 
-      // Segunda chamada à API com os resultados das ferramentas
       const secondCompletion = await openai.chat.completions.create({
         model: model,
         messages: messagesForAPI,
       });
 
-      const secondResponseMessage = secondCompletion.choices[0].message;
-      finalResponseContent = secondResponseMessage.content || '';
-      const secondCitations = formatURLCitations(secondResponseMessage.annotations);
+      const finalResponse = secondCompletion.choices[0].message.content;
 
-      if (finalResponseContent && client.db) {
+      if (finalResponse && client.db) {
         const aiUsageLogs = client.getDbCollection('ai-usage-logs');
         await aiUsageLogs.insertOne({ guildId: message.guild.id, userId: message.author.id, timestamp: new Date() });
       }
-      return finalResponseContent + secondCitations;
+      return finalResponse;
     }
 
-    // Se não houver tool calls, retorna a resposta de texto normal
-    if (finalResponseContent && client.db) {
+    const responseContent = responseMessage.content;
+
+    if (responseContent && client.db) {
       const aiUsageLogs = client.getDbCollection('ai-usage-logs');
       await aiUsageLogs.insertOne({
         guildId: message.guild.id,
@@ -256,7 +205,7 @@ async function generateResponse(client, message) {
       });
     }
 
-    return finalResponseContent + citations;
+    return responseContent;
   } catch (error) {
     console.error('Error generating AI response:', error);
     return client.getLocale('err_ai_response');
@@ -294,26 +243,15 @@ async function processMessage(client, message) {
 
 // Função de teste para a dashboard
 async function generateStandaloneResponse(history, aiConfig) {
-    const systemPrompt = { role: 'system', content: aiConfig.personality || "Você é um bot de teste." };
-    const messagesForAPI = [systemPrompt, ...history];
-
-    // Garante que aiConfig seja um objeto para evitar erros
-    const safeAiConfig = aiConfig || {};
-    let model = safeAiConfig.model || 'openai/gpt-4o';
-    if (safeAiConfig.webSearch === true) {
-        model += ':online';
-    }
-
-    const completion = await openai.chat.completions.create({
-        model: model,
-        messages: messagesForAPI,
-    });
-
-    const responseMessage = completion.choices[0].message;
-    const content = responseMessage.content || '';
-    const citations = formatURLCitations(responseMessage.annotations);
-
-    return content + citations;
+     const safeAiConfig = aiConfig || {};
+     const systemPrompt = { role: 'system', content: safeAiConfig.personality || "Você é um bot de teste." };
+     const messagesForAPI = [systemPrompt, ...history];
+     const model = safeAiConfig.model || 'x-ai/grok-4-fast:free';
+     const completion = await openai.chat.completions.create({
+       model: model,
+       messages: messagesForAPI,
+     });
+     return completion.choices[0].message.content;
 }
 
 module.exports = {
