@@ -3,7 +3,26 @@
  * que a IA pode utilizar para interagir com o Discord.
  */
 
+const https = require('https');
+
 const tools = [
+  {
+    type: 'function',
+    function: {
+      name: 'google_search',
+      description: 'Searches the web using Google for up-to-date information, news, or specific topics. Use this when the user asks a question that requires current knowledge or information not available in the conversation history.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'The search query to send to Google.'
+          }
+        },
+        required: ['query']
+      }
+    }
+  },
   {
     type: 'function',
     function: {
@@ -254,6 +273,54 @@ const tools = [
  * @param {import('discord.js').Client} client - O cliente do Discord.
  */
 const getToolFunctions = (client) => ({
+  google_search: async ({ query }) => {
+    const apiKey = process.env.GOOGLE_API_KEY;
+    const cseId = process.env.GOOGLE_CSE_ID;
+
+    if (!apiKey || !cseId) {
+      return { success: false, content: 'Google Search API key or CSE ID is not configured in the .env file.' };
+    }
+
+    const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}`;
+
+    return new Promise((resolve) => {
+      https.get(url, (res) => {
+        let data = '';
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        res.on('end', () => {
+          try {
+            const results = JSON.parse(data);
+            if (results.error) {
+              console.error('Google Search API Error:', results.error);
+              resolve({ success: false, content: `API Error: ${results.error.message}` });
+              return;
+            }
+
+            const items = results.items?.slice(0, 5) || [];
+            if (items.length === 0) {
+              resolve({ success: true, content: 'No results found.' });
+              return;
+            }
+
+            const formattedResults = items.map((item, index) =>
+              `${index + 1}. ${item.title}\nSnippet: ${item.snippet}\nLink: ${item.link}`
+            ).join('\n\n');
+
+            resolve({ success: true, content: `Here are the top search results:\n${formattedResults}` });
+          } catch (error) {
+            console.error('Error parsing Google Search API response:', error);
+            resolve({ success: false, content: 'Failed to parse the response from Google Search API.' });
+          }
+        });
+      }).on('error', (err) => {
+        console.error('Error with Google Search API request:', err);
+        resolve({ success: false, content: `Request Error: ${err.message}` });
+      });
+    });
+  },
+
   save_user_memory: async ({ key, value }, originalMessage) => {
     const memories = client.getDbCollection('user-memories');
     const userId = originalMessage.author.id;
