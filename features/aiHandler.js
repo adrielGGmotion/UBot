@@ -140,6 +140,27 @@ function constructSystemPrompt(aiConfig, faqContext, guildName, botName) {
 
 
 /**
+ * Formata as anotações de citação de URL da resposta da IA.
+ * @param {object[]} annotations - A lista de anotações da mensagem da IA.
+ * @returns {string} - Uma string formatada com as fontes, ou uma string vazia.
+ */
+function formatURLCitations(annotations) {
+  if (!annotations || annotations.length === 0) {
+    return '';
+  }
+
+  const citations = annotations
+    .filter(anno => anno.type === 'url_citation')
+    .map(anno => `[${anno.url_citation.title}](${anno.url_citation.url})`);
+
+  if (citations.length > 0) {
+    return `\n\n**Fontes:**\n- ${citations.join('\n- ')}`;
+  }
+
+  return '';
+}
+
+/**
  * Função principal que gera a resposta da IA, agora com capacidade de usar ferramentas.
  */
 async function generateResponse(client, message) {
@@ -158,6 +179,12 @@ async function generateResponse(client, message) {
     const aiConfig = serverSettings.aiConfig || {};
     const contextLimit = aiConfig.contextLimit || 15;
 
+    // Determina o modelo e se a pesquisa na web está ativa
+    let model = aiConfig.model || 'openai/gpt-4o'; // Default model
+    if (aiConfig.webSearch === true) {
+      model += ':online';
+    }
+
     const conversation = await fetchConversationHistory(message, client, contextLimit);
     const faqContext = findRelevantFAQ(serverSettings.faq, message.content);
     const systemPromptContent = constructSystemPrompt(aiConfig, faqContext, message.guild.name, client.user.username);
@@ -172,32 +199,28 @@ async function generateResponse(client, message) {
 
     // Primeira chamada à API, agora com ferramentas
     const completion = await openai.chat.completions.create({
-      model: "x-ai/grok-4-fast:free",
+      model: model,
       messages: messagesForAPI,
       tools: filteredTools.length > 0 ? filteredTools : undefined,
       tool_choice: filteredTools.length > 0 ? "auto" : "none",
     });
 
     const responseMessage = completion.choices[0].message;
+    let finalResponseContent = responseMessage.content || '';
+    const citations = formatURLCitations(responseMessage.annotations);
 
     // Verifica se a IA quer usar uma ferramenta
     const toolCalls = responseMessage.tool_calls;
     if (toolCalls) {
-      // Adiciona a resposta da IA (com os tool_calls) ao histórico
       messagesForAPI.push(responseMessage);
 
       const availableFunctions = getToolFunctions(client);
 
-      // Executa cada ferramenta que a IA solicitou
       for (const toolCall of toolCalls) {
         const functionName = toolCall.function.name;
         const functionToCall = availableFunctions[functionName];
         const functionArgs = JSON.parse(toolCall.function.arguments);
-
-        // Passa a mensagem original para a função da ferramenta ter contexto
         const functionResponse = await functionToCall(functionArgs, message);
-
-        // Adiciona o resultado da execução da ferramenta ao histórico
         messagesForAPI.push({
           tool_call_id: toolCall.id,
           role: 'tool',
@@ -208,24 +231,23 @@ async function generateResponse(client, message) {
 
       // Segunda chamada à API com os resultados das ferramentas
       const secondCompletion = await openai.chat.completions.create({
-        model: "x-ai/grok-4-fast:free",
+        model: model,
         messages: messagesForAPI,
       });
 
-      // A resposta final da IA, agora ciente do resultado das ferramentas
-      const finalResponse = secondCompletion.choices[0].message.content;
+      const secondResponseMessage = secondCompletion.choices[0].message;
+      finalResponseContent = secondResponseMessage.content || '';
+      const secondCitations = formatURLCitations(secondResponseMessage.annotations);
 
-      if (finalResponse && client.db) {
+      if (finalResponseContent && client.db) {
         const aiUsageLogs = client.getDbCollection('ai-usage-logs');
         await aiUsageLogs.insertOne({ guildId: message.guild.id, userId: message.author.id, timestamp: new Date() });
       }
-      return finalResponse;
+      return finalResponseContent + secondCitations;
     }
 
     // Se não houver tool calls, retorna a resposta de texto normal
-    const responseContent = responseMessage.content;
-
-    if (responseContent && client.db) {
+    if (finalResponseContent && client.db) {
       const aiUsageLogs = client.getDbCollection('ai-usage-logs');
       await aiUsageLogs.insertOne({
         guildId: message.guild.id,
@@ -234,7 +256,7 @@ async function generateResponse(client, message) {
       });
     }
 
-    return responseContent;
+    return finalResponseContent + citations;
   } catch (error) {
     console.error('Error generating AI response:', error);
     return client.getLocale('err_ai_response');
@@ -272,13 +294,26 @@ async function processMessage(client, message) {
 
 // Função de teste para a dashboard
 async function generateStandaloneResponse(history, aiConfig) {
-     const systemPrompt = { role: 'system', content: aiConfig.personality || "Você é um bot de teste." };
-     const messagesForAPI = [systemPrompt, ...history];
-     const completion = await openai.chat.completions.create({
-       model: "x-ai/grok-4-fast:free",
-       messages: messagesForAPI,
-     });
-     return completion.choices[0].message.content;
+    const systemPrompt = { role: 'system', content: aiConfig.personality || "Você é um bot de teste." };
+    const messagesForAPI = [systemPrompt, ...history];
+
+    // Garante que aiConfig seja um objeto para evitar erros
+    const safeAiConfig = aiConfig || {};
+    let model = safeAiConfig.model || 'openai/gpt-4o';
+    if (safeAiConfig.webSearch === true) {
+        model += ':online';
+    }
+
+    const completion = await openai.chat.completions.create({
+        model: model,
+        messages: messagesForAPI,
+    });
+
+    const responseMessage = completion.choices[0].message;
+    const content = responseMessage.content || '';
+    const citations = formatURLCitations(responseMessage.annotations);
+
+    return content + citations;
 }
 
 module.exports = {
