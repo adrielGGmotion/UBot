@@ -26,6 +26,44 @@ const tools = [
   {
     type: 'function',
     function: {
+      name: 'read_channel_messages',
+      description: 'Lê as últimas mensagens de um canal de texto específico. Útil para verificar o que foi discutido em outros canais.',
+      parameters: {
+        type: 'object',
+        properties: {
+          channel_id: {
+            type: 'string',
+            description: 'O ID do canal de texto que você quer ler.',
+          },
+          limit: {
+            type: 'number',
+            description: 'O número de mensagens a serem lidas (padrão: 10, máximo: 50).',
+          }
+        },
+        required: ['channel_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'find_user_voice_channel',
+      description: 'Encontra o canal de voz em que um usuário específico está conectado no momento.',
+      parameters: {
+        type: 'object',
+        properties: {
+          user_id: {
+            type: 'string',
+            description: 'O ID do usuário para localizar no servidor.',
+          },
+        },
+        required: ['user_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'get_user_avatar',
       description: 'Obtém a URL da foto de perfil (avatar) de um usuário específico.',
       parameters: {
@@ -422,6 +460,59 @@ const getToolFunctions = (client) => ({
     } catch (error) {
       console.error('Erro ao listar todos os canais:', error);
       return { success: false, content: 'Ocorreu um erro ao tentar listar os canais.' };
+    }
+  },
+  read_channel_messages: async ({ channel_id, limit = 10 }, originalMessage) => {
+    try {
+      const channel = await client.channels.fetch(channel_id);
+      if (!channel || !channel.isTextBased()) {
+        return { success: false, content: `Canal com ID ${channel_id} não encontrado ou não é um canal de texto.` };
+      }
+
+      const safeLimit = Math.min(Math.max(1, limit), 50); // Garante que o limite esteja entre 1 e 50
+      const messages = await channel.messages.fetch({ limit: safeLimit });
+
+      if (messages.size === 0) {
+        return { success: true, content: `Nenhuma mensagem recente encontrada no canal #${channel.name}.` };
+      }
+
+      const formattedMessages = messages.map(msg => {
+        const author = msg.author.bot ? `[BOT] ${msg.author.username}` : msg.author.username;
+        return `${author}: ${msg.content}`;
+      }).reverse().join('\n');
+
+      return { success: true, content: `Últimas ${messages.size} mensagens do canal #${channel.name}:\n${formattedMessages}` };
+    } catch (error) {
+      console.error('Erro ao ler mensagens do canal:', error);
+      if (error.code === 10003 || error.code === 50001) { // Unknown Channel or Missing Access
+          return { success: false, content: `Não foi possível acessar o canal com ID ${channel_id}. Verifique se o ID está correto e se eu tenho permissão para vê-lo.` };
+      }
+      return { success: false, content: 'Ocorreu um erro ao tentar ler as mensagens do canal.' };
+    }
+  },
+  find_user_voice_channel: async ({ user_id }, originalMessage) => {
+    const guild = originalMessage.guild;
+    if (!guild) {
+      return { success: false, content: 'Esta função só pode ser usada dentro de um servidor.' };
+    }
+    try {
+      const member = await guild.members.fetch(user_id);
+      if (!member) {
+        return { success: false, content: `Usuário com ID ${user_id} não encontrado neste servidor.` };
+      }
+
+      const voiceChannel = member.voice.channel;
+      if (voiceChannel) {
+        return { success: true, content: JSON.stringify({ user_id: user_id, username: member.user.username, channel_id: voiceChannel.id, channel_name: voiceChannel.name }) };
+      } else {
+        return { success: true, content: `O usuário ${member.user.username} não está conectado a um canal de voz.` };
+      }
+    } catch (error) {
+      console.error('Erro ao encontrar canal de voz do usuário:', error);
+      if (error.code === 10007) { // Unknown Member
+          return { success: false, content: `Usuário com ID ${user_id} não encontrado.` };
+      }
+      return { success: false, content: 'Ocorreu um erro ao tentar localizar o usuário.' };
     }
   },
   join_voice_channel: async ({ channel_id }, originalMessage) => {
