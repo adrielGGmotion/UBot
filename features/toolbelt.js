@@ -436,7 +436,7 @@ const getToolFunctions = (client) => ({
           topic: channel.topic || 'Sem descrição.',
         }));
 
-      return { success: true, content: JSON.stringify(channels, null, 2) };
+      return { success: true, content: channels };
     } catch (error) {
       console.error('Erro ao listar canais:', error);
       return { success: false, content: 'Ocorreu um erro ao tentar listar os canais de texto.' };
@@ -456,7 +456,7 @@ const getToolFunctions = (client) => ({
           type: channel.isTextBased() ? 'text' : (channel.isVoiceBased() ? 'voice' : 'unknown'),
         }));
 
-      return { success: true, content: JSON.stringify(channels, null, 2) };
+      return { success: true, content: channels };
     } catch (error) {
       console.error('Erro ao listar todos os canais:', error);
       return { success: false, content: 'Ocorreu um erro ao tentar listar os canais.' };
@@ -503,7 +503,7 @@ const getToolFunctions = (client) => ({
 
       const voiceChannel = member.voice.channel;
       if (voiceChannel) {
-        return { success: true, content: JSON.stringify({ user_id: user_id, username: member.user.username, channel_id: voiceChannel.id, channel_name: voiceChannel.name }) };
+        return { success: true, content: { user_id: user_id, username: member.user.username, channel_id: voiceChannel.id, channel_name: voiceChannel.name } };
       } else {
         return { success: true, content: `O usuário ${member.user.username} não está conectado a um canal de voz.` };
       }
@@ -560,7 +560,7 @@ const getToolFunctions = (client) => ({
         return { success: true, content: `Não há ninguém no canal de voz ${channel.name}.` };
       }
 
-      return { success: true, content: JSON.stringify(members, null, 2) };
+      return { success: true, content: members };
     } catch (error) {
       console.error('Erro ao listar membros do canal de voz:', error);
       return { success: false, content: 'Ocorreu um erro ao listar os membros.' };

@@ -22,7 +22,11 @@ function getChannelTypeName(type) {
     case ChannelType.GuildForum: return 'Fórum';
     case ChannelType.PublicThread: return 'Thread Pública';
     case ChannelType.PrivateThread: return 'Thread Privada';
-    default: return 'Canal Desconhecido';
+    case ChannelType.GuildStageVoice: return 'Canal de Palco';
+    case ChannelType.GuildCategory: return 'Categoria';
+    case ChannelType.DM: return 'Mensagem Direta';
+    case ChannelType.GroupDM: return 'Mensagem Direta em Grupo';
+    default: return `Tipo de Canal (${type})`;
   }
 }
 
@@ -155,8 +159,9 @@ function constructSystemPrompt(aiConfig, faqContext, guildName, botName, channel
   systemPrompt += "2. NUNCA promova ou incentive violência, automutilação ou qualquer ato perigoso.\n";
   systemPrompt += "3. SEJA RESPEITOSO com todos os usuários.\n";
   systemPrompt += "4. NÃO crie conteúdo que seja sexualmente explícito ou inapropriado.\n";
-  systemPrompt += "5. Sua função é ser uma presença positiva e segura na comunidade.\n\n";
-  systemPrompt += "6. Você não deve utilizar emojis, ao menos que esteja na personalidade que você possa.\n\n";
+  systemPrompt += "5. Sua função é ser uma presença positiva e segura na comunidade.\n";
+  systemPrompt += "6. Você não deve utilizar emojis, ao menos que esteja na personalidade que você possa.\n";
+  systemPrompt += "7. **MANUSEIO DE ERROS DE FERRAMENTAS:** Se você usar uma ferramenta e o resultado indicar uma falha (ex: `{\"success\": false, \"content\": \"mensagem de erro\"}`), sua resposta DEVE ser apenas a mensagem de erro do campo `content`. NÃO tente usar a ferramenta novamente. Apenas informe o erro ao usuário.\n\n";
 
   if (faqContext) {
     systemPrompt += faqContext + '\n';
