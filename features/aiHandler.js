@@ -1,5 +1,6 @@
 const OpenAI = require('openai');
 const { tools, getToolFunctions } = require('./toolbelt.js');
+const { ChannelType } = require('discord.js');
 
 // Inicializa o cliente da API
 const openai = new OpenAI({
@@ -9,7 +10,24 @@ const openai = new OpenAI({
 const IMAGE_URL_REGEX = /\b(https?:\/\/[^\s]+?\.(?:png|jpe?g|gif|webp))\b/i;
 
 /**
- * Busca e formata o histórico de mensagens do canal, agora com capacidade de incluir imagens.
+ * Mapeia o enum ChannelType para um nome legível.
+ * @param {import('discord.js').ChannelType} type - O tipo do canal.
+ * @returns {string} - O nome do tipo de canal.
+ */
+function getChannelTypeName(type) {
+  switch (type) {
+    case ChannelType.GuildText: return 'Canal de Texto';
+    case ChannelType.GuildVoice: return 'Canal de Voz';
+    case ChannelType.GuildAnnouncement: return 'Canal de Anúncios';
+    case ChannelType.GuildForum: return 'Fórum';
+    case ChannelType.PublicThread: return 'Thread Pública';
+    case ChannelType.PrivateThread: return 'Thread Privada';
+    default: return 'Canal Desconhecido';
+  }
+}
+
+/**
+ * Busca e formata o histórico de mensagens do canal, com capacidades avançadas de contexto.
  * @param {import('discord.js').Message} message - A mensagem que acionou o bot.
  * @param {import('discord.js').Client} client - O cliente do Discord.
  * @param {number} limit - O número de mensagens a serem buscadas.
@@ -20,16 +38,32 @@ async function fetchConversationHistory(message, client, limit) {
   const conversation = [];
 
   for (const msg of Array.from(lastMessages.values()).reverse()) {
-    const textContent = msg.content;
-    let imageUrl = null;
+    let textContent = msg.content;
 
+    // 2. Capacidade: Ler conteúdo de embeds
+    if (msg.embeds.length > 0) {
+      const embedContent = msg.embeds.map(embed => {
+        let content = `[Embed`;
+        if (embed.author?.name) content += ` de ${embed.author.name}`;
+        content += `]`;
+        if (embed.title) content += `\nTítulo: ${embed.title}`;
+        if (embed.description) content += `\nDescrição: ${embed.description}`;
+        if (embed.fields.length > 0) {
+          content += `\nCampos:\n${embed.fields.map(field => `- ${field.name}: ${field.value}`).join('\n')}`;
+        }
+        if (embed.footer?.text) content += `\nRodapé: ${embed.footer.text}`;
+        return content;
+      }).join('\n\n');
+      textContent += `\n${embedContent}`;
+    }
+
+    let imageUrl = null;
     if (msg.attachments.size > 0) {
       const attachment = msg.attachments.first();
       if (attachment.contentType?.startsWith('image/')) {
         imageUrl = attachment.url;
       }
     }
-
     if (!imageUrl) {
       const match = textContent.match(IMAGE_URL_REGEX);
       if (match) {
@@ -38,7 +72,14 @@ async function fetchConversationHistory(message, client, limit) {
     }
 
     const contentPayload = [];
-    const userText = msg.author.id === client.user.id ? textContent : `${msg.author.username}: ${textContent}`;
+
+    // 3. Capacidade: Saber se está lidando com um usuário ou bot
+    let authorName = msg.author.username;
+    if (msg.author.bot && msg.author.id !== client.user.id) {
+        authorName = `[BOT] ${authorName}`;
+    }
+
+    const userText = msg.author.id === client.user.id ? textContent : `${authorName}: ${textContent}`;
     contentPayload.push({ type: 'text', text: userText });
 
     if (imageUrl) {
@@ -83,10 +124,11 @@ function findRelevantFAQ(faqList, userMessage) {
 /**
  * Constrói o prompt de sistema final com todas as informações de contexto e regras de segurança.
  */
-function constructSystemPrompt(aiConfig, faqContext, guildName, botName) {
+function constructSystemPrompt(aiConfig, faqContext, guildName, botName, channel) {
   const today = new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const channelTypeName = getChannelTypeName(channel.type);
 
-  let systemPrompt = `Você é um assistente de IA conversacional. Seu nome é ${botName}. Você está atualmente no servidor Discord chamado "${guildName}". Hoje é ${today}.\n`;
+  let systemPrompt = `Você é um assistente de IA conversacional. Seu nome é ${botName}. Você está atualmente no servidor Discord "${guildName}", no canal #${channel.name} (um ${channelTypeName}). Hoje é ${today}.\n`;
   systemPrompt += "Sua diretriz principal é ser útil e envolvente. Você DEVE diferenciar os usuários na conversa pelos seus nomes e responder à última mensagem, considerando todo o histórico.\n\n";
 
   if (aiConfig.personality) {
@@ -146,7 +188,7 @@ async function generateResponse(client, message) {
 
     const conversation = await fetchConversationHistory(message, client, contextLimit);
     const faqContext = findRelevantFAQ(serverSettings.faq, message.content);
-    const systemPromptContent = constructSystemPrompt(aiConfig, faqContext, message.guild.name, client.user.username);
+    const systemPromptContent = constructSystemPrompt(aiConfig, faqContext, message.guild.name, client.user.username, message.channel);
 
     const messagesForAPI = [{ role: 'system', content: systemPromptContent }, ...conversation];
 
@@ -216,7 +258,8 @@ async function generateResponse(client, message) {
  * Função que é chamada pelo evento messageCreate para processar a mensagem.
  */
 async function processMessage(client, message) {
-  if (message.author.bot || !message.guild) return;
+  // Impede o bot de responder a si mesmo, mas permite responder a outros bots.
+  if (message.author.id === client.user.id || !message.guild) return;
 
   const settingsCollection = client.getDbCollection('server-settings');
   if (!settingsCollection) return;
