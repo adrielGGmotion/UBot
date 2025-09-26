@@ -1,5 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const Vibrant = require('node-vibrant');
+const Vibrant = require('node-vibrant/node');
 
 class RiffyManager {
     constructor(client) {
