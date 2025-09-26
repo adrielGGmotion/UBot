@@ -4,8 +4,46 @@
  */
 
 const https = require('https');
+const OpenAI = require('openai');
+const { ChannelType } = require('discord.js');
+
+const openai = new OpenAI({
+  baseURL: "https://openrouter.ai/api/v1",
+});
+
+/**
+ * Retorna o modelo de IA apropriado com base na configuração do servidor,
+ * priorizando um modelo com capacidade de visão se necessário.
+ * @param {object} aiConfig - A configuração da IA do servidor.
+ * @param {boolean} vision - Se o modelo de visão é necessário.
+ * @returns {string} - O nome do modelo a ser usado.
+ */
+function getModel(aiConfig, vision = false) {
+  if (vision) {
+    // Prioriza um modelo de visão se a configuração especificar um, caso contrário, usa um padrão.
+    return aiConfig.visionModel || 'google/gemini-pro-vision';
+  }
+  return aiConfig.model || 'x-ai/grok-4-fast:free';
+}
 
 const tools = [
+  {
+    type: 'function',
+    function: {
+      name: 'analyze_image_from_url',
+      description: 'Analyzes an image from a given URL and describes its content. Use this tool when a user provides an image link and asks what it is, or when an image is relevant to the conversation.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: {
+            type: 'string',
+            description: 'The direct URL of the image to be analyzed.'
+          }
+        },
+        required: ['url']
+      }
+    }
+  },
   {
     type: 'function',
     function: {
@@ -27,17 +65,17 @@ const tools = [
     type: 'function',
     function: {
       name: 'read_channel_messages',
-      description: 'Lê as últimas mensagens de um canal de texto específico. Útil para verificar o que foi discutido em outros canais.',
+      description: 'Reads the latest messages from a specific text channel. If you only have the channel name, use the `get_id` tool first to find its ID.',
       parameters: {
         type: 'object',
         properties: {
           channel_id: {
             type: 'string',
-            description: 'O ID do canal de texto que você quer ler.',
+            description: 'The ID of the text channel you want to read.',
           },
           limit: {
             type: 'number',
-            description: 'O número de mensagens a serem lidas (padrão: 10, máximo: 50).',
+            description: 'The number of messages to read (default: 10, max: 50).',
           }
         },
         required: ['channel_id'],
@@ -48,13 +86,13 @@ const tools = [
     type: 'function',
     function: {
       name: 'find_user_voice_channel',
-      description: 'Encontra o canal de voz em que um usuário específico está conectado no momento.',
+      description: 'Finds the voice channel a specific user is currently connected to. If you only have the username, use the `get_id` tool first to find their ID.',
       parameters: {
         type: 'object',
         properties: {
           user_id: {
             type: 'string',
-            description: 'O ID do usuário para localizar no servidor.',
+            description: 'The ID of the user to locate on the server.',
           },
         },
         required: ['user_id'],
@@ -65,13 +103,13 @@ const tools = [
     type: 'function',
     function: {
       name: 'get_user_avatar',
-      description: 'Obtém a URL da foto de perfil (avatar) de um usuário específico.',
+      description: 'Gets the profile picture (avatar) URL of a specific user. If you only have the username, use the `get_id` tool first to find their ID.',
       parameters: {
         type: 'object',
         properties: {
           user_id: {
             type: 'string',
-            description: 'O ID do usuário para buscar a foto de perfil.',
+            description: 'The ID of the user to get the profile picture from.',
           },
         },
         required: ['user_id'],
@@ -82,17 +120,17 @@ const tools = [
     type: 'function',
     function: {
       name: 'delete_message',
-      description: 'Exclui uma mensagem específica em um canal. Requer o ID da mensagem.',
+      description: 'Deletes a specific message in a channel. Requires the message ID. If you only have the message content, use the `get_id` tool to find its ID.',
       parameters: {
         type: 'object',
         properties: {
           message_id: {
             type: 'string',
-            description: 'O ID da mensagem a ser excluída.',
+            description: 'The ID of the message to be deleted.',
           },
           reason: {
             type: 'string',
-            description: 'A razão pela qual a mensagem está sendo excluída (opcional).',
+            description: 'The reason why the message is being deleted (optional).',
           }
         },
         required: ['message_id'],
@@ -103,17 +141,17 @@ const tools = [
     type: 'function',
     function: {
         name: 'send_message_to_channel',
-        description: 'Envia uma mensagem para um canal de texto específico no servidor.',
+        description: 'Sends a message to a specific text channel on the server. If you only have the channel name, use the `get_id` tool first to find its ID.',
         parameters: {
             type: 'object',
             properties: {
                 channel_id: {
                     type: 'string',
-                    description: 'O ID do canal para onde a mensagem será enviada.'
+                    description: 'The ID of the channel where the message will be sent.'
                 },
                 message_content: {
                     type: 'string',
-                    description: 'O conteúdo da mensagem a ser enviada.'
+                    description: 'The content of the message to be sent.'
                 },
             },
             required: ['channel_id', 'message_content'],
@@ -209,7 +247,7 @@ const tools = [
     type: 'function',
     function: {
       name: 'list_channels',
-      description: 'Lista todos os canais (de texto e voz) visíveis no servidor, junto com seus IDs, nomes e tipos.',
+      description: 'Lists all visible channels in the server, including their ID, name, and type (text, voice, category, etc.). This is crucial for understanding the server layout and finding the right channel for an action.',
       parameters: {
         type: 'object',
         properties: {},
@@ -311,12 +349,41 @@ const tools = [
  * @param {import('discord.js').Client} client - O cliente do Discord.
  */
 const getToolFunctions = (client) => ({
+  analyze_image_from_url: async ({ url }) => {
+    try {
+      const settingsCollection = client.getDbCollection('server-settings');
+      const serverSettings = await settingsCollection.findOne({ guildId: originalMessage.guild.id }) || {};
+      const aiConfig = serverSettings.aiConfig || {};
+      const visionModel = getModel(aiConfig, true);
+
+      const response = await openai.chat.completions.create({
+        model: visionModel,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Describe this image in detail.' },
+              { type: 'image_url', image_url: { url } },
+            ],
+          },
+        ],
+        max_tokens: 300,
+      });
+
+      const description = response.choices[0].message.content;
+      return { success: true, content: `Image Analysis: ${description}` };
+    } catch (error) {
+      console.error('Error analyzing image:', error);
+      return { success: false, content: 'An error occurred while trying to analyze the image. The URL might be invalid or the vision model may be unavailable.' };
+    }
+  },
+
   google_search: async ({ query }) => {
     const apiKey = process.env.GOOGLE_API_KEY;
     const cseId = process.env.GOOGLE_CSE_ID;
 
     if (!apiKey || !cseId) {
-      return { success: false, content: 'Google Search API key or CSE ID is not configured in the .env file.' };
+      return { success: false, content: 'The web search feature is not configured correctly. Please contact the administrator.' };
     }
 
     const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}`;
@@ -324,37 +391,29 @@ const getToolFunctions = (client) => ({
     return new Promise((resolve) => {
       https.get(url, (res) => {
         let data = '';
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
+        res.on('data', (chunk) => { data += chunk; });
         res.on('end', () => {
           try {
             const results = JSON.parse(data);
             if (results.error) {
-              console.error('Google Search API Error:', results.error);
-              resolve({ success: false, content: `API Error: ${results.error.message}` });
+              resolve({ success: false, content: `I couldn't complete the web search. The service reported an error: ${results.error.message}` });
               return;
             }
-
             const items = results.items?.slice(0, 5) || [];
             if (items.length === 0) {
               resolve({ success: true, content: 'No results found.' });
               return;
             }
-
             const formattedResults = items.map((item, index) =>
               `${index + 1}. ${item.title}\nSnippet: ${item.snippet}\nLink: ${item.link}`
             ).join('\n\n');
-
             resolve({ success: true, content: `Here are the top search results:\n${formattedResults}` });
           } catch (error) {
-            console.error('Error parsing Google Search API response:', error);
-            resolve({ success: false, content: 'Failed to parse the response from Google Search API.' });
+            resolve({ success: false, content: 'I received a response from the web search, but I couldn\'t understand it. Please try again.' });
           }
         });
       }).on('error', (err) => {
-        console.error('Error with Google Search API request:', err);
-        resolve({ success: false, content: `Request Error: ${err.message}` });
+        resolve({ success: false, content: `I couldn't connect to the web search service. Please check the connection and try again.` });
       });
     });
   },
@@ -362,39 +421,27 @@ const getToolFunctions = (client) => ({
   save_user_memory: async ({ key, value }, originalMessage) => {
     const memories = client.getDbCollection('user-memories');
     const userId = originalMessage.author.id;
-    const userTag = originalMessage.author.tag;
-
     try {
-      await memories.updateOne(
-        { userId, key },
-        { $set: { value, userTag, updatedAt: new Date() } },
-        { upsert: true }
-      );
-      console.log(`[Memory] Saved memory for user ${userTag} (${userId}): { ${key}: "${value}" }`);
-      return { success: true, content: `Ok, lembrei que "${key}" é "${value}" para você.` };
+      await memories.updateOne({ userId, key }, { $set: { value, userTag: originalMessage.author.tag, updatedAt: new Date() } }, { upsert: true });
+      return { success: true, content: `Okay, I've remembered that "${key}" is "${value}" for you.` };
     } catch (error) {
-      console.error('Erro ao salvar memória do usuário:', error);
-      return { success: false, content: 'Ocorreu um erro ao tentar salvar essa informação.' };
+      console.error('Error saving user memory:', error);
+      return { success: false, content: 'An error occurred while trying to save this information.' };
     }
   },
 
   get_user_memory: async ({ key }, originalMessage) => {
     const memories = client.getDbCollection('user-memories');
     const userId = originalMessage.author.id;
-    const userTag = originalMessage.author.tag;
-
     try {
       const memory = await memories.findOne({ userId, key });
       if (memory) {
-        console.log(`[Memory] Retrieved memory for user ${userTag} (${userId}): { ${key}: "${memory.value}" }`);
-        return { success: true, content: `Informação encontrada para a chave "${key}": ${memory.value}` };
-      } else {
-        console.log(`[Memory] No memory found for user ${userTag} (${userId}) with key "${key}"`);
-        return { success: false, content: `Não encontrei nenhuma informação com a chave "${key}" para você.` };
+        return { success: true, content: `Information found for the key "${key}": ${memory.value}` };
       }
+      return { success: false, content: `I couldn't find any information with the key "${key}" for you.` };
     } catch (error) {
-      console.error('Erro ao recuperar memória do usuário:', error);
-      return { success: false, content: 'Ocorreu um erro ao tentar buscar essa informação.' };
+      console.error('Error retrieving user memory:', error);
+      return { success: false, content: 'An error occurred while trying to retrieve this information.' };
     }
   },
 
@@ -402,295 +449,233 @@ const getToolFunctions = (client) => ({
     try {
       const messageToDelete = await originalMessage.channel.messages.fetch(message_id);
       await messageToDelete.delete();
-      return { success: true, content: `Mensagem ${message_id} excluída com sucesso.` };
+      return { success: true, content: `Message ${message_id} deleted successfully.` };
     } catch (error) {
-      console.error('Erro ao excluir mensagem:', error);
-      return { success: false, content: `Não foi possível excluir a mensagem ${message_id}. Verifique se o ID está correto e se eu tenho permissão.` };
+      console.error('Error deleting message:', error);
+      return { success: false, content: `Could not delete message ${message_id}. Please check if the ID is correct and if I have permission to do so.` };
     }
   },
+
   send_message_to_channel: async ({ channel_id, message_content }) => {
     try {
-        const channel = await client.channels.fetch(channel_id);
-        if (channel && channel.isTextBased()) {
-            await channel.send(message_content);
-            return { success: true, content: `Mensagem enviada para o canal ${channel.name}.` };
-        }
-        return { success: false, content: `Canal com ID ${channel_id} não encontrado ou não é um canal de texto.` };
+      const channel = await client.channels.fetch(channel_id);
+      if (channel && channel.isTextBased()) {
+        await channel.send(message_content);
+        return { success: true, content: `Message sent to channel #${channel.name}.` };
+      }
+      return { success: false, content: `Channel with ID ${channel_id} not found or it is not a text channel.` };
     } catch (error) {
-        console.error('Erro ao enviar mensagem:', error);
-        return { success: false, content: 'Ocorreu um erro ao tentar enviar a mensagem.' };
+      console.error('Error sending message:', error);
+      return { success: false, content: 'An error occurred while trying to send the message.' };
     }
   },
+
   list_text_channels: async (_, originalMessage) => {
     try {
       const guild = originalMessage.guild;
-      if (!guild) {
-        return { success: false, content: 'Esta função só pode ser usada dentro de um servidor.' };
-      }
-
+      if (!guild) return { success: false, content: 'This function can only be used inside a server.' };
       const channels = guild.channels.cache
         .filter(channel => channel.isTextBased())
-        .map(channel => ({
-          id: channel.id,
-          name: channel.name,
-          topic: channel.topic || 'Sem descrição.',
-        }));
-
+        .map(channel => ({ id: channel.id, name: channel.name, topic: channel.topic || 'No description.' }));
       return { success: true, content: channels };
     } catch (error) {
-      console.error('Erro ao listar canais:', error);
-      return { success: false, content: 'Ocorreu um erro ao tentar listar os canais de texto.' };
+      console.error('Error listing text channels:', error);
+      return { success: false, content: 'An error occurred while trying to list the text channels.' };
     }
   },
+
   list_channels: async (_, originalMessage) => {
     try {
       const guild = originalMessage.guild;
-      if (!guild) {
-        return { success: false, content: 'Esta função só pode ser usada dentro de um servidor.' };
-      }
-
-      const channels = guild.channels.cache
-        .map(channel => ({
-          id: channel.id,
-          name: channel.name,
-          type: channel.isTextBased() ? 'text' : (channel.isVoiceBased() ? 'voice' : 'unknown'),
-        }));
-
+      if (!guild) return { success: false, content: 'This function can only be used inside a server.' };
+      const getChannelTypeName = (type) => {
+        switch (type) {
+          case ChannelType.GuildText: return 'Text Channel';
+          case ChannelType.GuildVoice: return 'Voice Channel';
+          case ChannelType.GuildAnnouncement: return 'Announcement Channel';
+          case ChannelType.GuildForum: return 'Forum';
+          case ChannelType.PublicThread: return 'Public Thread';
+          case ChannelType.PrivateThread: return 'Private Thread';
+          case ChannelType.GuildStageVoice: return 'Stage Channel';
+          case ChannelType.GuildCategory: return 'Category';
+          default: return 'Other';
+        }
+      };
+      const channels = guild.channels.cache.map(channel => ({ id: channel.id, name: channel.name, type: getChannelTypeName(channel.type) }));
       return { success: true, content: channels };
     } catch (error) {
-      console.error('Erro ao listar todos os canais:', error);
-      return { success: false, content: 'Ocorreu um erro ao tentar listar os canais.' };
+      console.error('Error listing all channels:', error);
+      return { success: false, content: 'An error occurred while trying to list the channels.' };
     }
   },
-  read_channel_messages: async ({ channel_id, limit = 10 }, originalMessage) => {
+
+  read_channel_messages: async ({ channel_id, limit = 10 }) => {
     try {
       const channel = await client.channels.fetch(channel_id);
       if (!channel || !channel.isTextBased()) {
-        return { success: false, content: `Canal com ID ${channel_id} não encontrado ou não é um canal de texto.` };
+        return { success: false, content: `Channel with ID ${channel_id} not found or it is not a text channel.` };
       }
-
-      const safeLimit = Math.min(Math.max(1, limit), 50); // Garante que o limite esteja entre 1 e 50
-      const messages = await channel.messages.fetch({ limit: safeLimit });
-
+      const messages = await channel.messages.fetch({ limit: Math.min(limit, 50) });
       if (messages.size === 0) {
-        return { success: true, content: `Nenhuma mensagem recente encontrada no canal #${channel.name}.` };
+        return { success: true, content: `No recent messages found in channel #${channel.name}.` };
       }
-
-      const formattedMessages = messages.map(msg => {
-        const author = msg.author.bot ? `[BOT] ${msg.author.username}` : msg.author.username;
-        return `${author}: ${msg.content}`;
-      }).reverse().join('\n');
-
-      return { success: true, content: `Últimas ${messages.size} mensagens do canal #${channel.name}:\n${formattedMessages}` };
+      const formattedMessages = messages.map(msg => `${msg.author.bot ? '[BOT] ' : ''}${msg.author.username}: ${msg.content}`).reverse().join('\n');
+      return { success: true, content: `Last ${messages.size} messages from channel #${channel.name}:\n${formattedMessages}` };
     } catch (error) {
-      console.error('Erro ao ler mensagens do canal:', error);
-      if (error.code === 10003 || error.code === 50001) { // Unknown Channel or Missing Access
-          return { success: false, content: `Não foi possível acessar o canal com ID ${channel_id}. Verifique se o ID está correto e se eu tenho permissão para vê-lo.` };
+      if (error.code === 10003 || error.code === 50001) {
+        return { success: false, content: `Could not access the channel with ID ${channel_id}. Please check if the ID is correct and if I have permission to view it.` };
       }
-      return { success: false, content: 'Ocorreu um erro ao tentar ler as mensagens do canal.' };
+      return { success: false, content: 'An error occurred while trying to read the channel\'s messages.' };
     }
   },
+
   find_user_voice_channel: async ({ user_id }, originalMessage) => {
     const guild = originalMessage.guild;
-    if (!guild) {
-      return { success: false, content: 'Esta função só pode ser usada dentro de um servidor.' };
-    }
+    if (!guild) return { success: false, content: 'This function can only be used inside a server.' };
     try {
       const member = await guild.members.fetch(user_id);
-      if (!member) {
-        return { success: false, content: `Usuário com ID ${user_id} não encontrado neste servidor.` };
-      }
-
+      if (!member) return { success: false, content: `User with ID ${user_id} not found in this server.` };
       const voiceChannel = member.voice.channel;
       if (voiceChannel) {
-        return { success: true, content: { user_id: user_id, username: member.user.username, channel_id: voiceChannel.id, channel_name: voiceChannel.name } };
-      } else {
-        return { success: true, content: `O usuário ${member.user.username} não está conectado a um canal de voz.` };
+        return { success: true, content: { userId: user_id, username: member.user.username, channelId: voiceChannel.id, channelName: voiceChannel.name } };
       }
+      return { success: true, content: `The user ${member.user.username} is not connected to a voice channel.` };
     } catch (error) {
-      console.error('Erro ao encontrar canal de voz do usuário:', error);
-      if (error.code === 10007) { // Unknown Member
-          return { success: false, content: `Usuário com ID ${user_id} não encontrado.` };
-      }
-      return { success: false, content: 'Ocorreu um erro ao tentar localizar o usuário.' };
+      if (error.code === 10007) return { success: false, content: `User with ID ${user_id} not found.` };
+      return { success: false, content: 'An error occurred while trying to locate the user.' };
     }
   },
+
   join_voice_channel: async ({ channel_id }, originalMessage) => {
     try {
-      const guild = originalMessage.guild;
       const voiceChannel = await client.channels.fetch(channel_id);
-
-      if (!guild || !voiceChannel || !voiceChannel.isVoiceBased()) {
-        return { success: false, content: `Canal de voz com ID ${channel_id} não encontrado ou inválido.` };
+      if (!voiceChannel || !voiceChannel.isVoiceBased()) {
+        return { success: false, content: `Voice channel with ID ${channel_id} not found or is invalid.` };
       }
-
-      // Assumindo que o Riffy manager está no client.riffy
-      if (!client.riffy) {
-        return { success: false, content: 'O sistema de música (Riffy) não parece estar inicializado.' };
-      }
-
+      if (!client.riffy) return { success: false, content: 'The music system is not currently available. Please try again later.' };
       client.riffy.createConnection({
-        guildId: guild.id,
+        guildId: originalMessage.guild.id,
         voiceChannel: voiceChannel.id,
         textChannel: originalMessage.channel.id,
         selfDeaf: true,
       });
-
-      return { success: true, content: `Conectado ao canal de voz: ${voiceChannel.name}` };
+      return { success: true, content: `Connected to voice channel: ${voiceChannel.name}` };
     } catch (error) {
-      console.error('Erro ao entrar no canal de voz:', error);
-      return { success: false, content: 'Ocorreu um erro ao tentar entrar no canal de voz.' };
+      console.error('Error joining voice channel:', error);
+      return { success: false, content: 'An error occurred while trying to join the voice channel.' };
     }
   },
+
   list_voice_channel_members: async ({ channel_id }) => {
     try {
       const channel = await client.channels.fetch(channel_id);
-
       if (!channel || !channel.isVoiceBased()) {
-        return { success: false, content: `Canal de voz com ID ${channel_id} não encontrado ou inválido.` };
+        return { success: false, content: `Voice channel with ID ${channel_id} not found or is invalid.` };
       }
-
-      const members = channel.members.map(member => ({
-        id: member.id,
-        username: member.user.username,
-        isBot: member.user.bot,
-      }));
-
-      if (members.length === 0) {
-        return { success: true, content: `Não há ninguém no canal de voz ${channel.name}.` };
-      }
-
+      const members = channel.members.map(m => ({ id: m.id, username: m.user.username, isBot: m.user.bot }));
+      if (members.length === 0) return { success: true, content: `There is no one in the voice channel ${channel.name}.` };
       return { success: true, content: members };
     } catch (error) {
-      console.error('Erro ao listar membros do canal de voz:', error);
-      return { success: false, content: 'Ocorreu um erro ao listar os membros.' };
+      console.error('Error listing voice channel members:', error);
+      return { success: false, content: 'An error occurred while listing the members.' };
     }
   },
+
   get_user_avatar: async ({ user_id }, originalMessage) => {
     try {
-      let user;
-      // Tenta buscar pelo ID primeiro (método mais confiável)
-      try {
-        user = await client.users.fetch(user_id);
-      } catch (e) {
-        // Se falhar, pode não ser um ID. Tenta buscar pelo nome no servidor.
-        if (originalMessage.guild) {
-          const members = await originalMessage.guild.members.search({ query: user_id, limit: 1 });
-          const member = members.first();
-          if (member) {
-            user = member.user;
-          }
-        }
-      }
-
-      if (!user) {
-        return { success: false, content: `Usuário "${user_id}" não encontrado.` };
-      }
-
-      const avatarURL = user.displayAvatarURL({ dynamic: true, size: 512 });
-      return { success: true, content: avatarURL };
+      const user = await client.users.fetch(user_id).catch(() => null);
+      if (!user) return { success: false, content: `User "${user_id}" not found.` };
+      return { success: true, content: user.displayAvatarURL({ dynamic: true, size: 512 }) };
     } catch (error) {
-      console.error('Erro ao buscar avatar do usuário:', error);
-      return { success: false, content: 'Ocorreu um erro ao tentar buscar a foto de perfil.' };
+      console.error('Error fetching user avatar:', error);
+      return { success: false, content: 'An error occurred while trying to fetch the profile picture.' };
     }
   },
+
   play_music: async ({ query }, originalMessage) => {
     try {
-        const guild = originalMessage.guild;
-        if (!guild) return { success: false, content: 'Comando de música apenas em servidores.' };
+      const member = originalMessage.member;
+      if (!member.voice.channel) return { success: false, content: 'You need to be in a voice channel to use this.' };
+      if (!client.riffy) return { success: false, content: 'The music system is not currently available. Please try again later.' };
 
-        const member = await guild.members.fetch(originalMessage.author.id);
-        const voiceChannel = member.voice.channel;
-        if (!voiceChannel) return { success: false, content: 'Você precisa estar em um canal de voz.' };
+      const resolve = await client.riffy.resolve({ query, requester: originalMessage.author });
+      const { loadType, tracks } = resolve;
 
-        if (!client.riffy) return { success: false, content: 'Sistema de música não inicializado.' };
+      if (loadType === 'empty' || !tracks.length) return { success: false, content: `No music found for "${query}".` };
 
-        const resolve = await client.riffy.resolve({ query, requester: originalMessage.author });
-        const { loadType, tracks } = resolve;
+      const player = client.riffy.players.get(originalMessage.guild.id) || client.riffy.createConnection({
+        guildId: originalMessage.guild.id,
+        voiceChannel: member.voice.channel.id,
+        textChannel: originalMessage.channel.id,
+        deaf: true,
+      });
 
-        if (loadType === 'empty' || tracks.length === 0) {
-            return { success: false, content: `Nenhuma música encontrada para "${query}".` };
-        }
+      const track = tracks.shift();
+      player.queue.add(track);
+      if (!player.playing && !player.paused) player.play();
 
-        const player = client.riffy.players.get(guild.id) || client.riffy.createConnection({
-            guildId: guild.id,
-            voiceChannel: voiceChannel.id,
-            textChannel: originalMessage.channel.id,
-            deaf: true,
-        });
-
-        const track = tracks.shift();
-        player.queue.add(track);
-
-        if (!player.playing && !player.paused) {
-            player.play();
-        }
-
-        return { success: true, content: `Adicionado à fila: "${track.info.title}".` };
+      return { success: true, content: `Added to queue: "${track.info.title}".` };
     } catch (error) {
-        console.error('Erro ao tocar música:', error);
-        return { success: false, content: 'Ocorreu um erro ao tentar tocar a música.' };
+      console.error('Error playing music:', error);
+      return { success: false, content: 'An error occurred while trying to play the music.' };
     }
   },
-  pause_music: async (_, originalMessage) => {
-      const player = client.riffy.players.get(originalMessage.guild.id);
-      if (!player) return { success: false, content: 'Não estou tocando nada.' };
-      player.pause(true);
-      return { success: true, content: 'Música pausada.' };
+
+  pause_music: async (_, msg) => {
+    const player = client.riffy.players.get(msg.guild.id);
+    if (!player) return { success: false, content: 'I am not playing anything right now.' };
+    player.pause(true);
+    return { success: true, content: 'Music paused.' };
   },
-  resume_music: async (_, originalMessage) => {
-      const player = client.riffy.players.get(originalMessage.guild.id);
-      if (!player) return { success: false, content: 'Não estou tocando nada.' };
-      player.pause(false);
-      return { success: true, content: 'Música retomada.' };
+
+  resume_music: async (_, msg) => {
+    const player = client.riffy.players.get(msg.guild.id);
+    if (!player) return { success: false, content: 'I am not playing anything right now.' };
+    player.pause(false);
+    return { success: true, content: 'Music resumed.' };
   },
-  skip_music: async (_, originalMessage) => {
-      const player = client.riffy.players.get(originalMessage.guild.id);
-      if (!player) return { success: false, content: 'Não estou tocando nada.' };
-      player.stop();
-      return { success: true, content: 'Música pulada.' };
+
+  skip_music: async (_, msg) => {
+    const player = client.riffy.players.get(msg.guild.id);
+    if (!player) return { success: false, content: 'I am not playing anything right now.' };
+    player.stop();
+    return { success: true, content: 'Skipped to the next song.' };
   },
-  stop_music: async (_, originalMessage) => {
-      const player = client.riffy.players.get(originalMessage.guild.id);
-      if (player) {
-          player.destroy();
-          return { success: true, content: 'Música parada e fila limpa.' };
-      }
-      return { success: false, content: 'Não estou tocando nada.' };
+
+  stop_music: async (_, msg) => {
+    const player = client.riffy.players.get(msg.guild.id);
+    if (player) player.destroy();
+    return { success: true, content: 'Music stopped and queue cleared.' };
   },
+
   get_id: async ({ type, query }, originalMessage) => {
     const guild = originalMessage.guild;
-    if (!guild) return { success: false, content: 'Não foi possível encontrar a guilda.' };
-    let found;
-
+    if (!guild) return { success: false, content: 'Could not find the server.' };
     try {
-        switch (type) {
-            case 'user':
-                const members = await guild.members.search({ query, limit: 1 });
-                found = members.first();
-                break;
-            case 'channel':
-                found = guild.channels.cache.find(c => c.name.toLowerCase() === query.toLowerCase());
-                break;
-            case 'role':
-                found = guild.roles.cache.find(r => r.name.toLowerCase() === query.toLowerCase());
-                break;
-            case 'message':
-                 const messages = await originalMessage.channel.messages.fetch({ limit: 100 });
-                 found = messages.find(m => m.content.includes(query));
-                 break;
-            default:
-                return { success: false, content: `Tipo inválido: ${type}` };
-        }
-
-        if (found) {
-            return { success: true, content: `O ID para "${query}" (${type}) é: ${found.id}` };
-        } else {
-            return { success: false, content: `Nenhum ${type} encontrado para "${query}".` };
-        }
+      let found;
+      switch (type) {
+        case 'user':
+          const members = await guild.members.search({ query, limit: 1 });
+          found = members.first();
+          break;
+        case 'channel':
+          found = guild.channels.cache.find(c => c.name.toLowerCase() === query.toLowerCase());
+          break;
+        case 'role':
+          found = guild.roles.cache.find(r => r.name.toLowerCase() === query.toLowerCase());
+          break;
+        case 'message':
+          const messages = await originalMessage.channel.messages.fetch({ limit: 100 });
+          found = messages.find(m => m.content.includes(query));
+          break;
+        default:
+          return { success: false, content: `Invalid type: ${type}` };
+      }
+      if (found) return { success: true, content: `The ID for "${query}" (${type}) is: ${found.id}` };
+      return { success: false, content: `No ${type} found for "${query}".` };
     } catch (error) {
-        console.error(`Erro ao buscar ID para ${type} "${query}":`, error);
-        return { success: false, content: `Ocorreu um erro ao buscar o ID.` };
+      console.error(`Error searching for ID of ${type} "${query}":`, error);
+      return { success: false, content: 'An error occurred while searching for the ID.' };
     }
   },
 });

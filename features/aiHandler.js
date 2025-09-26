@@ -61,21 +61,8 @@ async function fetchConversationHistory(message, client, limit) {
       textContent += `\n${embedContent}`;
     }
 
-    let imageUrl = null;
-    if (msg.attachments.size > 0) {
-      const attachment = msg.attachments.first();
-      if (attachment.contentType?.startsWith('image/')) {
-        imageUrl = attachment.url;
-      }
-    }
-    if (!imageUrl) {
-      const match = textContent.match(IMAGE_URL_REGEX);
-      if (match) {
-        imageUrl = match[0];
-      }
-    }
-
-    const contentPayload = [];
+    // **CRITICAL FAILURE FIX: Removed automatic image processing**
+    // This was causing crashes and is being replaced by an on-demand tool.
 
     // 3. Capacidade: Saber se está lidando com um usuário ou bot
     let authorName = msg.author.username;
@@ -84,23 +71,10 @@ async function fetchConversationHistory(message, client, limit) {
     }
 
     const userText = msg.author.id === client.user.id ? textContent : `${authorName}: ${textContent}`;
-    contentPayload.push({ type: 'text', text: userText });
-
-    if (imageUrl) {
-      contentPayload.push({
-        type: 'image_url',
-        image_url: {
-          url: imageUrl,
-        },
-      });
-    }
-
     const role = msg.author.id === client.user.id ? 'assistant' : 'user';
-    const finalContent = contentPayload.length === 1 && !imageUrl
-        ? contentPayload[0].text
-        : contentPayload;
 
-    conversation.push({ role, content: finalContent });
+    // Apenas conteúdo de texto é adicionado.
+    conversation.push({ role, content: userText });
   }
 
   return conversation;
@@ -144,6 +118,12 @@ function constructSystemPrompt(aiConfig, faqContext, guildName, botName, channel
     systemPrompt += "## Exemplos de Estilo de Resposta\nSiga estes exemplos para o seu estilo de resposta:\n" + aiConfig.examples + '\n';
   }
 
+  systemPrompt += "## Consciência do Servidor e Ferramentas\n";
+  systemPrompt += "Para entender o ambiente e executar ações, você tem as seguintes capacidades:\n";
+  systemPrompt += "- **Listar Canais:** Use `list_channels()` para ver todos os canais disponíveis, seus nomes, IDs e tipos (texto, voz, etc.). Isso é essencial para saber onde as coisas estão e onde você pode agir.\n";
+  systemPrompt += "- **Obter IDs:** Muitas ferramentas exigem um ID (de usuário, canal, mensagem). Se o usuário fornecer um nome (ex: \"o canal #geral\" ou \"o usuário @Fulano\"), use a ferramenta `get_id({type: '...', query: '...'})` PRIMEIRO para encontrar o ID correto antes de tentar a ação principal.\n";
+  systemPrompt += "- **Analisar Imagens:** Se um usuário postar uma URL de imagem e perguntar sobre ela, use `analyze_image_from_url({url: '...'})` para descrevê-la.\n\n";
+
   systemPrompt += "## Memória do Usuário\n";
   systemPrompt += "Você tem a capacidade de lembrar e esquecer informações sobre os usuários. Use as seguintes ferramentas para gerenciar sua memória:\n";
   systemPrompt += "- `save_user_memory({key: 'nome_da_info', value: 'valor_da_info'})`: Para guardar um detalhe sobre o usuário com quem você está falando.\n";
@@ -161,7 +141,8 @@ function constructSystemPrompt(aiConfig, faqContext, guildName, botName, channel
   systemPrompt += "4. NÃO crie conteúdo que seja sexualmente explícito ou inapropriado.\n";
   systemPrompt += "5. Sua função é ser uma presença positiva e segura na comunidade.\n";
   systemPrompt += "6. Você não deve utilizar emojis, ao menos que esteja na personalidade que você possa.\n";
-  systemPrompt += "7. **MANUSEIO DE ERROS DE FERRAMENTAS:** Se você usar uma ferramenta e o resultado indicar uma falha (ex: `{\"success\": false, \"content\": \"mensagem de erro\"}`), sua resposta DEVE ser apenas a mensagem de erro do campo `content`. NÃO tente usar a ferramenta novamente. Apenas informe o erro ao usuário.\n\n";
+  systemPrompt += "7. **TRANSPARÊNCIA DE FERRAMENTAS:** Ao usar uma ferramenta com sucesso, sua resposta final DEVE mencionar a ação que você tomou. Exemplo: \"Eu verifiquei as últimas mensagens no canal #geral e...\" ou \"Eu procurei por 'próximo lançamento da NASA' e descobri que...\".\n";
+  systemPrompt += "8. **MANUSEIO DE ERROS DE FERRAMENTAS:** Se você usar uma ferramenta e o resultado indicar uma falha (ex: `{\"success\": false, \"content\": \"mensagem de erro\"}`), sua resposta DEVE ser apenas a mensagem de erro do campo `content`. NÃO tente usar a ferramenta novamente. Apenas informe o erro ao usuário.\n\n";
 
   if (faqContext) {
     systemPrompt += faqContext + '\n';
@@ -212,33 +193,46 @@ async function generateResponse(client, message) {
 
     const toolCalls = responseMessage.tool_calls;
     if (toolCalls) {
-      messagesForAPI.push(responseMessage);
-      const availableFunctions = getToolFunctions(client);
-      for (const toolCall of toolCalls) {
-        const functionName = toolCall.function.name;
-        const functionToCall = availableFunctions[functionName];
-        const functionArgs = JSON.parse(toolCall.function.arguments);
-        const functionResponse = await functionToCall(functionArgs, message);
-        messagesForAPI.push({
-          tool_call_id: toolCall.id,
-          role: 'tool',
-          name: functionName,
-          content: JSON.stringify(functionResponse),
+        const availableFunctions = getToolFunctions(client);
+        messagesForAPI.push(responseMessage); // Adiciona a chamada da ferramenta ao histórico
+
+        for (const toolCall of toolCalls) {
+            const functionName = toolCall.function.name;
+            const functionToCall = availableFunctions[functionName];
+            const functionArgs = JSON.parse(toolCall.function.arguments);
+
+            // Executa a função da ferramenta
+            const functionResponse = await functionToCall(functionArgs, message);
+
+            // **CRITICAL FAILURE FIX: Check for tool failure**
+            if (functionResponse.success === false) {
+                console.error(`Tool call failed for '${functionName}'. Reason: ${functionResponse.content}`);
+                // Retorna a mensagem de erro diretamente ao usuário, parando o loop.
+                return functionResponse.content;
+            }
+
+            // Adiciona o resultado da ferramenta ao histórico
+            messagesForAPI.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                name: functionName,
+                content: JSON.stringify(functionResponse),
+            });
+        }
+
+        // Continua para a segunda chamada da API apenas se todas as ferramentas tiverem sucesso
+        const secondCompletion = await openai.chat.completions.create({
+            model: model,
+            messages: messagesForAPI,
         });
-      }
 
-      const secondCompletion = await openai.chat.completions.create({
-        model: model,
-        messages: messagesForAPI,
-      });
+        const finalResponse = secondCompletion.choices[0].message.content;
 
-      const finalResponse = secondCompletion.choices[0].message.content;
-
-      if (finalResponse && client.db) {
-        const aiUsageLogs = client.getDbCollection('ai-usage-logs');
-        await aiUsageLogs.insertOne({ guildId: message.guild.id, userId: message.author.id, timestamp: new Date() });
-      }
-      return finalResponse;
+        if (finalResponse && client.db) {
+            const aiUsageLogs = client.getDbCollection('ai-usage-logs');
+            await aiUsageLogs.insertOne({ guildId: message.guild.id, userId: message.author.id, timestamp: new Date() });
+        }
+        return finalResponse;
     }
 
     const responseContent = responseMessage.content;
