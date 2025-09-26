@@ -292,8 +292,27 @@ async function startDashboard() {
       if (!guild) return res.status(404).json({ error: 'Guild not found.' });
       const settingsCollection = client.db.collection('server-settings');
       let settings = await settingsCollection.findOne({ guildId });
-      if (!settings) {
-        settings = { guildId, aiChannelIds: [], aiConfig: {}, faq: [], githubRepos: [], musicConfig: { djRole: 'DJ' } };
+
+      // Default settings structure
+      const defaultSettings = {
+        guildId,
+        aiChannelIds: [],
+        aiConfig: {},
+        faq: [],
+        githubRepos: [],
+        musicConfig: {
+          djRole: 'DJ',
+          autoplay: false,
+          embedColor: false,
+        },
+      };
+
+      if (settings) {
+        // Merge defaults into existing settings to ensure new fields are present
+        settings.musicConfig = { ...defaultSettings.musicConfig, ...settings.musicConfig };
+        settings = { ...defaultSettings, ...settings };
+      } else {
+        settings = defaultSettings;
       }
       const channels = guild.channels.cache.filter(c => c.isTextBased()).map(c => ({ id: c.id, name: c.name }));
       res.json({ settings, availableChannels: channels });

@@ -1,4 +1,5 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const Vibrant = require('node-vibrant');
 
 class RiffyManager {
     constructor(client) {
@@ -42,39 +43,92 @@ class RiffyManager {
 
     async onTrackStart(player, track) {
         const channel = this.client.channels.cache.get(player.textChannel);
-        if (channel) {
-            const embed = new EmbedBuilder()
-                .setColor(this.client.config.colors.primary)
-                .setAuthor({ name: "Now Playing" })
-                .setDescription(`[${track.info.title}](${track.info.uri})`)
-                .addFields(
-                    { name: "Duration", value: this.formatDuration(track.info.length), inline: true },
-                    { name: "Author", value: track.info.author, inline: true },
-                    { name: "Requested by", value: `<@${track.info.requester.id}>`, inline: true }
-                )
-                .setThumbnail(track.info.thumbnail);
+        if (!channel) return;
 
-            const message = await channel.send({ embeds: [embed] });
+        let settings = null;
+        if (this.client.db) {
+            const settingsCollection = this.client.db.collection('server-settings');
+            settings = await settingsCollection.findOne({ guildId: player.guildId });
+        }
+
+        let embedColor = this.client.config.colors.primary;
+        if (settings?.musicConfig?.embedColor && track.info.thumbnail) {
+            try {
+                const palette = await Vibrant.from(track.info.thumbnail).getPalette();
+                if (palette.Vibrant) {
+                    embedColor = palette.Vibrant.hex;
+                }
+            } catch (err) {
+                console.error(`[Vibrant] Failed to extract color from ${track.info.thumbnail}:`, err);
+            }
+        }
+
+        const requester = track.info.requester?.id === this.client.user.id
+            ? `Autoplay via ${this.client.user.username}`
+            : `<@${track.info.requester.id}>`;
+
+        const embed = new EmbedBuilder()
+            .setColor(embedColor)
+            .setAuthor({ name: "Now Playing" })
+            .setDescription(`[${track.info.title}](${track.info.uri})`)
+            .addFields(
+                { name: "Duration", value: this.formatDuration(track.info.length), inline: true },
+                { name: "Author", value: track.info.author, inline: true },
+                { name: "Requested by", value: requester, inline: true }
+            )
+            .setThumbnail(track.info.thumbnail);
+
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('music_pause_resume')
+                    .setLabel('⏯️ Pause/Resume')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId('music_skip')
+                    .setLabel('⏭️ Skip')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('music_stop')
+                    .setLabel('⏹️ Stop')
+                    .setStyle(ButtonStyle.Danger),
+                new ButtonBuilder()
+                    .setCustomId('music_loop')
+                    .setLabel('🔁 Loop')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+        try {
+            const message = await channel.send({ embeds: [embed], components: [row] });
             player.set("nowPlayingMessage", message);
+        } catch (error) {
+            console.error(`[RiffyManager] Could not send 'Now Playing' message in guild ${player.guildId}:`, error);
         }
     }
 
     async onQueueEnd(player) {
-        const channel = this.client.channels.cache.get(player.textChannel);
-        if (channel) {
-            const embed = new EmbedBuilder()
-                .setColor(this.client.config.colors.primary)
-                .setDescription("✅ Queue has ended. Leaving voice channel in 2 minutes if nothing is added.");
-            channel.send({ embeds: [embed] });
+        const timeout = player.get("destroyTimeout");
+        if (timeout) clearTimeout(timeout);
+
+        if (!this.client.db) {
+            this.startDestroyTimer(player);
+            return;
         }
 
-        // Start a timer to destroy the player if it remains idle
-        player.set("destroyTimeout", setTimeout(() => {
-            player.destroy();
-        }, 120000)); // 2 minutes
+        const settingsCollection = this.client.db.collection('server-settings');
+        const settings = await settingsCollection.findOne({ guildId: player.guildId });
+
+        if (settings?.musicConfig?.autoplay) {
+            this.handleAutoplay(player);
+        } else {
+            this.startDestroyTimer(player);
+        }
     }
 
     async onTrackEnd(player, track, payload) {
+        // Store the last track for autoplay purposes
+        player.set("previousTrack", track);
+
         // If the track ended because it was stopped, don't play the next one
         if (payload && payload.reason === 'stopped') {
             return;
@@ -84,6 +138,47 @@ class RiffyManager {
         if (player.queue.length > 0) {
             player.play();
         }
+    }
+
+    // --- Autoplay and Player Management ---
+
+    async handleAutoplay(player) {
+        const previousTrack = player.get("previousTrack");
+        if (!previousTrack) {
+            this.startDestroyTimer(player);
+            return;
+        }
+
+        const query = previousTrack.info.author; // Search for a new song by the same artist
+        const resolve = await this.client.riffy.resolve({ query: `ytsearch:${query}`, requester: this.client.user });
+
+        if (!resolve || !['search', 'track'].includes(resolve.loadType) || resolve.tracks.length === 0) {
+            this.startDestroyTimer(player);
+            return;
+        }
+
+        const nextTrack = resolve.tracks.find(t => t.info.identifier !== previousTrack.info.identifier) || resolve.tracks[0];
+
+        if (nextTrack) {
+            player.queue.add(nextTrack);
+            player.play();
+        } else {
+            this.startDestroyTimer(player);
+        }
+    }
+
+    startDestroyTimer(player) {
+        const channel = this.client.channels.cache.get(player.textChannel);
+        if (channel) {
+            const embed = new EmbedBuilder()
+                .setColor(this.client.config.colors.primary)
+                .setDescription("✅ Queue has ended. Leaving voice channel in 2 minutes if nothing is added.");
+            channel.send({ embeds: [embed] }).catch(e => console.error(`[RiffyManager] Could not send queue end message: ${e.message}`));
+        }
+
+        player.set("destroyTimeout", setTimeout(() => {
+            player.destroy();
+        }, 120000));
     }
 
     onPlayerDestroy(player) {
