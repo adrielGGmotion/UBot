@@ -5,7 +5,7 @@ module.exports = async (client) => {
     if (interaction.type === InteractionType.ApplicationCommand) {
       const command = client.slashCommands.get(interaction.commandName);
       if (!command) {
-        return interaction.reply({ content: client.getLocale('command_not_found'), ephemeral: true });
+        return interaction.reply({ content: client.getLocale('command_not_found'), flags: 64 });
       }
       try {
         await command.execute(interaction, client);
@@ -22,8 +22,15 @@ module.exports = async (client) => {
         
       } catch (err) {
         console.error(err);
-        if (!interaction.replied && !interaction.deferred) {
-          await interaction.reply({ content: client.getLocale('command_error'), ephemeral: true });
+        const errorMessage = {
+            content: client.getLocale('command_error'),
+            flags: 64
+        };
+
+        if (interaction.replied || interaction.deferred) {
+            await interaction.followUp(errorMessage).catch(console.error);
+        } else {
+            await interaction.reply(errorMessage).catch(console.error);
         }
       }
     }
