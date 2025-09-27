@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ai: getElement('panel-ai'),
         music: getElement('panel-music'),
         faq: getElement('panel-faq'),
-        github: getElement('panel-github')
+        notifications: getElement('panel-notifications')
     };
 
     // --- Lógica de Música ---
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const { availableChannels, settings } = data;
         buildAiPanel(availableChannels, settings.aiChannelIds, settings.aiConfig);
         buildFaqPanel(settings.faq);
-        buildGithubPanel();
+        buildNotificationsPanel(availableChannels, settings.githubRepos);
         buildMusicPanel(settings.musicConfig);
         setupNavigation();
     }
@@ -140,13 +140,17 @@ document.addEventListener('DOMContentLoaded', () => {
         // ... (código do painel de FAQ inalterado)
     }
 
+    function buildNotificationsPanel(availableChannels = [], repos = []) {
+        // ... (código do painel de notificações inalterado)
+    }
+
     function setupNavigation() {
         serverNavContainer.innerHTML = `
             <a href="/" class="nav-link" data-locale-key="nav_overview"></a>
             <a href="#" class="nav-link active" data-panel="ai" data-locale-key="nav_chatbot"></a>
             <a href="#" class="nav-link" data-panel="music" data-locale-key="nav_music"></a>
             <a href="#" class="nav-link" data-panel="faq" data-locale-key="nav_faq"></a>
-            <a href="#" class="nav-link" data-panel="github" data-locale-key="nav_github"></a>
+            <a href="#" class="nav-link" data-panel="notifications" data-locale-key="nav_notifications"></a>
             <a href="/connect-tree.html?id=${guildId}" class="nav-link" data-locale-key="nav_connect_tree"></a>`;
 
         serverNavContainer.querySelectorAll('[data-locale-key]').forEach(el => el.textContent = i18n.t(el.dataset.localeKey));
@@ -175,15 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         panels.music.style.display = 'none';
         panels.faq.style.display = 'none';
-        panels.github.style.display = 'none';
-    }
-
-    function buildGithubPanel() {
-        const goToGithubBtn = getElement('go-to-github-btn');
-        goToGithubBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            window.location.href = `/github.html?guildId=${guildId}`;
-        });
+        panels.notifications.style.display = 'none';
     }
 
     async function initializePage() {
@@ -226,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const { availableChannels, settings } = data;
             buildAiPanel(availableChannels, settings.aiChannelIds, settings.aiConfig, allTools.tools);
             buildFaqPanel(settings.faq);
-            buildGithubPanel();
+            buildNotificationsPanel(availableChannels, settings.githubRepos);
             buildMusicPanel(settings.musicConfig);
             setupNavigation();
 
@@ -252,19 +248,15 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const faq = (dataFromAPI.settings && dataFromAPI.settings.faq) ? dataFromAPI.settings.faq : [];
-
-        // githubRepos is no longer managed here. It's handled by github.html
+        const githubRepos = (dataFromAPI.settings && dataFromAPI.settings.githubRepos) ? dataFromAPI.settings.githubRepos : [];
 
         saveStatus.textContent = i18n.t('dashboard_server_saving_status');
         try {
             const token = localStorage.getItem('dashboard-token');
-            // We need to preserve the existing githubRepos settings
-            const existingGithubRepos = (dataFromAPI.settings && dataFromAPI.settings.githubRepos) ? dataFromAPI.settings.githubRepos : [];
-
             const response = await fetch(`/api/guilds/${guildId}/settings`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ aiChannelIds, aiConfig, faq, musicConfig, githubRepos: existingGithubRepos })
+                body: JSON.stringify({ aiChannelIds, aiConfig, faq, githubRepos, musicConfig })
             });
             if (handleAuthError(response)) return;
             if (!response.ok) throw new Error('Response not OK');

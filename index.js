@@ -4,7 +4,6 @@ const path = require('path');
 const { Client, Collection, GatewayIntentBits, Partials, REST, Routes, EmbedBuilder, ActivityType } = require('discord.js');
 const { Riffy } = require("riffy");
 const RiffyManager = require('./features/riffyManager.js');
-const githubNotifier = require('./features/githubNotifier.js');
 const express = require('express');
 const crypto = require('crypto');
 
@@ -308,53 +307,13 @@ async function startDashboard() {
         },
       };
 
-      const defaultGithubRepoConfig = {
-        enabled: true,
-        commits: {
-          enabled: false, channelId: null,
-          branchFilter: { mode: 'blacklist', list: [] },
-          messageFilter: { mode: 'blacklist', list: [] },
-          authorFilter: { mode: 'blacklist', list: [] },
-        },
-        pullRequests: {
-          enabled: false, channelId: null,
-          eventFilter: ['opened', 'merged', 'closed'],
-          branchFilter: { base: [], head: [] },
-          labelFilter: { mode: 'blacklist', list: [] },
-          ignoreDrafts: true,
-        },
-        issues: {
-          enabled: false, channelId: null,
-          eventFilter: ['opened', 'closed'],
-          labelFilter: { mode: 'blacklist', list: [] },
-        },
-        releases: {
-          enabled: false, channelId: null,
-          typeFilter: ['published', 'prerelease'],
-        },
-      };
-
       if (settings) {
         // Merge defaults into existing settings to ensure new fields are present
         settings.musicConfig = { ...defaultSettings.musicConfig, ...settings.musicConfig };
         settings = { ...defaultSettings, ...settings };
-
-        // Deep merge for each GitHub repo config
-        if (settings.githubRepos && Array.isArray(settings.githubRepos)) {
-          settings.githubRepos = settings.githubRepos.map(repo => {
-            const mergedRepo = { ...defaultGithubRepoConfig, ...repo };
-            mergedRepo.commits = { ...defaultGithubRepoConfig.commits, ...repo.commits };
-            mergedRepo.pullRequests = { ...defaultGithubRepoConfig.pullRequests, ...repo.pullRequests };
-            mergedRepo.issues = { ...defaultGithubRepoConfig.issues, ...repo.issues };
-            mergedRepo.releases = { ...defaultGithubRepoConfig.releases, ...repo.releases };
-            return mergedRepo;
-          });
-        }
-
       } else {
         settings = defaultSettings;
       }
-
       const channels = guild.channels.cache.filter(c => c.isTextBased()).map(c => ({ id: c.id, name: c.name }));
       res.json({ settings, availableChannels: channels });
     } catch (error) {
@@ -467,74 +426,6 @@ async function startDashboard() {
   });
 
   app.use('/', express.static(path.join(ROOT, 'dashboard', 'public')));
-
-  // Middleware para parsing do corpo raw, necessário para a verificação da assinatura do webhook
-  const rawBodyParser = express.raw({ type: 'application/json' });
-
-  app.post('/api/webhooks/github', rawBodyParser, async (req, res) => {
-    if (!client.db) return res.status(503).json({ error: 'Database not connected.' });
-
-    const githubEvent = req.headers['x-github-event'];
-    const signature = req.headers['x-hub-signature-256'];
-    const payload = JSON.parse(req.body); // O corpo raw é um buffer, precisa ser parseado
-    const repoFullName = payload.repository.full_name;
-
-    if (!githubEvent || !signature || !payload || !repoFullName) {
-        return res.status(400).send('Bad Request: Missing headers or payload.');
-    }
-
-    try {
-        const settingsCollection = client.db.collection('server-settings');
-        // Encontra todas as guilds que monitoram este repositório específico
-        const relevantSettings = await settingsCollection.find({
-            'githubRepos.name': repoFullName
-        }).toArray();
-
-        if (relevantSettings.length === 0) {
-            return res.status(200).send('No configurations for this repository.');
-        }
-
-        let processed = false;
-        for (const settings of relevantSettings) {
-            const repoConfig = settings.githubRepos.find(r => r.name === repoFullName);
-
-            // Verifica a assinatura para cada configuração
-            const hmac = crypto.createHmac('sha256', repoConfig.secret);
-            const digest = `sha256=${hmac.update(req.body).digest('hex')}`;
-
-            if (crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(signature))) {
-                // Assinatura válida, processa o evento
-                switch (githubEvent) {
-                    case 'push':
-                        githubNotifier.handlePushEvent(client, repoConfig, payload);
-                        break;
-                    case 'pull_request':
-                        githubNotifier.handlePullRequestEvent(client, repoConfig, payload);
-                        break;
-                    case 'issues':
-                        githubNotifier.handleIssuesEvent(client, repoConfig, payload);
-                        break;
-                    case 'release':
-                        githubNotifier.handleReleaseEvent(client, repoConfig, payload);
-                        break;
-                }
-                processed = true;
-            } else {
-                console.warn(`[GitHub Webhook] Invalid signature for repo ${repoFullName} in guild ${settings.guildId}`);
-            }
-        }
-
-        if (processed) {
-            res.status(200).send('Event processed.');
-        } else {
-            res.status(401).send('Unauthorized: Invalid signature.');
-        }
-
-    } catch (error) {
-        console.error('[GitHub Webhook] Error processing event:', error);
-        res.status(500).send('Internal Server Error');
-    }
-  });
 
   app.listen(port, () => console.log(client.getLocale('log_dashboard_running', { port: port })));
 }
