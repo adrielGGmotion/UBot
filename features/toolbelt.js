@@ -3,6 +3,7 @@
  * que a IA pode utilizar para interagir com o Discord.
  */
 
+const fetch = require('node-fetch');
 const https = require('https');
 const OpenAI = require('openai');
 const { ChannelType } = require('discord.js');
@@ -41,6 +42,27 @@ const tools = [
           }
         },
         required: ['url']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'search_github_issues',
+      description: 'Searches for issues in a specific GitHub repository. Use this to find bug reports, feature requests, or other issues.',
+      parameters: {
+        type: 'object',
+        properties: {
+          repository: {
+            type: 'string',
+            description: 'The full name of the repository (e.g., "owner/repo-name").'
+          },
+          query: {
+            type: 'string',
+            description: 'The search query for the issues (e.g., "login bug", "add new theme").'
+          }
+        },
+        required: ['repository', 'query']
       }
     }
   },
@@ -375,6 +397,37 @@ const getToolFunctions = (client) => ({
     } catch (error) {
       console.error('Error analyzing image:', error);
       return { success: false, content: 'An error occurred while trying to analyze the image. The URL might be invalid or the vision model may be unavailable.' };
+    }
+  },
+
+  search_github_issues: async ({ repository, query }) => {
+    try {
+        const url = `https://api.github.com/search/issues?q=${encodeURIComponent(query)}+repo:${repository}`;
+        const response = await fetch(url, {
+            headers: {
+                'Accept': 'application/vnd.github.v3+json',
+                'User-Agent': 'node.js'
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            return { success: false, content: `Error searching GitHub issues: ${errorData.message}` };
+        }
+
+        const data = await response.json();
+        if (data.items.length === 0) {
+            return { success: true, content: 'No issues found for your query.' };
+        }
+
+        const issues = data.items.slice(0, 5).map(issue =>
+            `- [${issue.state.toUpperCase()}] #${issue.number}: ${issue.title}\n  Link: ${issue.html_url}`
+        ).join('\n');
+
+        return { success: true, content: `Found issues:\n${issues}` };
+    } catch (error) {
+        console.error('Error in search_github_issues:', error);
+        return { success: false, content: 'An internal error occurred while searching for GitHub issues.' };
     }
   },
 
