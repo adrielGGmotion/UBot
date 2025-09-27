@@ -14,12 +14,12 @@ module.exports = {
     const query = interaction.options.getString('query');
 
     if (!channel) {
-      return interaction.reply({ content: 'Você precisa estar em um canal de voz para usar este comando.', ephemeral: true });
+      return interaction.reply({ content: 'Você precisa estar em um canal de voz para usar este comando.', flags: 64 });
     }
     
     const permissions = channel.permissionsFor(client.user);
     if (!permissions.has('Connect') || !permissions.has('Speak')) {
-        return interaction.reply({ content: 'Eu preciso de permissão para entrar e falar no seu canal de voz!', ephemeral: true });
+        return interaction.reply({ content: 'Eu preciso de permissão para entrar e falar no seu canal de voz!', flags: 64 });
     }
 
     await interaction.deferReply();
@@ -85,15 +85,15 @@ module.exports = {
             break;
 
         case 'empty':
-            return interaction.editReply({ content: '❌ Não encontrei nenhum resultado para essa busca.', ephemeral: true });
+            return interaction.editReply({ content: '❌ Não encontrei nenhum resultado para essa busca.' });
 
         case 'error':
             console.error("Lavalink load failed. Resolve object:", resolve);
-            return interaction.editReply({ content: '🔥 Ocorreu um erro ao tentar carregar a música. Verifique os logs do seu servidor Lavalink.', ephemeral: true });
+            return interaction.editReply({ content: '🔥 Ocorreu um erro ao tentar carregar a música. Verifique os logs do seu servidor Lavalink.' });
 
         default:
             console.warn(`[Debug] Tipo de carga desconhecido: ${loadType}`);
-            return interaction.editReply({ content: '❓ Ocorreu um resultado inesperado do serviço de música.', ephemeral: true });
+            return interaction.editReply({ content: '❓ Ocorreu um resultado inesperado do serviço de música.' });
     }
   }
 };
