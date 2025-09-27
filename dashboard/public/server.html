@@ -155,10 +155,14 @@
         </div>
       </div>
 
-      <div id="panel-github" class="widget settings-panel" style="display: none;">
-        <h2 data-locale-key="dashboard_server_github_title">GitHub Monitoring</h2>
-        <p data-locale-key="dashboard_server_github_desc" style="margin-bottom: 1rem;">Set up detailed notifications for commits, pull requests, issues, and releases from your GitHub repositories.</p>
-        <a href="#" id="go-to-github-btn" class="form-button" style="text-decoration: none; text-align: center; padding: 12px;" data-locale-key="dashboard_server_github_button">Configure GitHub Monitoring</a>
+      <div id="panel-notifications" class="widget settings-panel" style="display: none;">
+        <h2 data-locale-key="dashboard_server_notifications_title"></h2>
+        <div id="repos-list" class="faq-list"></div>
+        <div class="profile-form">
+          <input type="text" id="repo-new-name" class="form-input" data-locale-placeholder-key="dashboard_server_notifications_repo_placeholder">
+          <select id="repo-new-channel" class="form-select"></select>
+          <button id="repo-add-btn" class="form-button" data-locale-key="dashboard_server_notifications_add_button"></button>
+        </div>
       </div>
 
       <div class="widget">
