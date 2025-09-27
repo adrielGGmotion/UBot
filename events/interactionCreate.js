@@ -11,11 +11,25 @@ module.exports = {
             try {
                 await command.execute(interaction, client);
             } catch (error) {
+                // Discord API error code 10062 is for "Unknown Interaction"
+                // This error is thrown when an interaction is not acknowledged within 3 seconds.
+                // In such cases, we should not try to reply, as it will fail.
+                if (error.code === 10062) {
+                    console.error(`[Interaction Handling] Could not acknowledge interaction for command "${interaction.commandName}" in time. The interaction is no longer valid.`);
+                    return; // Stop execution to prevent a crash
+                }
+
                 console.error(`Error executing command ${interaction.commandName}:`, error);
-                if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
-                } else {
-                    await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+
+                try {
+                    if (interaction.replied || interaction.deferred) {
+                        await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+                    } else {
+                        await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+                    }
+                } catch (followUpError) {
+                    // Log the follow-up error as well, as it might be a different issue (e.g., channel permissions)
+                    console.error(`[Interaction Handling] Failed to send error feedback for command "${interaction.commandName}":`, followUpError);
                 }
             }
             return;
