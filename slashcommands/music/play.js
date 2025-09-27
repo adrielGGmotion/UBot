@@ -22,78 +22,66 @@ module.exports = {
         return interaction.reply({ content: 'Eu preciso de permissão para entrar e falar no seu canal de voz!', flags: 64 });
     }
 
-    await interaction.deferReply();
+    try {
+        await interaction.deferReply();
+    } catch (error) {
+        console.error("Error deferring reply:", error);
+        // If defer fails, it's likely the interaction is no longer valid.
+        // We log the error and return to prevent a crash.
+        return;
+    }
 
-    const resolve = await client.riffy.resolve({ query: query, requester: interaction.user });
-    const { loadType, tracks, playlistInfo } = resolve;
-    
-    const player = client.riffy.players.get(interaction.guildId) || client.riffy.createConnection({
-        guildId: interaction.guildId,
-        voiceChannel: channel.id,
-        textChannel: interaction.channelId,
-        deaf: true,
-    });
-    
-    const destroyTimeout = player.get("destroyTimeout");
-    if (destroyTimeout) clearTimeout(destroyTimeout);
+    try {
+        const resolve = await client.riffy.resolve({ query: query, requester: interaction.user });
+        const { loadType, tracks, playlistInfo } = resolve;
 
-    const embed = new EmbedBuilder().setColor(client.config.colors.primary);
+        const player = client.riffy.players.get(interaction.guildId) || client.riffy.createConnection({
+            guildId: interaction.guildId,
+            voiceChannel: channel.id,
+            textChannel: interaction.channelId,
+            deaf: true,
+        });
 
-    // CORREÇÃO: Todos os casos agora estão em letras minúsculas para corresponder à resposta do Lavalink.
-    switch (loadType) {
-        case 'playlist':
-            for (const track of tracks) {
+        const destroyTimeout = player.get("destroyTimeout");
+        if (destroyTimeout) clearTimeout(destroyTimeout);
+
+        const embed = new EmbedBuilder().setColor(client.config.colors.primary);
+
+        switch (loadType) {
+            case 'playlist':
+                for (const track of tracks) {
+                    player.queue.add(track);
+                }
+                embed.setTitle("✅ Playlist Adicionada")
+                    .setDescription(`**${playlistInfo.name}** com **${tracks.length}** músicas foi adicionada à fila.`);
+                await interaction.editReply({ embeds: [embed] });
+                if (!player.playing && !player.paused) player.play();
+                break;
+
+            case 'search':
+            case 'track':
+                const track = tracks.shift();
                 player.queue.add(track);
-            }
-            embed.setTitle("✅ Playlist Adicionada")
-                 .setDescription(`**${playlistInfo.name}** com **${tracks.length}** músicas foi adicionada à fila.`);
-            await interaction.editReply({ embeds: [embed] });
-            if (!player.playing && !player.paused) {
-                // Tenta usar o método de reprodução correto com base na API do riffy
-                try {
-                    player.play();
-                } catch (error) {
-                    console.error("Error playing track:", error);
-                    // Método alternativo se play() não existir
-                    if (typeof player.start === 'function') {
-                        player.start();
-                    }
-                }
-            }
-            break;
+                embed.setTitle("👍 Adicionado à Fila")
+                    .setDescription(`[${track.info.title}](${track.info.uri})`);
+                await interaction.editReply({ embeds: [embed] });
+                if (!player.playing && !player.paused) player.play();
+                break;
 
-        case 'search':
-        case 'track':
-            const track = tracks.shift();
-            player.queue.add(track);
-            embed.setTitle("👍 Adicionado à Fila")
-                 .setDescription(`[${track.info.title}](${track.info.uri})`);
-            await interaction.editReply({ embeds: [embed] });
-            if (!player.playing && !player.paused) {
-                // Tenta usar o método de reprodução correto com base na API do riffy
-                try {
-                    // Garante que a música será reproduzida completamente
-                    player.play({ track: track });
-                } catch (error) {
-                    console.error("Error playing track:", error);
-                    // Método alternativo se play() não existir
-                    if (typeof player.start === 'function') {
-                        player.start(track);
-                    }
-                }
-            }
-            break;
+            case 'empty':
+                return interaction.editReply({ content: '❌ Não encontrei nenhum resultado para essa busca.' });
 
-        case 'empty':
-            return interaction.editReply({ content: '❌ Não encontrei nenhum resultado para essa busca.' });
+            case 'error':
+                console.error("Lavalink load failed. Resolve object:", resolve);
+                return interaction.editReply({ content: '🔥 Ocorreu um erro ao tentar carregar a música. Verifique os logs do seu servidor Lavalink.' });
 
-        case 'error':
-            console.error("Lavalink load failed. Resolve object:", resolve);
-            return interaction.editReply({ content: '🔥 Ocorreu um erro ao tentar carregar a música. Verifique os logs do seu servidor Lavalink.' });
-
-        default:
-            console.warn(`[Debug] Tipo de carga desconhecido: ${loadType}`);
-            return interaction.editReply({ content: '❓ Ocorreu um resultado inesperado do serviço de música.' });
+            default:
+                console.warn(`[Debug] Tipo de carga desconhecido: ${loadType}`);
+                return interaction.editReply({ content: '❓ Ocorreu um resultado inesperado do serviço de música.' });
+        }
+    } catch (error) {
+        console.error("Error processing play command:", error);
+        await interaction.editReply({ content: 'Ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.' });
     }
   }
 };
