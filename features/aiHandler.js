@@ -14,28 +14,12 @@ const IMAGE_URL_REGEX = /\b(https?:\/\/[^\s]+?\.(?:png|jpe?g|gif|webp))\b/i;
  * @param {import('discord.js').ChannelType} type - O tipo do canal.
  * @returns {string} - O nome do tipo de canal.
  */
-function getChannelTypeName(type) {
-  switch (type) {
-    case ChannelType.GuildText: return 'Canal de Texto';
-    case ChannelType.GuildVoice: return 'Canal de Voz';
-    case ChannelType.GuildAnnouncement: return 'Canal de Anúncios';
-    case ChannelType.GuildForum: return 'Fórum';
-    case ChannelType.PublicThread: return 'Thread Pública';
-    case ChannelType.PrivateThread: return 'Thread Privada';
-    case ChannelType.GuildStageVoice: return 'Canal de Palco';
-    case ChannelType.GuildCategory: return 'Categoria';
-    case ChannelType.DM: return 'Mensagem Direta';
-    case ChannelType.GroupDM: return 'Mensagem Direta em Grupo';
-    default: return `Tipo de Canal (${type})`;
-  }
-}
-
 /**
- * Busca e formata o histórico de mensagens do canal, com capacidades avançadas de contexto.
- * @param {import('discord.js').Message} message - A mensagem que acionou o bot.
- * @param {import('discord.js').Client} client - O cliente do Discord.
- * @param {number} limit - O número de mensagens a serem buscadas.
- * @returns {Promise<{role: string, content: (string | object)[]}[]>} - O histórico formatado.
+ * Fetches and formats the message history of a channel, with advanced context capabilities.
+ * @param {import('discord.js').Message} message - The message that triggered the bot.
+ * @param {import('discord.js').Client} client - The Discord client.
+ * @param {number} limit - The number of messages to fetch.
+ * @returns {Promise<{role: string, content: (string | object)[]}[]>} - The formatted history.
  */
 async function fetchConversationHistory(message, client, limit) {
   const lastMessages = await message.channel.messages.fetch({ limit });
@@ -44,27 +28,24 @@ async function fetchConversationHistory(message, client, limit) {
   for (const msg of Array.from(lastMessages.values()).reverse()) {
     let textContent = msg.content;
 
-    // 2. Capacidade: Ler conteúdo de embeds
+    // Capability: Read embed content
     if (msg.embeds.length > 0) {
       const embedContent = msg.embeds.map(embed => {
         let content = `[Embed`;
-        if (embed.author?.name) content += ` de ${embed.author.name}`;
+        if (embed.author?.name) content += ` by ${embed.author.name}`;
         content += `]`;
-        if (embed.title) content += `\nTítulo: ${embed.title}`;
-        if (embed.description) content += `\nDescrição: ${embed.description}`;
+        if (embed.title) content += `\nTitle: ${embed.title}`;
+        if (embed.description) content += `\nDescription: ${embed.description}`;
         if (embed.fields.length > 0) {
-          content += `\nCampos:\n${embed.fields.map(field => `- ${field.name}: ${field.value}`).join('\n')}`;
+          content += `\nFields:\n${embed.fields.map(field => `- ${field.name}: ${field.value}`).join('\n')}`;
         }
-        if (embed.footer?.text) content += `\nRodapé: ${embed.footer.text}`;
+        if (embed.footer?.text) content += `\nFooter: ${embed.footer.text}`;
         return content;
       }).join('\n\n');
       textContent += `\n${embedContent}`;
     }
 
-    // **CRITICAL FAILURE FIX: Removed automatic image processing**
-    // This was causing crashes and is being replaced by an on-demand tool.
-
-    // 3. Capacidade: Saber se está lidando com um usuário ou bot
+    // Capability: Know if dealing with a user or bot
     let authorName = msg.author.username;
     if (msg.author.bot && msg.author.id !== client.user.id) {
         authorName = `[BOT] ${authorName}`;
@@ -73,7 +54,6 @@ async function fetchConversationHistory(message, client, limit) {
     const userText = msg.author.id === client.user.id ? textContent : `${authorName}: ${textContent}`;
     const role = msg.author.id === client.user.id ? 'assistant' : 'user';
 
-    // Apenas conteúdo de texto é adicionado.
     conversation.push({ role, content: userText });
   }
 
@@ -81,79 +61,66 @@ async function fetchConversationHistory(message, client, limit) {
 }
 
 /**
- * Procura por uma pergunta relevante na base de conhecimento (FAQ) do servidor.
+ * Constructs the final system prompt with all context and security rules.
+ * @param {object} aiConfig - The AI configuration from settings.
+ * @param {string} guildName - The name of the server.
+ * @param {string} botName - The name of the bot.
+ * @param {import('discord.js').TextChannel} channel - The channel where the interaction is happening.
+ * @param {string} userLocale - The locale of the user for language-specific responses.
+ * @returns {string} The constructed system prompt.
  */
-function findRelevantFAQ(faqList, userMessage) {
-  if (!faqList || faqList.length === 0) return '';
-  const lowerUserMessage = userMessage.toLowerCase();
+function constructSystemPrompt(aiConfig, guildName, botName, channel, userLocale = 'en') {
+    const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const channelTypeName = Object.keys(ChannelType).find(key => ChannelType[key] === channel.type) || 'Unknown';
 
-  const foundFaq = faqList.find(faq => {
-    const keywords = faq.question.toLowerCase().split(' ').filter(word => word.length > 3);
-    return keywords.some(key => lowerUserMessage.includes(key));
-  });
+    let systemPrompt = `You are a conversational AI assistant. Your name is ${botName}. You are currently in the Discord server "${guildName}", in the channel #${channel.name} (a ${channelTypeName} channel). Today is ${today}.\n`;
+    systemPrompt += `Your primary directive is to be helpful and engaging. You MUST differentiate users in the conversation by their names and respond to the last message, considering the entire history. IMPORTANT: The user is speaking ${userLocale}. You MUST respond in ${userLocale}.\n\n`;
 
-  if (foundFaq) {
-    return `## Base de Conhecimento Relevante\nSe a pergunta do usuário for similar a esta, use a seguinte informação para responder:\n- Pergunta: ${foundFaq.question}\n- Resposta: ${foundFaq.answer}\n`;
-  }
+    if (aiConfig.personality && Array.isArray(aiConfig.personality) && aiConfig.personality.length > 0) {
+        systemPrompt += "## Your Personality (User-defined)\n";
+        systemPrompt += "This is a list of personality traits you should adopt. Each line is a separate instruction:\n";
+        systemPrompt += aiConfig.personality.map(p => `- ${p.trim()}`).filter(p => p.length > 1).join('\n') + '\n\n';
+    }
 
-  return '';
+    if (aiConfig.examples && Array.isArray(aiConfig.examples) && aiConfig.examples.length > 0) {
+        systemPrompt += "## Response Style Examples\nFollow these examples for your response style. Each line is a separate instruction:\n";
+        systemPrompt += aiConfig.examples.map(e => `- ${e.trim()}`).filter(e => e.length > 1).join('\n') + '\n\n';
+    }
+
+    systemPrompt += "## Server Awareness & Tools\n";
+    systemPrompt += "To understand the environment and perform actions, you have the following capabilities:\n";
+    systemPrompt += "- **List Channels:** Use `list_channels()` to see all available channels, their names, IDs, and types (text, voice, etc.). This is essential to know where things are and where you can act.\n";
+    systemPrompt += "- **Get IDs:** Many tools require an ID (of a user, channel, message). If the user provides a name (e.g., \"the #general channel\" or \"user @JohnDoe\"), use the `get_id({type: '...', query: '...'})` tool FIRST to find the correct ID before attempting the main action.\n";
+    systemPrompt += "- **Analyze Images:** If a user posts an image URL and asks about it, use `analyze_image_from_url({url: '...'})` to describe it.\n";
+    systemPrompt += "- **Read Knowledge Base:** If the user's question seems like it could be answered by a FAQ or a knowledge base, use `read_knowledge_base({query: '...'})` to search for relevant information.\n\n";
+
+    systemPrompt += "## User Memory\n";
+    systemPrompt += "You can remember and forget information about users. Use the following tools to manage your memory:\n";
+    systemPrompt += "- `save_user_memory({key: 'info_name', value: 'info_value'})`: To save a detail about the user you are talking to.\n";
+    systemPrompt += "- `get_user_memory({key: 'info_name'})`: To retrieve a detail you previously saved about the user.\n\n";
+
+    systemPrompt += "## Web Search\n";
+    systemPrompt += "You can search the internet using Google to find current information or specific topics.\n";
+    systemPrompt += "- `google_search({query: 'search_term'})`: Use this tool when the user's question requires current knowledge, news, or information you don't have.\n\n";
+
+    systemPrompt += "## MANDATORY BEHAVIORAL RULES\n";
+    systemPrompt += "REGARDLESS OF YOUR PERSONALITY, you MUST follow these rules ALWAYS:\n";
+    systemPrompt += "1. NEVER use hate speech, slurs, heavy insults, or derogatory terms.\n";
+    systemPrompt += "2. NEVER promote or encourage violence, self-harm, or any dangerous acts.\n";
+    systemPrompt += "3. BE RESPECTFUL to all users.\n";
+    systemPrompt += "4. DO NOT create sexually explicit or inappropriate content.\n";
+    systemPrompt += "5. Your function is to be a positive and safe presence in the community.\n";
+    systemPrompt += "6. Do not use emojis unless your personality explicitly allows it.\n";
+    systemPrompt += "7. **TOOL TRANSPARENCY:** When you use a tool successfully, your final response MUST mention the action you took. Example: \"I checked the latest messages in #general and...\" or \"I searched for 'next NASA launch' and found out that...\".\n";
+    systemPrompt += "8. **TOOL ERROR HANDLING:** If you use a tool and the result indicates a failure (e.g., `{\"success\": false, \"content\": \"error message\"}`), your response MUST be only the error message from the `content` field. DO NOT try the tool again. Just report the error to the user.\n\n";
+
+    systemPrompt += "\n---\nRemember your mandatory behavioral rules and respond to the user's last message.";
+    return systemPrompt;
 }
 
-/**
- * Constrói o prompt de sistema final com todas as informações de contexto e regras de segurança.
- */
-function constructSystemPrompt(aiConfig, faqContext, guildName, botName, channel) {
-  const today = new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const channelTypeName = getChannelTypeName(channel.type);
-
-  let systemPrompt = `Você é um assistente de IA conversacional. Seu nome é ${botName}. Você está atualmente no servidor Discord "${guildName}", no canal #${channel.name} (um ${channelTypeName}). Hoje é ${today}.\n`;
-  systemPrompt += "Sua diretriz principal é ser útil e envolvente. Você DEVE diferenciar os usuários na conversa pelos seus nomes e responder à última mensagem, considerando todo o histórico.\n\n";
-
-  if (aiConfig.personality) {
-    systemPrompt += "## Sua Personalidade (Definida pelo Usuário)\n";
-    systemPrompt += aiConfig.personality + '\n\n';
-  }
-
-  if (aiConfig.examples) {
-    systemPrompt += "## Exemplos de Estilo de Resposta\nSiga estes exemplos para o seu estilo de resposta:\n" + aiConfig.examples + '\n';
-  }
-
-  systemPrompt += "## Consciência do Servidor e Ferramentas\n";
-  systemPrompt += "Para entender o ambiente e executar ações, você tem as seguintes capacidades:\n";
-  systemPrompt += "- **Listar Canais:** Use `list_channels()` para ver todos os canais disponíveis, seus nomes, IDs e tipos (texto, voz, etc.). Isso é essencial para saber onde as coisas estão e onde você pode agir.\n";
-  systemPrompt += "- **Obter IDs:** Muitas ferramentas exigem um ID (de usuário, canal, mensagem). Se o usuário fornecer um nome (ex: \"o canal #geral\" ou \"o usuário @Fulano\"), use a ferramenta `get_id({type: '...', query: '...'})` PRIMEIRO para encontrar o ID correto antes de tentar a ação principal.\n";
-  systemPrompt += "- **Analisar Imagens:** Se um usuário postar uma URL de imagem e perguntar sobre ela, use `analyze_image_from_url({url: '...'})` para descrevê-la.\n\n";
-
-  systemPrompt += "## Memória do Usuário\n";
-  systemPrompt += "Você tem a capacidade de lembrar e esquecer informações sobre os usuários. Use as seguintes ferramentas para gerenciar sua memória:\n";
-  systemPrompt += "- `save_user_memory({key: 'nome_da_info', value: 'valor_da_info'})`: Para guardar um detalhe sobre o usuário com quem você está falando.\n";
-  systemPrompt += "- `get_user_memory({key: 'nome_da_info'})`: Para recuperar um detalhe que você salvou anteriormente sobre o usuário.\n\n";
-
-  systemPrompt += "## Pesquisa na Web\n";
-  systemPrompt += "Você tem a capacidade de pesquisar na internet usando o Google para encontrar informações atuais ou sobre tópicos específicos.\n";
-  systemPrompt += "- `google_search({query: 'termo_de_busca'})`: Use esta ferramenta quando a pergunta do usuário exigir conhecimento atual, notícias, ou informações que você não possui.\n\n";
-
-  systemPrompt += "## REGRAS DE COMPORTAMENTO OBRIGATÓRIAS\n";
-  systemPrompt += "INDEPENDENTE DA SUA PERSONALIDADE, você DEVE seguir estas regras SEMPRE:\n";
-  systemPrompt += "1. NUNCA use discurso de ódio, calúnias, ofensas pesadas ou termos pejorativos.\n";
-  systemPrompt += "2. NUNCA promova ou incentive violência, automutilação ou qualquer ato perigoso.\n";
-  systemPrompt += "3. SEJA RESPEITOSO com todos os usuários.\n";
-  systemPrompt += "4. NÃO crie conteúdo que seja sexualmente explícito ou inapropriado.\n";
-  systemPrompt += "5. Sua função é ser uma presença positiva e segura na comunidade.\n";
-  systemPrompt += "6. Você não deve utilizar emojis, ao menos que esteja na personalidade que você possa.\n";
-  systemPrompt += "7. **TRANSPARÊNCIA DE FERRAMENTAS:** Ao usar uma ferramenta com sucesso, sua resposta final DEVE mencionar a ação que você tomou. Exemplo: \"Eu verifiquei as últimas mensagens no canal #geral e...\" ou \"Eu procurei por 'próximo lançamento da NASA' e descobri que...\".\n";
-  systemPrompt += "8. **MANUSEIO DE ERROS DE FERRAMENTAS:** Se você usar uma ferramenta e o resultado indicar uma falha (ex: `{\"success\": false, \"content\": \"mensagem de erro\"}`), sua resposta DEVE ser apenas a mensagem de erro do campo `content`. NÃO tente usar a ferramenta novamente. Apenas informe o erro ao usuário.\n\n";
-
-  if (faqContext) {
-    systemPrompt += faqContext + '\n';
-  }
-
-  systemPrompt += "\n---\nLembre-se das suas regras de comportamento obrigatórias e responda à última mensagem do usuário.";
-  return systemPrompt;
-}
 
 /**
- * Função principal que gera a resposta da IA, agora com capacidade de usar ferramentas.
+ * Main function to generate the AI response, with tool-using capability.
  */
 async function generateResponse(client, message) {
   try {
@@ -173,8 +140,8 @@ async function generateResponse(client, message) {
     const model = aiConfig.model || 'x-ai/grok-4-fast:free';
 
     const conversation = await fetchConversationHistory(message, client, contextLimit);
-    const faqContext = findRelevantFAQ(serverSettings.faq, message.content);
-    const systemPromptContent = constructSystemPrompt(aiConfig, faqContext, message.guild.name, client.user.username, message.channel);
+    const userLocale = message.guild?.preferredLocale || 'en-US';
+    const systemPromptContent = constructSystemPrompt(aiConfig, message.guild.name, client.user.username, message.channel, userLocale);
 
     const messagesForAPI = [{ role: 'system', content: systemPromptContent }, ...conversation];
 
@@ -194,24 +161,24 @@ async function generateResponse(client, message) {
     const toolCalls = responseMessage.tool_calls;
     if (toolCalls) {
         const availableFunctions = getToolFunctions(client);
-        messagesForAPI.push(responseMessage); // Adiciona a chamada da ferramenta ao histórico
+        messagesForAPI.push(responseMessage); // Add the tool call to history
 
         for (const toolCall of toolCalls) {
             const functionName = toolCall.function.name;
             const functionToCall = availableFunctions[functionName];
             const functionArgs = JSON.parse(toolCall.function.arguments);
 
-            // Executa a função da ferramenta
+            // Execute the tool function
             const functionResponse = await functionToCall(functionArgs, message);
 
             // **CRITICAL FAILURE FIX: Check for tool failure**
             if (functionResponse.success === false) {
                 console.error(`Tool call failed for '${functionName}'. Reason: ${functionResponse.content}`);
-                // Retorna a mensagem de erro diretamente ao usuário, parando o loop.
+                // Return the error message directly to the user, stopping the loop.
                 return functionResponse.content;
             }
 
-            // Adiciona o resultado da ferramenta ao histórico
+            // Add the tool result to history
             messagesForAPI.push({
                 tool_call_id: toolCall.id,
                 role: 'tool',
@@ -220,7 +187,7 @@ async function generateResponse(client, message) {
             });
         }
 
-        // Continua para a segunda chamada da API apenas se todas as ferramentas tiverem sucesso
+        // Continue to the second API call only if all tools succeeded
         const secondCompletion = await openai.chat.completions.create({
             model: model,
             messages: messagesForAPI,
@@ -254,10 +221,10 @@ async function generateResponse(client, message) {
 }
 
 /**
- * Função que é chamada pelo evento messageCreate para processar a mensagem.
+ * Function called by the messageCreate event to process the message.
  */
 async function processMessage(client, message) {
-  // Impede o bot de responder a si mesmo, mas permite responder a outros bots.
+  // Prevents the bot from replying to itself, but allows replying to other bots.
   if (message.author.id === client.user.id || !message.guild) return;
 
   const settingsCollection = client.getDbCollection('server-settings');
@@ -283,17 +250,30 @@ async function processMessage(client, message) {
   }
 }
 
-// Função de teste para a dashboard
+// Standalone test function for the dashboard
 async function generateStandaloneResponse(history, aiConfig) {
-     const safeAiConfig = aiConfig || {};
-     const systemPrompt = { role: 'system', content: safeAiConfig.personality || "Você é um bot de teste." };
-     const messagesForAPI = [systemPrompt, ...history];
-     const model = safeAiConfig.model || 'x-ai/grok-4-fast:free';
-     const completion = await openai.chat.completions.create({
-       model: model,
-       messages: messagesForAPI,
-     });
-     return completion.choices[0].message.content;
+    const safeAiConfig = aiConfig || {};
+    const model = safeAiConfig.model || 'x-ai/grok-4-fast:free';
+
+    // Mocked Discord-like objects for context
+    const mockChannel = { name: 'Dashboard Test', type: ChannelType.GuildText };
+    const mockGuild = { name: 'Test Server' };
+    const mockBot = { username: 'Test Bot' };
+
+    // Use the main system prompt builder for consistency, but without tools for now.
+    // The user's language is assumed to be the bot's default for testing.
+    const systemPromptContent = constructSystemPrompt(safeAiConfig, mockGuild.name, mockBot.username, mockChannel, 'en');
+    const messagesForAPI = [{ role: 'system', content: systemPromptContent }, ...history];
+
+    // Tools are disabled in the standalone test for now to avoid complexity
+    // with message/client context.
+    const completion = await openai.chat.completions.create({
+      model: model,
+      messages: messagesForAPI,
+      tool_choice: "none",
+    });
+
+    return completion.choices[0].message.content;
 }
 
 module.exports = {

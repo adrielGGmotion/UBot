@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ai: getElement('panel-ai'),
         music: getElement('panel-music'),
         faq: getElement('panel-faq'),
+        knowledge: getElement('panel-knowledge'),
         github: getElement('panel-github')
     };
 
@@ -98,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const { availableChannels, settings } = data;
         buildAiPanel(availableChannels, settings.aiChannelIds, settings.aiConfig);
         buildFaqPanel(settings.faq);
+        buildKnowledgePanel(settings.knowledge);
         buildGithubPanel();
         buildMusicPanel(settings.musicConfig);
         setupNavigation();
@@ -118,9 +120,59 @@ document.addEventListener('DOMContentLoaded', () => {
             listDiv.innerHTML += `<div class="checkbox-group"><input type="checkbox" id="${ch.id}" value="${ch.id}" ${isChecked ? 'checked' : ''}><label for="${ch.id}">#${ch.name}</label></div>`;
         });
 
-        getElement('ai-personality').value = config.personality || '';
-        getElement('ai-examples').value = config.examples || '';
         getElement('ai-context-limit').value = config.contextLimit || 15;
+
+        // Helper function for dynamic text areas
+        const setupDynamicTextAreas = (containerId, addButtonId, dataArray, placeholderKey) => {
+            const container = getElement(containerId);
+            const addButton = getElement(addButtonId);
+            let internalData = Array.isArray(dataArray) ? [...dataArray] : (dataArray ? [dataArray] : []);
+
+            const render = () => {
+                container.innerHTML = '';
+                if (internalData.length === 0) {
+                    // Add a default empty box if the array is empty
+                    internalData.push('');
+                }
+                internalData.forEach((item, index) => {
+                    const inputGroup = document.createElement('div');
+                    inputGroup.className = 'dynamic-input-group';
+                    const textArea = document.createElement('textarea');
+                    textArea.className = 'form-textarea';
+                    textArea.placeholder = i18n.t(placeholderKey);
+                    textArea.value = item;
+                    textArea.addEventListener('change', (e) => {
+                        internalData[index] = e.target.value;
+                    });
+
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.textContent = '-';
+                    removeBtn.className = 'form-button-sm remove-btn';
+                    removeBtn.addEventListener('click', () => {
+                        internalData.splice(index, 1);
+                        render();
+                    });
+
+                    inputGroup.appendChild(textArea);
+                    inputGroup.appendChild(removeBtn);
+                    container.appendChild(inputGroup);
+                });
+            };
+
+            addButton.addEventListener('click', () => {
+                internalData.push('');
+                render();
+            });
+
+            render();
+            // Return a function to retrieve the latest data
+            return () => internalData.filter(item => item.trim() !== '');
+        };
+
+        // Setup for personality and examples
+        dataFromAPI.getPersonality = setupDynamicTextAreas('ai-personality-container', 'add-personality-btn', config.personality, 'dashboard_server_ai_personality_placeholder');
+        dataFromAPI.getExamples = setupDynamicTextAreas('ai-examples-container', 'add-example-btn', config.examples, 'dashboard_server_ai_examples_placeholder');
 
         const toolsListDiv = getElement('ai-tools-list');
         toolsListDiv.innerHTML = '';
@@ -140,12 +192,52 @@ document.addEventListener('DOMContentLoaded', () => {
         // ... (código do painel de FAQ inalterado)
     }
 
+    function buildKnowledgePanel(knowledgeData = []) {
+        const listDiv = getElement('knowledge-list');
+        const addBtn = getElement('knowledge-add-btn');
+        knowledgeData = knowledgeData || [];
+
+        function render() {
+            listDiv.innerHTML = '';
+            knowledgeData.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'faq-item';
+                const removeButtonText = i18n.t('dashboard_server_remove_button');
+                itemDiv.innerHTML = `<button data-index="${index}">${removeButtonText}</button><strong>Q: ${item.question}</strong><p>A: ${item.answer}</p>`;
+                listDiv.appendChild(itemDiv);
+            });
+
+            listDiv.querySelectorAll('button').forEach(button => {
+                button.addEventListener('click', () => {
+                    knowledgeData.splice(button.dataset.index, 1);
+                    dataFromAPI.settings.knowledge = knowledgeData; // Update the main data object
+                    render();
+                });
+            });
+        }
+
+        render();
+
+        addBtn.addEventListener('click', () => {
+            const q = getElement('knowledge-new-question').value.trim();
+            const a = getElement('knowledge-new-answer').value.trim();
+            if (q && a) {
+                knowledgeData.push({ question: q, answer: a });
+                dataFromAPI.settings.knowledge = knowledgeData; // Update the main data object
+                render();
+                getElement('knowledge-new-question').value = '';
+                getElement('knowledge-new-answer').value = '';
+            }
+        });
+    }
+
     function setupNavigation() {
         serverNavContainer.innerHTML = `
             <a href="/" class="nav-link" data-locale-key="nav_overview"></a>
             <a href="#" class="nav-link active" data-panel="ai" data-locale-key="nav_chatbot"></a>
             <a href="#" class="nav-link" data-panel="music" data-locale-key="nav_music"></a>
             <a href="#" class="nav-link" data-panel="faq" data-locale-key="nav_faq"></a>
+            <a href="#" class="nav-link" data-panel="knowledge" data-locale-key="nav_knowledge"></a>
             <a href="#" class="nav-link" data-panel="github" data-locale-key="nav_github"></a>
             <a href="/connect-tree.html?id=${guildId}" class="nav-link" data-locale-key="nav_connect_tree"></a>`;
 
@@ -175,6 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         panels.music.style.display = 'none';
         panels.faq.style.display = 'none';
+        panels.knowledge.style.display = 'none';
         panels.github.style.display = 'none';
     }
 
@@ -205,6 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if ([infoRes, settingsRes, guildsRes, toolsRes].some(res => handleAuthError(res))) return;
 
             const infoData = await infoRes.json();
+            dataFromAPI.botAvatarUrl = infoData.bot.avatar; // Store bot avatar URL
             const data = await settingsRes.json();
             const guilds = await guildsRes.json();
             const allTools = await toolsRes.json();
@@ -226,6 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const { availableChannels, settings } = data;
             buildAiPanel(availableChannels, settings.aiChannelIds, settings.aiConfig, allTools.tools);
             buildFaqPanel(settings.faq);
+            buildKnowledgePanel(settings.knowledge);
             buildGithubPanel();
             buildMusicPanel(settings.musicConfig);
             setupNavigation();
@@ -241,8 +336,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const enabledTools = Array.from(document.querySelectorAll('#ai-tools-list input:checked')).map(cb => cb.value);
 
         const aiConfig = {
-            personality: getElement('ai-personality').value,
-            examples: getElement('ai-examples').value,
+            personality: dataFromAPI.getPersonality(), // Use the new getter function
+            examples: dataFromAPI.getExamples(),       // Use the new getter function
             contextLimit: parseInt(getElement('ai-context-limit').value, 10) || 15,
             enabledTools: enabledTools
         };
@@ -252,6 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const faq = (dataFromAPI.settings && dataFromAPI.settings.faq) ? dataFromAPI.settings.faq : [];
+        const knowledge = (dataFromAPI.settings && dataFromAPI.settings.knowledge) ? dataFromAPI.settings.knowledge : [];
 
         // githubRepos is no longer managed here. It's handled by github.html
 
@@ -264,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`/api/guilds/${guildId}/settings`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ aiChannelIds, aiConfig, faq, musicConfig, githubRepos: existingGithubRepos })
+                body: JSON.stringify({ aiChannelIds, aiConfig, faq, knowledge, musicConfig, githubRepos: existingGithubRepos })
             });
             if (handleAuthError(response)) return;
             if (!response.ok) throw new Error('Response not OK');
@@ -283,11 +379,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendChatBtn = getElement('send-chat-btn');
     const clearChatBtn = getElement('clear-chat-btn');
 
-    function addMessageToChat(role, content) {
+    function addMessageToChat(role, content, avatarUrl) {
+        const messageContainer = document.createElement('div');
+        messageContainer.className = `chat-message-container`;
+
         const messageDiv = document.createElement('div');
         messageDiv.className = `chat-message ${role}-message`;
         messageDiv.textContent = content;
-        chatDisplay.appendChild(messageDiv);
+
+        if (role === 'bot') {
+            const avatarImg = document.createElement('img');
+            avatarImg.src = avatarUrl || '/favicon.ico'; // Fallback icon
+            avatarImg.className = 'chat-avatar';
+            messageContainer.appendChild(avatarImg);
+            messageContainer.appendChild(messageDiv);
+        } else {
+            // User messages align to the right and don't need an avatar
+            messageContainer.appendChild(messageDiv);
+            messageContainer.classList.add('user-container');
+        }
+
+        chatDisplay.appendChild(messageContainer);
         chatDisplay.scrollTop = chatDisplay.scrollHeight;
     }
 
@@ -302,8 +414,8 @@ document.addEventListener('DOMContentLoaded', () => {
         sendChatBtn.disabled = true;
 
         const currentConfig = {
-            personality: getElement('ai-personality').value,
-            examples: getElement('ai-examples').value,
+            personality: dataFromAPI.getPersonality(), // Use the getter
+            examples: dataFromAPI.getExamples(),       // Use the getter
             contextLimit: parseInt(getElement('ai-context-limit').value, 10) || 15
         };
         const historyForAPI = chatHistory.slice(-currentConfig.contextLimit);
@@ -317,7 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (handleAuthError(response)) return;
             const data = await response.json();
-            addMessageToChat('bot', data.reply);
+            addMessageToChat('bot', data.reply, dataFromAPI.botAvatarUrl);
             chatHistory.push({ role: 'assistant', content: data.reply });
         } catch (error) {
             addMessageToChat('bot', i18n.t('dashboard_server_ai_tester_error'));
@@ -339,8 +451,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const isChecked = (selectedIds || []).includes(ch.id);
             listDiv.innerHTML += `<div class="checkbox-group"><input type="checkbox" id="${ch.id}" value="${ch.id}" ${isChecked ? 'checked' : ''}><label for="${ch.id}">#${ch.name}</label></div>`;
         });
-        getElement('ai-personality').value = config.personality || '';
-        getElement('ai-examples').value = config.examples || '';
         getElement('ai-context-limit').value = config.contextLimit || 15;
     }
 
@@ -416,11 +526,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // Placeholders traduzidos
-    getElement('ai-personality').placeholder = i18n.t('dashboard_server_ai_personality_placeholder');
-    getElement('ai-examples').placeholder = i18n.t('dashboard_server_ai_examples_placeholder');
     chatInput.placeholder = i18n.t('dashboard_server_ai_tester_input_placeholder');
     getElement('faq-new-question').placeholder = i18n.t('dashboard_server_faq_new_question_placeholder');
     getElement('faq-new-answer').placeholder = i18n.t('dashboard_server_faq_new_answer_placeholder');
+    getElement('knowledge-new-question').placeholder = i18n.t('dashboard_server_knowledge_new_question_placeholder');
+    getElement('knowledge-new-answer').placeholder = i18n.t('dashboard_server_knowledge_new_answer_placeholder');
 
     initializePage();
 });

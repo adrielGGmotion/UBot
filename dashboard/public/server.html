@@ -38,12 +38,18 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="ai-personality" data-locale-key="dashboard_server_ai_personality_label"></label>
-                  <textarea id="ai-personality" class="form-textarea" data-locale-placeholder-key="dashboard_server_ai_personality_placeholder"></textarea>
+                  <label data-locale-key="dashboard_server_ai_personality_label">Personality</label>
+                  <div id="ai-personality-container">
+                    <!-- Dynamic textareas for personality will be inserted here -->
+                  </div>
+                  <button type="button" id="add-personality-btn" class="form-button-sm" data-locale-key="dashboard_server_add_button">+</button>
                 </div>
                 <div class="form-group">
-                  <label for="ai-examples" data-locale-key="dashboard_server_ai_examples_label"></label>
-                  <textarea id="ai-examples" class="form-textarea" data-locale-placeholder-key="dashboard_server_ai_examples_placeholder"></textarea>
+                  <label data-locale-key="dashboard_server_ai_examples_label">Examples</label>
+                  <div id="ai-examples-container">
+                    <!-- Dynamic textareas for examples will be inserted here -->
+                  </div>
+                  <button type="button" id="add-example-btn" class="form-button-sm" data-locale-key="dashboard_server_add_button">+</button>
                 </div>
                 <div class="sub-widget">
                   <h3 data-locale-key="dashboard_server_ai_tool_permissions">AI Tool Permissions</h3>
@@ -107,6 +113,16 @@
           <input type="text" id="faq-new-question" class="form-input" data-locale-placeholder-key="dashboard_server_faq_new_question_placeholder">
           <textarea id="faq-new-answer" class="form-textarea" data-locale-placeholder-key="dashboard_server_faq_new_answer_placeholder"></textarea>
           <button id="faq-add-btn" class="form-button" data-locale-key="dashboard_server_faq_add_button"></button>
+        </div>
+      </div>
+
+      <div id="panel-knowledge" class="widget settings-panel" style="display: none;">
+        <h2 data-locale-key="dashboard_server_knowledge_settings">Knowledge Base</h2>
+        <div id="knowledge-list" class="faq-list"></div>
+        <div class="profile-form">
+          <input type="text" id="knowledge-new-question" class="form-input" data-locale-placeholder-key="dashboard_server_knowledge_new_question_placeholder">
+          <textarea id="knowledge-new-answer" class="form-textarea" data-locale-placeholder-key="dashboard_server_knowledge_new_answer_placeholder"></textarea>
+          <button id="knowledge-add-btn" class="form-button" data-locale-key="dashboard_server_knowledge_add_button"></button>
         </div>
       </div>
 
