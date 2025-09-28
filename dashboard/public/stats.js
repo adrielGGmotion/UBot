@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Vezes Utilizado',
+                        label: i18n.t('dashboard_stats_command_usage'),
                         data: data,
                         backgroundColor: 'rgba(153, 0, 255, 0.6)', // Cor das barras (accent1 com transparência)
                         borderColor: 'rgba(153, 0, 255, 1)',
@@ -46,8 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
         } catch (error) {
-            console.error('Failed to fetch stats:', error);
-            totalCommandsElement.textContent = 'Erro';
+            console.error(i18n.t('err_fetch_stats_failed'), error);
+            totalCommandsElement.textContent = i18n.t('err_generic_error');
         }
     }
 

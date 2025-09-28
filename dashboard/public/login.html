@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - Ubot Dashboard</title>
+  <title data-locale-key="dashboard_login_page_title">Login - Ubot Dashboard</title>
   <style>
     :root {
       --bg: #000000;
@@ -94,10 +94,10 @@
 </head>
 <body>
   <div class="login-container">
-    <h1>Ubot Dashboard</h1>
+    <h1 data-locale-key="dashboard_title">Ubot Dashboard</h1>
     <form id="login-form">
-      <input type="password" id="password" class="form-input" placeholder="Senha" required>
-      <button type="submit" class="form-button">Entrar</button>
+      <input type="password" id="password" class="form-input" data-locale-placeholder-key="dashboard_login_password_placeholder" required>
+      <button type="submit" class="form-button" data-locale-key="dashboard_login_button">Entrar</button>
       <p id="login-status" class="status-message"></p>
     </form>
   </div>

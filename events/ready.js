@@ -27,7 +27,7 @@ module.exports = {
             status: 'online',
           });
         } catch (error) {
-          console.error('Failed to set presence:', error);
+          console.error(client.getLocale('err_set_presence_failed'), error);
         }
       }
       i = (i + 1) % statuses.length;

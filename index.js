@@ -15,7 +15,7 @@ let config = {};
 try {
   config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
 } catch (err) {
-  console.error('Failed to read config.json, using defaults.');
+  console.error('err_config_read');
   config = {
     colors: { primary: '#000000', accent1: '#9900FF', error: '#FF0000' },
     statuses: [{ name: 'Idle', type: 'WATCHING' }],
@@ -79,10 +79,10 @@ async function loadFeatures() {
             const featureName = path.parse(file).name;
             if (featureName !== 'riffyManager') { // Don't load RiffyManager as a generic feature
                 client.features.set(featureName, feature);
-                console.log(`Loaded feature: ${featureName}`);
+                console.log(client.getLocale('log_feature_loaded', { featureName: featureName }));
             }
         } catch (err) {
-            console.error(`Failed to load feature from ${file}: ${err.message}`);
+            console.error(client.getLocale('err_feature_load', { file: file, message: err.message }));
         }
     }
 }
@@ -132,7 +132,7 @@ async function loadEvents() {
 function normalizeCommandExport(exp) {
   if (!exp) return null;
   if (exp.data && exp.execute) return { data: exp.data, execute: exp.execute };
-  if (exp.name && exp.execute) return { data: { name: exp.name, description: exp.description || 'No description' }, execute: exp.execute };
+  if (exp.name && exp.execute) return { data: { name: exp.name, description: exp.description || client.getLocale('no_description_provided') }, execute: exp.execute };
   return null;
 }
 
@@ -203,7 +203,7 @@ async function startDashboard() {
   const sessionTokens = new Set();
   const password = process.env.DASHBOARD_PASSWORD;
   if (!password) {
-    console.warn("AVISO: DASHBOARD_PASSWORD não definida no .env! A dashboard está desprotegida.");
+    console.warn(client.getLocale('warn_dashboard_unprotected'));
   }
 
   const authMiddleware = (req, res, next) => {
@@ -217,13 +217,13 @@ async function startDashboard() {
   };
 
   app.post('/api/login', (req, res) => {
-    if (!password) return res.status(200).json({ token: 'dev-mode' });
+    if (!password) return res.status(200).json({ token: client.getLocale('dev_mode_token') });
     if (req.body.password === password) {
       const token = crypto.randomBytes(32).toString('hex');
       sessionTokens.add(token);
       res.status(200).json({ token: token });
     } else {
-      res.status(401).json({ error: 'Senha incorreta.' });
+      res.status(401).json({ error: client.getLocale('err_incorrect_password') });
     }
   });
 
@@ -259,7 +259,7 @@ async function startDashboard() {
   });
 
   app.get('/api/stats', authMiddleware, async (req, res) => {
-    if (!client.db) return res.status(503).json({ error: 'Database not connected.' });
+    if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
     try {
       const commandLogs = client.db.collection('command-logs');
       const totalCommands = await commandLogs.countDocuments();
@@ -270,8 +270,8 @@ async function startDashboard() {
       const simplifiedUsage = commandUsage.map(item => ({ commandName: item._id, count: item.count }));
       res.json({ totalCommands, commandUsage: simplifiedUsage });
     } catch (error) {
-      console.error('[API] /api/stats FATAL ERROR:', error);
-      res.status(500).json({ error: 'Failed to fetch stats.' });
+      console.error(client.getLocale('err_api_stats_fatal'), error);
+      res.status(500).json({ error: client.getLocale('err_fetch_stats') });
     }
   });
 
@@ -281,16 +281,16 @@ async function startDashboard() {
     if (fs.existsSync(langFilePath)) {
       res.sendFile(langFilePath);
     } else {
-      res.status(404).json({ error: 'Language file not found.' });
+      res.status(404).json({ error: client.getLocale('err_lang_file_not_found') });
     }
   });
 
   app.get('/api/guilds/:guildId/settings', authMiddleware, async (req, res) => {
-    if (!client.db) return res.status(503).json({ error: 'Database not connected.' });
+    if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
     const { guildId } = req.params;
     try {
       const guild = await client.guilds.fetch(guildId);
-      if (!guild) return res.status(404).json({ error: 'Guild not found.' });
+      if (!guild) return res.status(404).json({ error: client.getLocale('err_guild_not_found') });
       const settingsCollection = client.db.collection('server-settings');
       let settings = await settingsCollection.findOne({ guildId });
 
@@ -358,13 +358,13 @@ async function startDashboard() {
       const channels = guild.channels.cache.filter(c => c.isTextBased()).map(c => ({ id: c.id, name: c.name }));
       res.json({ settings, availableChannels: channels });
     } catch (error) {
-      console.error(`[API] Error fetching settings for guild ${guildId}:`, error);
-      res.status(500).json({ error: 'Could not fetch guild data.' });
+      console.error(client.getLocale('err_fetch_guild_data_api', { guildId: guildId }), error);
+      res.status(500).json({ error: client.getLocale('err_fetch_guild_data') });
     }
   });
 
   app.post('/api/guilds/:guildId/settings', authMiddleware, async (req, res) => {
-    if (!client.db) return res.status(503).json({ error: 'Database not connected.' });
+    if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
     const { guildId } = req.params;
     const { aiChannelIds, aiConfig, faq, githubRepos, musicConfig } = req.body;
     const settingsCollection = client.db.collection('server-settings');
@@ -373,7 +373,7 @@ async function startDashboard() {
       { $set: { aiChannelIds, aiConfig, faq, githubRepos, musicConfig } },
       { upsert: true }
     );
-    res.status(200).json({ success: 'Settings updated.' });
+    res.status(200).json({ success: client.getLocale('settings_updated') });
   });
 
   // --- NOVOS ENDPOINTS DE MÚSICA ---
@@ -404,7 +404,7 @@ async function startDashboard() {
     const player = client.riffy.players.get(guildId);
 
     if (!player) {
-        return res.status(404).json({ error: 'Player não encontrado.' });
+        return res.status(404).json({ error: client.getLocale('err_player_not_found') });
     }
 
     try {
@@ -419,38 +419,38 @@ async function startDashboard() {
                 player.stop();
                 break;
             default:
-                return res.status(400).json({ error: 'Ação inválida.' });
+                return res.status(400).json({ error: client.getLocale('err_invalid_action') });
         }
-        res.status(200).json({ success: `Ação '${action}' executada.` });
+        res.status(200).json({ success: client.getLocale('log_action_executed', { action: action }) });
     } catch (error) {
-        res.status(500).json({ error: 'Falha ao controlar o player.' });
+        res.status(500).json({ error: client.getLocale('err_player_control_failed') });
     }
   });
 
 
   app.post('/api/bot/profile', authMiddleware, async (req, res) => {
     const { username, avatar } = req.body;
-    if (!username && !avatar) return res.status(400).json({ error: 'No username or avatar provided.' });
+    if (!username && !avatar) return res.status(400).json({ error: client.getLocale('err_no_username_or_avatar') });
     try {
       if (username) await client.user.setUsername(username);
       if (avatar) await client.user.setAvatar(avatar);
-      res.status(200).json({ success: 'Profile updated successfully.' });
+      res.status(200).json({ success: client.getLocale('log_profile_updated') });
     } catch (error) {
-      console.error('Failed to update bot profile:', error);
-      res.status(500).json({ error: `Failed to update profile. Discord API: ${error.message}` });
+      console.error(client.getLocale('err_profile_update_failed'), error);
+      res.status(500).json({ error: client.getLocale('err_profile_update_discord_api', { message: error.message }) });
     }
   });
 
   app.post('/api/test-ai', authMiddleware, async (req, res) => {
       const { history, config } = req.body;
       const { generateStandaloneResponse } = client.features.get('aiHandler');
-      if (!history || !config || !generateStandaloneResponse) return res.status(400).json({ error: 'Payload inválido.' });
+      if (!history || !config || !generateStandaloneResponse) return res.status(400).json({ error: client.getLocale('err_invalid_payload') });
       try {
           const response = await generateStandaloneResponse(history, config);
           res.status(200).json({ reply: response });
       } catch (error) {
-          console.error('[API] /api/test-ai error:', error);
-          res.status(500).json({ error: 'Falha ao gerar resposta da IA.' });
+          console.error(client.getLocale('err_api_test_ai'), error);
+          res.status(500).json({ error: client.getLocale('err_ai_response_generation_failed') });
       }
   });
 
@@ -461,8 +461,8 @@ async function startDashboard() {
         const toolNames = tools.map(t => t.function.name);
         res.json({ tools: toolNames });
     } catch (error) {
-        console.error('[API] /api/ai-tools error:', error);
-        res.status(500).json({ error: 'Falha ao carregar as ferramentas da IA.' });
+        console.error(client.getLocale('err_api_ai_tools'), error);
+        res.status(500).json({ error: client.getLocale('err_ai_tools_load_failed') });
     }
   });
 
@@ -472,7 +472,7 @@ async function startDashboard() {
   const rawBodyParser = express.raw({ type: 'application/json' });
 
   app.post('/api/webhooks/github', rawBodyParser, async (req, res) => {
-    if (!client.db) return res.status(503).json({ error: 'Database not connected.' });
+    if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
 
     const githubEvent = req.headers['x-github-event'];
     const signature = req.headers['x-hub-signature-256'];
@@ -480,7 +480,7 @@ async function startDashboard() {
     const repoFullName = payload.repository.full_name;
 
     if (!githubEvent || !signature || !payload || !repoFullName) {
-        return res.status(400).send('Bad Request: Missing headers or payload.');
+        return res.status(400).send(client.getLocale('err_bad_request_missing_headers'));
     }
 
     try {
@@ -491,7 +491,7 @@ async function startDashboard() {
         }).toArray();
 
         if (relevantSettings.length === 0) {
-            return res.status(200).send('No configurations for this repository.');
+            return res.status(200).send(client.getLocale('log_no_configs_for_repo'));
         }
 
         let processed = false;
@@ -520,19 +520,19 @@ async function startDashboard() {
                 }
                 processed = true;
             } else {
-                console.warn(`[GitHub Webhook] Invalid signature for repo ${repoFullName} in guild ${settings.guildId}`);
+                console.warn(client.getLocale('warn_github_webhook_invalid_signature', { repoFullName: repoFullName, guildId: settings.guildId }));
             }
         }
 
         if (processed) {
-            res.status(200).send('Event processed.');
+            res.status(200).send(client.getLocale('log_event_processed'));
         } else {
-            res.status(401).send('Unauthorized: Invalid signature.');
+            res.status(401).send(client.getLocale('err_unauthorized_invalid_signature'));
         }
 
     } catch (error) {
-        console.error('[GitHub Webhook] Error processing event:', error);
-        res.status(500).send('Internal Server Error');
+        console.error(client.getLocale('err_github_webhook_process'), error);
+        res.status(500).send(client.getLocale('err_internal_server'));
     }
   });
 
@@ -574,11 +574,11 @@ async function startDashboard() {
         );
 
         await client.riffy.init(readyClient.user.id);
-        console.log("[RIFFY] ✅ Riffy inicializado com o ID do cliente.");
+        console.log(client.getLocale('log_riffy_initialized'));
 
         client.riffyManager = new RiffyManager(client);
         client.riffyManager.connect();
-        console.log("[RiffyManager] ✅ Gerenciador de eventos do Riffy conectado.");
+        console.log(client.getLocale('log_riffy_manager_connected'));
 
         // Moved the raw event listener here to prevent a race condition
         client.on("raw", (d) => {

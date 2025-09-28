@@ -32,9 +32,9 @@
               <form id="chatbot-settings-form" class="profile-form">
 
                 <div class="form-group">
-                  <label for="ai-context-limit" data-locale-key="dashboard_server_ai_context_limit_label">Limite de Contexto</label>
+                  <label for="ai-context-limit" data-locale-key="dashboard_server_ai_context_limit_label">Context Limit</label>
                   <input type="number" id="ai-context-limit" class="form-number" min="1" max="50" value="15">
-                  <small style="color:var(--muted); font-size:0.8rem;" data-locale-key="dashboard_server_ai_context_limit_desc">Nº de mensagens que o bot lembra. (1-50)</small>
+                  <small style="color:var(--muted); font-size:0.8rem;" data-locale-key="dashboard_server_ai_context_limit_desc"># of messages the bot remembers. (1-50)</small>
                 </div>
 
                 <div class="form-group">
@@ -46,9 +46,9 @@
                   <textarea id="ai-examples" class="form-textarea" data-locale-placeholder-key="dashboard_server_ai_examples_placeholder"></textarea>
                 </div>
                 <div class="sub-widget">
-                  <h3 data-locale-key="dashboard_server_ai_tool_permissions">Permissões de Ferramentas da IA</h3>
+                  <h3 data-locale-key="dashboard_server_ai_tool_permissions">AI Tool Permissions</h3>
                   <div id="ai-tools-list" class="tools-list" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <!-- Checkboxes serão inseridos aqui pelo server.js -->
+                    <!-- Checkboxes will be inserted here by server.js -->
                   </div>
                 </div>
               </form>
@@ -71,12 +71,12 @@
       </div>
 
       <div id="panel-music" class="widget settings-panel" style="display: none;">
-        <h2 data-locale-key="dashboard_server_music_title">Música</h2>
+        <h2 data-locale-key="dashboard_server_music_title">Music</h2>
         <div id="music-container" style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
             <div id="music-player-widget">
                 <div class="sub-widget" id="now-playing-card">
-                    <h3 data-locale-key="dashboard_server_music_now_playing">Tocando Agora</h3>
-                    <p id="np-song-title">Nada no momento</p>
+                    <h3 data-locale-key="dashboard_server_music_now_playing">Now Playing</h3>
+                    <p id="np-song-title" data-locale-key="dashboard_server_music_nothing_playing">Nothing playing right now</p>
                     <div id="np-controls" style="display: flex; gap: 10px; margin-top: 10px;">
                         <button id="music-pause-btn" class="form-button">⏸</button>
                         <button id="music-resume-btn" class="form-button">▶️</button>
@@ -84,17 +84,17 @@
                     </div>
                 </div>
                  <div class="sub-widget" id="music-settings-card" style="margin-top: 20px;">
-                    <h3 data-locale-key="dashboard_server_music_settings">Configurações</h3>
+                    <h3 data-locale-key="dashboard_server_music_settings">Settings</h3>
                     <div class="form-group">
-                        <label for="music-dj-role" data-locale-key="dashboard_server_music_dj_role">Cargo de DJ</label>
-                        <input type="text" id="music-dj-role" class="form-input" placeholder="Digite o nome do cargo">
+                        <label for="music-dj-role" data-locale-key="dashboard_server_music_dj_role">DJ Role</label>
+                        <input type="text" id="music-dj-role" class="form-input" data-locale-placeholder-key="dashboard_server_music_dj_role_placeholder">
                     </div>
                 </div>
             </div>
             <div class="sub-widget" id="music-queue-widget">
-                <h3 data-locale-key="dashboard_server_music_queue">Fila de Reprodução</h3>
+                <h3 data-locale-key="dashboard_server_music_queue">Queue</h3>
                 <div id="queue-list" style="max-height: 400px; overflow-y: auto;">
-                    <p>A fila está vazia.</p>
+                    <p data-locale-key="dashboard_server_music_queue_empty">The queue is empty.</p>
                 </div>
             </div>
         </div>

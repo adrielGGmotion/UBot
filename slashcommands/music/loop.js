@@ -17,16 +17,16 @@ module.exports = {
   async execute(interaction, client) {
     const { channel } = interaction.member.voice;
     if (!channel) {
-      return interaction.reply({ content: 'Você precisa estar em um canal de voz.', ephemeral: true });
+      return interaction.reply({ content: client.getLocale('cmd_music_not_in_vc_generic'), ephemeral: true });
     }
 
     const player = client.riffy.players.get(interaction.guildId);
     if (!player) {
-      return interaction.reply({ content: 'Não estou tocando nada no momento.', ephemeral: true });
+      return interaction.reply({ content: client.getLocale('cmd_music_not_playing'), ephemeral: true });
     }
 
     if (player.voiceChannel !== channel.id) {
-        return interaction.reply({ content: 'Você precisa estar no mesmo canal de voz que eu.', ephemeral: true });
+        return interaction.reply({ content: client.getLocale('cmd_music_not_in_same_vc'), ephemeral: true });
     }
 
     const mode = interaction.options.getString('mode');
@@ -34,13 +34,13 @@ module.exports = {
 
     if (mode === 'track') {
         player.setLoop('TRACK');
-        description = '🔂 Repetição de faixa ativada.';
+        description = client.getLocale('cmd_loop_track_enabled');
     } else if (mode === 'queue') {
         player.setLoop('QUEUE');
-        description = '🔁 Repetição de fila ativada.';
+        description = client.getLocale('cmd_loop_queue_enabled');
     } else {
         player.setLoop('NONE');
-        description = '▶️ Repetição desativada.';
+        description = client.getLocale('cmd_loop_disabled');
     }
 
     const embed = new EmbedBuilder()

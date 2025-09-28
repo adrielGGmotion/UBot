@@ -15,21 +15,22 @@ module.exports = {
                 // This error is thrown when an interaction is not acknowledged within 3 seconds.
                 // In such cases, we should not try to reply, as it will fail.
                 if (error.code === 10062) {
-                    console.error(`[Interaction Handling] Could not acknowledge interaction for command "${interaction.commandName}" in time. The interaction is no longer valid.`);
+                    console.error(client.getLocale('log_interaction_ack_fail', { commandName: interaction.commandName }));
                     return; // Stop execution to prevent a crash
                 }
 
-                console.error(`Error executing command ${interaction.commandName}:`, error);
+                console.error(client.getLocale('log_command_exec_error', { commandName: interaction.commandName }), error);
 
                 try {
+                    const errorMessage = client.getLocale('command_error');
                     if (interaction.replied || interaction.deferred) {
-                        await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+                        await interaction.followUp({ content: errorMessage, ephemeral: true });
                     } else {
-                        await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+                        await interaction.reply({ content: errorMessage, ephemeral: true });
                     }
                 } catch (followUpError) {
                     // Log the follow-up error as well, as it might be a different issue (e.g., channel permissions)
-                    console.error(`[Interaction Handling] Failed to send error feedback for command "${interaction.commandName}":`, followUpError);
+                    console.error(client.getLocale('log_interaction_feedback_fail', { commandName: interaction.commandName }), followUpError);
                 }
             }
             return;
@@ -41,11 +42,11 @@ module.exports = {
             const player = client.riffy.players.get(guild.id);
 
             if (!player) {
-                return interaction.reply({ content: 'I am not currently playing music in this server.', ephemeral: true });
+                return interaction.reply({ content: client.getLocale('cmd_music_not_playing'), ephemeral: true });
             }
 
             if (!member.voice.channel || member.voice.channel.id !== player.voiceChannel) {
-                return interaction.reply({ content: 'You must be in the same voice channel as me to use these buttons.', ephemeral: true });
+                return interaction.reply({ content: client.getLocale('cmd_music_not_in_vc'), ephemeral: true });
             }
 
             // Defer the reply to avoid interaction timeout
@@ -58,20 +59,21 @@ module.exports = {
                     case 'pause_resume':
                         const isPaused = player.paused;
                         player.pause(!isPaused);
-                        await interaction.followUp({ content: `Player has been ${!isPaused ? 'paused' : 'resumed'}.`, ephemeral: true });
+                        const status = !isPaused ? client.getLocale('cmd_music_status_paused') : client.getLocale('cmd_music_status_resumed');
+                        await interaction.followUp({ content: client.getLocale('cmd_music_pause_resume', { status }), ephemeral: true });
                         break;
 
                     case 'skip':
                         if (!player.queue.current) {
-                            return interaction.followUp({ content: 'There is nothing to skip.', ephemeral: true });
+                            return interaction.followUp({ content: client.getLocale('cmd_music_skip_nothing'), ephemeral: true });
                         }
                         player.stop();
-                        await interaction.followUp({ content: 'Skipped the current track.', ephemeral: true });
+                        await interaction.followUp({ content: client.getLocale('cmd_music_skip_success'), ephemeral: true });
                         break;
 
                     case 'stop':
                         player.destroy();
-                        await interaction.followUp({ content: 'Stopped the music and left the channel.', ephemeral: true });
+                        await interaction.followUp({ content: client.getLocale('cmd_music_stop_success'), ephemeral: true });
                         break;
 
                     case 'loop':
@@ -85,12 +87,12 @@ module.exports = {
                             newLoopMode = 'none';
                         }
                         player.setLoop(newLoopMode);
-                        await interaction.followUp({ content: `Looping is now set to **${newLoopMode}**.`, ephemeral: true });
+                        await interaction.followUp({ content: client.getLocale('cmd_music_loop_success', { loopMode: newLoopMode }), ephemeral: true });
                         break;
                 }
             } catch (error) {
-                console.error(`[MusicButtons] Error handling button interaction:`, error);
-                await interaction.followUp({ content: 'An error occurred while trying to perform this action.', ephemeral: true });
+                console.error(client.getLocale('log_music_button_error'), error);
+                await interaction.followUp({ content: client.getLocale('cmd_music_generic_error'), ephemeral: true });
             }
         }
     }

@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function getElement(id, critical = true) {
         const element = document.getElementById(id);
         if (!element && critical) {
-            throw new Error(`Elemento crítico não encontrado no HTML: #${id}`);
+            throw new Error(i18n.t('err_critical_element_not_found', {id: id}));
         }
         return element;
     }
@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (handleAuthError(response)) return;
-            if (!response.ok) throw new Error('Info API response not OK');
+            if (!response.ok) throw new Error(i18n.t('err_api_info_response_not_ok'));
             const data = await response.json();
 
             botNameElement.textContent = data.bot.tag || i18n.t('dashboard_bot_status_offline');
@@ -68,10 +68,10 @@ document.addEventListener('DOMContentLoaded', () => {
             document.documentElement.style.setProperty('--accent', accentColor);
             document.documentElement.style.setProperty('--accent-rgb', hexToRgb(accentColor));
         } catch (error) {
-            console.error('Failed to fetch bot info:', error);
-            botNameElement.textContent = 'Erro de Conexão';
+            console.error(i18n.t('err_fetch_bot_info_failed'), error);
+            botNameElement.textContent = i18n.t('err_connection_error');
             if (botStatusElement) {
-                botStatusElement.textContent = 'Desconectado';
+                botStatusElement.textContent = i18n.t('status_disconnected');
                 botStatusElement.style.color = '#f87171';
             }
         }
@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (handleAuthError(response)) return;
-            if (!response.ok) throw new Error('Guilds API response not OK');
+            if (!response.ok) throw new Error(i18n.t('err_api_guilds_response_not_ok'));
             const guilds = await response.json();
 
             guildsListElement.innerHTML = '';
@@ -92,12 +92,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const guildItem = document.createElement('a');
                 guildItem.href = `/server.html?id=${guild.id}`;
                 guildItem.className = 'guild-item';
-                const icon = guild.icon ? `<img src="${guild.icon}" alt="${guild.name} icon">` : `<div class="guild-icon-placeholder">${guild.name.charAt(0)}</div>`;
+                const icon = guild.icon ? `<img src="${guild.icon}" alt="${i18n.t('dashboard_guild_icon_alt', { guildName: guild.name })}">` : `<div class="guild-icon-placeholder">${guild.name.charAt(0)}</div>`;
                 guildItem.innerHTML = `${icon}<span>${guild.name}</span>`;
                 guildsListElement.appendChild(guildItem);
             });
         } catch (error) {
-            console.error('Failed to fetch guilds:', error);
+            console.error(i18n.t('err_fetch_guilds_failed'), error);
             if (guildsListElement) guildsListElement.innerHTML = `<p>${i18n.t('dashboard_error_loading_servers')}</p>`;
         }
     }
@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 if (handleAuthError(response)) return;
                 const result = await response.json();
-                if (!response.ok) throw new Error(result.error || 'Erro desconhecido.');
+                if (!response.ok) throw new Error(result.error || i18n.t('err_unknown'));
                 profileStatus.textContent = i18n.t('dashboard_profile_success');
                 profileStatus.style.color = '#4ade80';
             } catch (error) {
