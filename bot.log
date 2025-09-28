@@ -1,1 +1,1 @@
-[dotenv@17.2.2] injecting env (14) from .env -- tip: 📡 auto-backup env with Radar: https://dotenvx.com/radar
+[dotenv@17.2.2] injecting env (17) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }

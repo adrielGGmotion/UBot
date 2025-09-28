@@ -245,7 +245,7 @@ async function startDashboard() {
       latency = client.ws.ping;
     }
     res.json({
-      bot: { tag: client.user?.tag, id: client.user?.id, online, uptime, latency },
+      bot: { tag: client.user?.tag, id: client.user?.id, avatar: client.user?.displayAvatarURL(), online, uptime, latency },
       guilds: client.guilds.cache.size,
       colors: client.config.colors || {}
     });
@@ -300,6 +300,7 @@ async function startDashboard() {
         aiChannelIds: [],
         aiConfig: {},
         faq: [],
+        knowledge: [],
         githubRepos: [],
         musicConfig: {
           djRole: 'DJ',
@@ -366,11 +367,11 @@ async function startDashboard() {
   app.post('/api/guilds/:guildId/settings', authMiddleware, async (req, res) => {
     if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
     const { guildId } = req.params;
-    const { aiChannelIds, aiConfig, faq, githubRepos, musicConfig } = req.body;
+    const { aiChannelIds, aiConfig, faq, knowledge, githubRepos, musicConfig } = req.body;
     const settingsCollection = client.db.collection('server-settings');
     await settingsCollection.updateOne(
       { guildId },
-      { $set: { aiChannelIds, aiConfig, faq, githubRepos, musicConfig } },
+      { $set: { aiChannelIds, aiConfig, faq, knowledge, githubRepos, musicConfig } },
       { upsert: true }
     );
     res.status(200).json({ success: client.getLocale('settings_updated') });

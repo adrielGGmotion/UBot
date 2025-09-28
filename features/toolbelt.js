@@ -1,33 +1,52 @@
 /**
- * @file Este arquivo centraliza a definição e a implementação das ferramentas
- * que a IA pode utilizar para interagir com o Discord.
+ * @file This file centralizes the definition and implementation of the tools
+ * that the AI can use to interact with Discord.
  */
 
 const fetch = require('node-fetch');
 const https = require('https');
 const OpenAI = require('openai');
 const { ChannelType } = require('discord.js');
+const fs = require('fs').promises;
+const path = require('path');
 
 const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
 });
 
 /**
- * Retorna o modelo de IA apropriado com base na configuração do servidor,
- * priorizando um modelo com capacidade de visão se necessário.
- * @param {object} aiConfig - A configuração da IA do servidor.
- * @param {boolean} vision - Se o modelo de visão é necessário.
- * @returns {string} - O nome do modelo a ser usado.
+ * Returns the appropriate AI model based on the server configuration,
+ * prioritizing a vision-capable model if necessary.
+ * @param {object} aiConfig - The server's AI configuration.
+ * @param {boolean} vision - Whether a vision model is required.
+ * @returns {string} - The name of the model to use.
  */
 function getModel(aiConfig, vision = false) {
   if (vision) {
-    // Prioriza um modelo de visão se a configuração especificar um, caso contrário, usa um padrão.
+    // Prioritize a vision model if the config specifies one, otherwise use a default.
     return aiConfig.visionModel || 'google/gemini-pro-vision';
   }
   return aiConfig.model || 'x-ai/grok-4-fast:free';
 }
 
 const tools = [
+  {
+    type: 'function',
+    function: {
+      name: 'read_knowledge_base',
+      description: 'Searches the server\'s knowledge base for an answer to a user\'s query. Use this if a question seems like a FAQ or requires specific, pre-defined information.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'The user\'s question or keywords to search for in the knowledge base.'
+          }
+        },
+        required: ['query']
+      }
+    }
+  },
   {
     type: 'function',
     function: {
@@ -184,17 +203,17 @@ const tools = [
     type: 'function',
     function: {
         name: 'save_user_memory',
-        description: 'Salva uma informação sobre o usuário que está interagindo. Use para lembrar preferências, detalhes pessoais, ou qualquer coisa que o usuário te peça para lembrar sobre ele.',
+        description: 'Saves a piece of information about the interacting user. Use this to remember preferences, personal details, or anything the user asks you to remember about them.',
         parameters: {
             type: 'object',
             properties: {
                 key: {
                     type: 'string',
-                    description: 'A chave ou nome da informação a ser lembrada (ex: "cor favorita", "nome do cachorro").'
+                    description: 'The key or name of the information to be remembered (e.g., "favorite color", "dog\'s name").'
                 },
                 value: {
                     type: 'string',
-                    description: 'O valor da informação a ser salva (ex: "azul", "Rex").'
+                    description: 'The value of the information to be saved (e.g., "blue", "Rex").'
                 },
             },
             required: ['key', 'value'],
@@ -205,31 +224,30 @@ const tools = [
     type: 'function',
     function: {
         name: 'get_user_memory',
-        description: 'Recupera uma informação previamente salva sobre o usuário que está interagindo. Use para buscar dados e personalizar suas respostas.',
+        description: 'Retrieves a previously saved piece of information about the interacting user. Use this to fetch data and personalize your responses.',
         parameters: {
             type: 'object',
             properties: {
                 key: {
                     type: 'string',
-                    description: 'A chave ou nome da informação que você quer recuperar (ex: "cor favorita").'
+                    description: 'The key or name of the information you want to retrieve (e.g., "favorite color").'
                 },
             },
             required: ['key'],
         },
     },
   },
-  // Ferramentas de canais de voz e fotos de perfil serão adicionadas aqui.
   {
     type: 'function',
     function: {
       name: 'join_voice_channel',
-      description: 'Conecta o bot a um canal de voz específico.',
+      description: 'Connects the bot to a specific voice channel.',
       parameters: {
         type: 'object',
         properties: {
           channel_id: {
             type: 'string',
-            description: 'O ID do canal de voz para se conectar.',
+            description: 'The ID of the voice channel to connect to.',
           },
         },
         required: ['channel_id'],
@@ -240,13 +258,13 @@ const tools = [
     type: 'function',
     function: {
       name: 'list_voice_channel_members',
-      description: 'Lista os membros em um canal de voz específico.',
+      description: 'Lists the members in a specific voice channel.',
       parameters: {
         type: 'object',
         properties: {
           channel_id: {
             type: 'string',
-            description: 'O ID do canal de voz para verificar os membros.',
+            description: 'The ID of the voice channel to check members in.',
           },
         },
         required: ['channel_id'],
@@ -257,7 +275,7 @@ const tools = [
     type: 'function',
     function: {
       name: 'list_text_channels',
-      description: 'Lista todos os canais de texto visíveis no servidor, junto com seus IDs e descrições (tópicos).',
+      description: 'Lists all visible text channels on the server, along with their IDs and topics.',
       parameters: {
         type: 'object',
         properties: {},
@@ -281,13 +299,13 @@ const tools = [
     type: 'function',
     function: {
         name: 'play_music',
-        description: 'Toca uma música ou a adiciona na fila. Requer o nome ou URL da música.',
+        description: 'Plays a song or adds it to the queue. Requires the song name or URL.',
         parameters: {
             type: 'object',
             properties: {
                 query: {
                     type: 'string',
-                    description: 'O nome da música ou um link (YouTube, Spotify, etc.) para tocar.'
+                    description: 'The name of the song or a link (YouTube, Spotify, etc.) to play.'
                 },
             },
             required: ['query'],
@@ -298,7 +316,7 @@ const tools = [
     type: 'function',
     function: {
         name: 'pause_music',
-        description: 'Pausa a reprodução da música atual no servidor.',
+        description: 'Pauses the currently playing music on the server.',
         parameters: {
             type: 'object',
             properties: {},
@@ -310,7 +328,7 @@ const tools = [
     type: 'function',
     function: {
         name: 'resume_music',
-        description: 'Retoma a reprodução da música que estava pausada.',
+        description: 'Resumes the currently paused music.',
         parameters: {
             type: 'object',
             properties: {},
@@ -322,7 +340,7 @@ const tools = [
     type: 'function',
     function: {
         name: 'skip_music',
-        description: 'Pula a música atual e começa a tocar a próxima da fila.',
+        description: 'Skips the current song and plays the next one in the queue.',
         parameters: {
             type: 'object',
             properties: {},
@@ -334,7 +352,7 @@ const tools = [
     type: 'function',
     function: {
         name: 'stop_music',
-        description: 'Para a música completamente, limpa a fila e desconecta o bot do canal de voz.',
+        description: 'Stops the music completely, clears the queue, and disconnects the bot from the voice channel.',
         parameters: {
             type: 'object',
             properties: {},
@@ -346,18 +364,18 @@ const tools = [
     type: 'function',
     function: {
         name: 'get_id',
-        description: 'Obtém o ID de um usuário, canal, cargo ou mensagem com base no nome ou conteúdo.',
+        description: 'Gets the ID of a user, channel, role, or message based on its name or content.',
         parameters: {
             type: 'object',
             properties: {
                 type: {
                     type: 'string',
-                    description: 'O tipo de item para buscar o ID (user, channel, role, message).',
+                    description: 'The type of item to get the ID for (user, channel, role, message).',
                     enum: ['user', 'channel', 'role', 'message']
                 },
                 query: {
                     type: 'string',
-                    description: 'O nome (para user, channel, role) ou conteúdo (para message) para pesquisar.'
+                    description: 'The name (for user, channel, role) or content (for message) to search for.'
                 },
             },
             required: ['type', 'query'],
@@ -367,11 +385,41 @@ const tools = [
 ];
 
 /**
- * Mapeia os nomes das ferramentas para suas funções de execução.
- * @param {import('discord.js').Client} client - O cliente do Discord.
+ * Maps tool names to their execution functions.
+ * @param {import('discord.js').Client} client - The Discord client.
  */
 const getToolFunctions = (client) => ({
-  analyze_image_from_url: async ({ url }) => {
+  read_knowledge_base: async ({ query }, originalMessage) => {
+    if (!client.db) {
+      return { success: false, content: "The database is not connected. This feature is unavailable." };
+    }
+    const settingsCollection = client.db.collection('server-settings');
+    try {
+      const settings = await settingsCollection.findOne({ guildId: originalMessage.guild.id });
+      const knowledgeBase = settings?.knowledge;
+
+      if (!Array.isArray(knowledgeBase) || knowledgeBase.length === 0) {
+        return { success: false, content: "The knowledge base for this server is empty." };
+      }
+
+      const lowerQuery = query.toLowerCase();
+      const foundEntry = knowledgeBase.find(entry =>
+        entry.question.toLowerCase().includes(lowerQuery) ||
+        entry.answer.toLowerCase().includes(lowerQuery)
+      );
+
+      if (foundEntry) {
+        return { success: true, content: `Found a relevant entry in the knowledge base:\nQ: ${foundEntry.question}\nA: ${foundEntry.answer}` };
+      }
+
+      return { success: false, content: `I searched the knowledge base but couldn't find an answer for "${query}".` };
+    } catch (error) {
+      console.error('Error reading knowledge base from DB:', error);
+      return { success: false, content: 'An error occurred while trying to access the knowledge base.' };
+    }
+  },
+
+  analyze_image_from_url: async ({ url }, originalMessage) => {
     try {
       const settingsCollection = client.getDbCollection('server-settings');
       const serverSettings = await settingsCollection.findOne({ guildId: originalMessage.guild.id }) || {};
