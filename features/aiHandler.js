@@ -94,6 +94,15 @@ function constructSystemPrompt(aiConfig, guildName, botName, channel, userLocale
     systemPrompt += "- **Analyze Images:** If a user posts an image URL and asks about it, use `analyze_image_from_url({url: '...'})` to describe it.\n";
     systemPrompt += "- **Read Knowledge Base:** If the user's question seems like it could be answered by a FAQ or a knowledge base, use `read_knowledge_base({query: '...'})` to search for relevant information.\n\n";
 
+    systemPrompt += "## Music Control\n";
+    systemPrompt += "You can control the music player. Use the following tools:\n";
+    systemPrompt += "- `play_music({query: 'song name or URL'})`: To start playing a song. The user must be in a voice channel.\n";
+    systemPrompt += "- `pause_music()`: To pause the currently playing song.\n";
+    systemPrompt += "- `resume_music()`: To resume a paused song.\n";
+    systemPrompt += "- `skip_music()`: To skip the current song and play the next one in the queue.\n";
+    systemPrompt += "- `stop_music()`: To stop the music and clear the queue.\n";
+    systemPrompt += "- `view_queue()`: To see the list of songs currently in the queue.\n\n";
+
     systemPrompt += "## User Memory\n";
     systemPrompt += "You can remember and forget information about users. Use the following tools to manage your memory:\n";
     systemPrompt += "- `save_user_memory({key: 'info_name', value: 'info_value'})`: To save a detail about the user you are talking to.\n";
@@ -140,7 +149,7 @@ async function generateResponse(client, message) {
     const model = aiConfig.model || 'x-ai/grok-4-fast:free';
 
     const conversation = await fetchConversationHistory(message, client, contextLimit);
-    const userLocale = message.guild?.preferredLocale || 'en-US';
+    const userLocale = client.config.language || 'en';
     const systemPromptContent = constructSystemPrompt(aiConfig, message.guild.name, client.user.username, message.channel, userLocale);
 
     const messagesForAPI = [{ role: 'system', content: systemPromptContent }, ...conversation];
