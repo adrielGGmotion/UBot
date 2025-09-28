@@ -39,7 +39,7 @@ module.exports = {
     ),
   async execute(interaction, client) {
     if (!client.db) {
-      return interaction.reply({ content: 'Database is not connected. Cannot manage settings.', ephemeral: true });
+      return interaction.reply({ content: client.getLocale('cmd_db_not_connected_settings'), ephemeral: true });
     }
 
     const subcommand = interaction.options.getSubcommand();
@@ -51,13 +51,13 @@ module.exports = {
       const aiConfig = serverSettings?.aiConfig || {};
 
       const currentSettings = [
-        `**Model:** \`${aiConfig.model || 'Not Set (default)'}\``,
-        `**Web Search:** \`${aiConfig.webSearch ? 'Enabled' : 'Disabled'}\``,
-        `**Personality:** ${aiConfig.personality ? 'Set (use `/ai-settings view` to see full text)' : 'Not Set'}`
+        `**${client.getLocale('cmd_aisettings_model')}:** \`${aiConfig.model || client.getLocale('cmd_aisettings_not_set_default')}\``,
+        `**${client.getLocale('cmd_aisettings_web_search')}:** \`${aiConfig.webSearch ? client.getLocale('cmd_aisettings_enabled') : client.getLocale('cmd_aisettings_disabled')}\``,
+        `**${client.getLocale('cmd_aisettings_personality')}:** ${aiConfig.personality ? client.getLocale('cmd_aisettings_set') : client.getLocale('cmd_aisettings_not_set')}`
       ];
 
       return interaction.reply({
-        content: `## Current AI Settings\n${currentSettings.join('\n')}`,
+        content: `## ${client.getLocale('cmd_aisettings_current_settings')}\n${currentSettings.join('\n')}`,
         ephemeral: true,
       });
     }
@@ -70,20 +70,21 @@ module.exports = {
       case 'model':
         updateField = 'aiConfig.model';
         updateValue = interaction.options.getString('model_name');
-        successMessage = `AI model has been set to \`${updateValue}\`.`;
+        successMessage = client.getLocale('cmd_aisettings_model_success', { model: updateValue });
         break;
       case 'web-search':
         updateField = 'aiConfig.webSearch';
         updateValue = interaction.options.getBoolean('enabled');
-        successMessage = `Web search has been ${updateValue ? 'enabled' : 'disabled'}.`;
+        const status = updateValue ? client.getLocale('cmd_aisettings_enabled') : client.getLocale('cmd_aisettings_disabled');
+        successMessage = client.getLocale('cmd_aisettings_web_search_success', { status });
         break;
       case 'personality':
         updateField = 'aiConfig.personality';
         updateValue = interaction.options.getString('prompt');
-        successMessage = 'AI personality has been updated.';
+        successMessage = client.getLocale('cmd_aisettings_personality_success');
         break;
       default:
-        return interaction.reply({ content: 'Unknown command.', ephemeral: true });
+        return interaction.reply({ content: client.getLocale('command_not_found'), ephemeral: true });
     }
 
     try {
@@ -94,8 +95,8 @@ module.exports = {
       );
       await interaction.reply({ content: successMessage, ephemeral: true });
     } catch (error) {
-      console.error('Error updating AI settings:', error);
-      await interaction.reply({ content: 'An error occurred while updating the settings.', ephemeral: true });
+      console.error(client.getLocale('log_aisettings_update_error'), error);
+      await interaction.reply({ content: client.getLocale('cmd_aisettings_update_error'), ephemeral: true });
     }
   }
 };

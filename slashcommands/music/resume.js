@@ -8,27 +8,27 @@ module.exports = {
   async execute(interaction, client) {
     const { channel } = interaction.member.voice;
     if (!channel) {
-      return interaction.reply({ content: 'Você precisa estar em um canal de voz.', ephemeral: true });
+      return interaction.reply({ content: client.getLocale('cmd_music_not_in_vc_generic'), ephemeral: true });
     }
 
     const player = client.riffy.players.get(interaction.guildId);
     if (!player) {
-      return interaction.reply({ content: 'Não há nada para retomar.', ephemeral: true });
+      return interaction.reply({ content: client.getLocale('cmd_resume_nothing_to_resume'), ephemeral: true });
     }
 
     if (player.voiceChannel !== channel.id) {
-        return interaction.reply({ content: 'Você precisa estar no mesmo canal de voz que eu.', ephemeral: true });
+        return interaction.reply({ content: client.getLocale('cmd_music_not_in_same_vc'), ephemeral: true });
     }
 
     if (!player.paused) {
-        return interaction.reply({ content: 'A música não está pausada.', ephemeral: true });
+        return interaction.reply({ content: client.getLocale('cmd_resume_not_paused'), ephemeral: true });
     }
 
     player.pause(false);
 
     const embed = new EmbedBuilder()
         .setColor(client.config.colors.primary)
-        .setDescription('▶️ A música foi retomada.');
+        .setDescription(client.getLocale('cmd_resume_success'));
 
     await interaction.reply({ embeds: [embed] });
   }

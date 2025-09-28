@@ -14,18 +14,18 @@ module.exports = {
     const query = interaction.options.getString('query');
 
     if (!channel) {
-      return interaction.reply({ content: 'Você precisa estar em um canal de voz para usar este comando.', flags: 64 });
+      return interaction.reply({ content: client.getLocale('cmd_music_not_in_vc_generic'), flags: 64 });
     }
     
     const permissions = channel.permissionsFor(client.user);
     if (!permissions.has('Connect') || !permissions.has('Speak')) {
-        return interaction.reply({ content: 'Eu preciso de permissão para entrar e falar no seu canal de voz!', flags: 64 });
+        return interaction.reply({ content: client.getLocale('cmd_play_no_perms'), flags: 64 });
     }
 
     try {
         await interaction.deferReply();
     } catch (error) {
-        console.error("Error deferring reply:", error);
+        console.error(client.getLocale('log_defer_reply_error'), error);
         // If defer fails, it's likely the interaction is no longer valid.
         // We log the error and return to prevent a crash.
         return;
@@ -52,8 +52,8 @@ module.exports = {
                 for (const track of tracks) {
                     player.queue.add(track);
                 }
-                embed.setTitle("✅ Playlist Adicionada")
-                    .setDescription(`**${playlistInfo.name}** com **${tracks.length}** músicas foi adicionada à fila.`);
+                embed.setTitle(client.getLocale('cmd_play_playlist_added_title'))
+                    .setDescription(client.getLocale('cmd_play_playlist_added_description', { playlistName: playlistInfo.name, trackCount: tracks.length }));
                 await interaction.editReply({ embeds: [embed] });
                 if (!player.playing && !player.paused) player.play();
                 break;
@@ -62,26 +62,26 @@ module.exports = {
             case 'track':
                 const track = tracks.shift();
                 player.queue.add(track);
-                embed.setTitle("👍 Adicionado à Fila")
+                embed.setTitle(client.getLocale('cmd_play_track_added_title'))
                     .setDescription(`[${track.info.title}](${track.info.uri})`);
                 await interaction.editReply({ embeds: [embed] });
                 if (!player.playing && !player.paused) player.play();
                 break;
 
             case 'empty':
-                return interaction.editReply({ content: '❌ Não encontrei nenhum resultado para essa busca.' });
+                return interaction.editReply({ content: client.getLocale('cmd_play_no_results') });
 
             case 'error':
-                console.error("Lavalink load failed. Resolve object:", resolve);
-                return interaction.editReply({ content: '🔥 Ocorreu um erro ao tentar carregar a música. Verifique os logs do seu servidor Lavalink.' });
+                console.error(client.getLocale('log_lavalink_load_error'), resolve);
+                return interaction.editReply({ content: client.getLocale('cmd_play_load_error') });
 
             default:
-                console.warn(`[Debug] Tipo de carga desconhecido: ${loadType}`);
-                return interaction.editReply({ content: '❓ Ocorreu um resultado inesperado do serviço de música.' });
+                console.warn(client.getLocale('log_play_unknown_load_type', { loadType: loadType }));
+                return interaction.editReply({ content: client.getLocale('cmd_play_unexpected_result') });
         }
     } catch (error) {
-        console.error("Error processing play command:", error);
-        await interaction.editReply({ content: 'Ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.' });
+        console.error(client.getLocale('log_play_processing_error'), error);
+        await interaction.editReply({ content: client.getLocale('cmd_play_generic_error') });
     }
   }
 };

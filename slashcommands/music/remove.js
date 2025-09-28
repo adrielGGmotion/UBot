@@ -13,29 +13,29 @@ module.exports = {
   async execute(interaction, client) {
     const { channel } = interaction.member.voice;
     if (!channel) {
-      return interaction.reply({ content: 'Você precisa estar em um canal de voz.', ephemeral: true });
+      return interaction.reply({ content: client.getLocale('cmd_music_not_in_vc_generic'), ephemeral: true });
     }
 
     const player = client.riffy.players.get(interaction.guildId);
     if (!player || player.queue.isEmpty) {
-      return interaction.reply({ content: 'A fila está vazia.', ephemeral: true });
+      return interaction.reply({ content: client.getLocale('cmd_queue_empty'), ephemeral: true });
     }
 
     if (player.voiceChannel !== channel.id) {
-        return interaction.reply({ content: 'Você precisa estar no mesmo canal de voz que eu.', ephemeral: true });
+        return interaction.reply({ content: client.getLocale('cmd_music_not_in_same_vc'), ephemeral: true });
     }
 
     const position = interaction.options.getInteger('position');
 
     if (position > player.queue.length) {
-        return interaction.reply({ content: `Posição inválida. A fila tem apenas ${player.queue.length} músicas.`, ephemeral: true });
+        return interaction.reply({ content: client.getLocale('cmd_remove_invalid_position', { queueLength: player.queue.length }), ephemeral: true });
     }
 
     const removedTrack = player.queue.remove(position - 1);
 
     const embed = new EmbedBuilder()
         .setColor(client.config.colors.primary)
-        .setDescription(`🗑️ Removido da fila: **${removedTrack.info.title}**`);
+        .setDescription(client.getLocale('cmd_remove_success', { trackTitle: removedTrack.info.title }));
 
     await interaction.reply({ embeds: [embed] });
   }

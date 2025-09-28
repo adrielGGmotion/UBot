@@ -7,7 +7,7 @@ module.exports = {
 
   async execute(interaction, client) {
     if (!client.db) {
-      return interaction.reply({ content: 'O banco de dados não está conectado. Esta funcionalidade está indisponível no momento.', ephemeral: true });
+      return interaction.reply({ content: client.getLocale('cmd_db_not_connected_autoplay'), ephemeral: true });
     }
 
     const { guildId } = interaction;
@@ -15,7 +15,7 @@ module.exports = {
 
     let settings = await settingsCollection.findOne({ guildId });
 
-    // Se não houver configurações, o autoplay está efetivamente desativado.
+    // If there are no settings, autoplay is effectively off.
     const currentAutoplayState = settings?.musicConfig?.autoplay || false;
     const newAutoplayState = !currentAutoplayState;
 
@@ -25,10 +25,12 @@ module.exports = {
       { upsert: true }
     );
 
+    const status = newAutoplayState ? client.getLocale('cmd_autoplay_status_enabled') : client.getLocale('cmd_autoplay_status_disabled');
+
     const embed = new EmbedBuilder()
       .setColor(client.config.colors.primary)
-      .setTitle('🎵 Autoplay')
-      .setDescription(`A reprodução automática foi **${newAutoplayState ? 'ativada' : 'desativada'}**.`);
+      .setTitle(client.getLocale('cmd_autoplay_embed_title'))
+      .setDescription(client.getLocale('cmd_autoplay_embed_description', { status }));
 
     await interaction.reply({ embeds: [embed] });
   }

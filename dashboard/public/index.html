@@ -201,10 +201,13 @@
   <div class="main-container">
     <aside class="sidebar">
       <div class="sidebar-header">
-        <h1 id="bot-name">Carregando...</h1>
+        <h1 id="bot-name" data-locale-key="dashboard_loading">Carregando...</h1>
       </div>
       <nav class="sidebar-nav">
-        <a href="#" class="nav-link active" data-locale-key="nav_overview">Visão Geral</a>
+        <a href="index.html" class="nav-link active" data-locale-key="nav_overview">Visão Geral</a>
+        <a href="servers.html" class="nav-link" data-locale-key="nav_servers">Servidores</a>
+        <a href="stats.html" class="nav-link" data-locale-key="nav_stats">Estatísticas</a>
+        <a href="profile.html" class="nav-link" data-locale-key="nav_profile">Perfil</a>
       </nav>
     </aside>
 
@@ -230,11 +233,11 @@
           <form id="profile-form" class="profile-form">
               <div class="form-group">
                   <label for="username" data-locale-key="dashboard_profile_username">Nome de Usuário</label>
-                  <input type="text" id="username" placeholder="Bot name placeholder here">
+                  <input type="text" id="username" data-locale-placeholder-key="dashboard_profile_username_placeholder">
               </div>
               <div class="form-group">
                   <label for="avatar" data-locale-key="dashboard_profile_avatar">URL do Avatar</label>
-                  <input type="text" id="avatar" placeholder="https://exemplo.com/imagem.png">
+                  <input type="text" id="avatar" data-locale-placeholder-key="dashboard_profile_avatar_placeholder">
               </div>
               <button type="submit" class="form-button" data-locale-key="dashboard_profile_save_button">Salvar Alterações</button>
           </form>
@@ -250,9 +253,9 @@
       <div class="widget large-widget" id="help-widget">
         <h2 data-locale-key="dashboard_help_title">Ajuda & Links Rápidos</h2>
         <ul style="padding-left:18px">
-          <li><a href="https://github.com/adrieIgg/Ubot" target="_blank" style="color:var(--accent)">GitHub: Código Fonte do Bot</a></li>
-          <li><a href="https://discord.com/developers/docs" target="_blank" style="color:var(--accent)">Documentação Discord API</a></li>
-          <li><a href="https://www.chartjs.org/docs/latest/" target="_blank" style="color:var(--accent)">Chart.js Tutorial</a></li>
+          <li><a href="https://github.com/adrieIgg/Ubot" target="_blank" style="color:var(--accent)" data-locale-key="dashboard_help_link_github">GitHub: Código Fonte do Bot</a></li>
+          <li><a href="https://discord.com/developers/docs" target="_blank" style="color:var(--accent)" data-locale-key="dashboard_help_link_discord_api">Documentação Discord API</a></li>
+          <li><a href="https://www.chartjs.org/docs/latest/" target="_blank" style="color:var(--accent)" data-locale-key="dashboard_help_link_chartjs">Chart.js Tutorial</a></li>
         </ul>
       </div>
     </main>

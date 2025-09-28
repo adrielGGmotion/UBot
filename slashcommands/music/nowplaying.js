@@ -9,7 +9,7 @@ module.exports = {
     const player = client.riffy.players.get(interaction.guildId);
 
     if (!player || !player.playing) {
-      return interaction.reply({ content: 'Não estou tocando nada no momento.', ephemeral: true });
+      return interaction.reply({ content: client.getLocale('cmd_music_not_playing'), ephemeral: true });
     }
 
     const track = player.queue.current;
@@ -32,17 +32,17 @@ module.exports = {
 
     const embed = new EmbedBuilder()
         .setColor(client.config.colors.primary)
-        .setAuthor({ name: "Tocando Agora" })
+        .setAuthor({ name: client.getLocale('cmd_nowplaying_author') })
         .setTitle(track.info.title)
         .setURL(track.info.uri)
         .setThumbnail(track.info.thumbnail)
         .addFields(
-            { name: "Autor", value: track.info.author, inline: true },
-            { name: "Pedido por", value: `<@${track.info.requester.id}>`, inline: true },
-            { name: "Volume", value: `${player.volume}%`, inline: true }
+            { name: client.getLocale('cmd_nowplaying_field_author'), value: track.info.author, inline: true },
+            { name: client.getLocale('cmd_nowplaying_field_requester'), value: `<@${track.info.requester.id}>`, inline: true },
+            { name: client.getLocale('cmd_nowplaying_field_volume'), value: `${player.volume}%`, inline: true }
         )
         .addFields({
-            name: "Progresso",
+            name: client.getLocale('cmd_nowplaying_field_progress'),
             value: `\`${formatDuration(position)}\` ${createProgressBar(position, duration)} \`${formatDuration(duration)}\``
         });
 

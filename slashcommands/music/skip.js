@@ -8,26 +8,26 @@ module.exports = {
   async execute(interaction, client) {
     const { channel } = interaction.member.voice;
     if (!channel) {
-      return interaction.reply({ content: 'Você precisa estar em um canal de voz.', ephemeral: true });
+      return interaction.reply({ content: client.getLocale('cmd_music_not_in_vc_generic'), ephemeral: true });
     }
 
     const player = client.riffy.players.get(interaction.guildId);
     if (!player) {
-      return interaction.reply({ content: 'Não estou tocando nada no momento.', ephemeral: true });
+      return interaction.reply({ content: client.getLocale('cmd_music_not_playing'), ephemeral: true });
     }
 
     if (player.voiceChannel !== channel.id) {
-        return interaction.reply({ content: 'Você precisa estar no mesmo canal de voz que eu.', ephemeral: true });
+        return interaction.reply({ content: client.getLocale('cmd_music_not_in_same_vc'), ephemeral: true });
     }
 
     const currentTrack = player.queue.current;
 
-    // Para o player, o que aciona o evento 'trackEnd' e inicia a próxima música
+    // Stops the player, which triggers the 'trackEnd' event and starts the next song
     player.stop();
 
     const embed = new EmbedBuilder()
         .setColor(client.config.colors.primary)
-        .setDescription(`⏭️ Música pulada: **${currentTrack.info.title}**`);
+        .setDescription(client.getLocale('cmd_skip_success', { trackTitle: currentTrack.info.title }));
 
     await interaction.reply({ embeds: [embed] });
   }

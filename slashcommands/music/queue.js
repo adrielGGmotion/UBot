@@ -9,7 +9,7 @@ module.exports = {
     const player = client.riffy.players.get(interaction.guildId);
 
     if (!player || player.queue.isEmpty) {
-      return interaction.reply({ content: 'A fila está vazia.', ephemeral: true });
+      return interaction.reply({ content: client.getLocale('cmd_queue_empty'), ephemeral: true });
     }
 
     const queue = player.queue;
@@ -21,11 +21,11 @@ module.exports = {
         const current = queue.slice(start, start + itemsPerPage);
         const embed = new EmbedBuilder()
             .setColor(client.config.colors.primary)
-            .setTitle('Fila de Reprodução')
+            .setTitle(client.getLocale('cmd_queue_embed_title'))
             .setThumbnail(interaction.guild.iconURL())
-            .setDescription(`**Tocando Agora:** [${player.queue.current.info.title}](${player.queue.current.info.uri})\n\n**Próximas na Fila:**\n` +
-                current.map((track, i) => `${start + i + 1}. [${track.info.title}](${track.info.uri})`).join('\n') || 'Nenhuma')
-            .setFooter({ text: `Página ${page + 1} de ${totalPages} | Total de ${queue.length} músicas` });
+            .setDescription(`**${client.getLocale('cmd_queue_embed_now_playing')}:** [${player.queue.current.info.title}](${player.queue.current.info.uri})\n\n**${client.getLocale('cmd_queue_embed_up_next')}:**\n` +
+                current.map((track, i) => `${start + i + 1}. [${track.info.title}](${track.info.uri})`).join('\n') || client.getLocale('cmd_queue_embed_none'))
+            .setFooter({ text: client.getLocale('cmd_queue_embed_footer', { page: page + 1, totalPages: totalPages, totalTracks: queue.length }) });
         return embed;
     };
 
@@ -42,12 +42,12 @@ module.exports = {
 
     const collector = message.createMessageComponentCollector({
         componentType: ComponentType.Button,
-        time: 120000 // 2 minutos
+        time: 120000 // 2 minutes
     });
 
     collector.on('collect', async i => {
         if (i.user.id !== interaction.user.id) {
-            return i.reply({ content: 'Você não pode usar estes botões.', ephemeral: true });
+            return i.reply({ content: client.getLocale('cmd_queue_cannot_use_buttons'), ephemeral: true });
         }
 
         if (i.customId === 'prev_page') {
