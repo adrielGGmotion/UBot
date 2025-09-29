@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let dataFromAPI = {};
     let chatHistory = [];
     let musicDataInterval;
+    let getPersonality, getExamples;
 
     function getElement(id, critical = true) {
         const element = document.getElementById(id);
@@ -171,8 +172,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         // Setup for personality and examples
-        dataFromAPI.getPersonality = setupDynamicTextAreas('ai-personality-container', 'add-personality-btn', config.personality, 'dashboard_server_ai_personality_placeholder');
-        dataFromAPI.getExamples = setupDynamicTextAreas('ai-examples-container', 'add-example-btn', config.examples, 'dashboard_server_ai_examples_placeholder');
+        getPersonality = setupDynamicTextAreas('ai-personality-container', 'add-personality-btn', config.personality, 'dashboard_server_ai_personality_placeholder');
+        getExamples = setupDynamicTextAreas('ai-examples-container', 'add-example-btn', config.examples, 'dashboard_server_ai_examples_placeholder');
 
         const toolsListDiv = getElement('ai-tools-list');
         toolsListDiv.innerHTML = '';
@@ -272,11 +273,221 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function buildGithubPanel() {
-        const goToGithubBtn = getElement('go-to-github-btn');
-        goToGithubBtn.addEventListener('click', (e) => {
+        const addRepoBtn = getElement('add-repo-btn');
+        const modal = getElement('repo-modal');
+        const repoForm = getElement('repo-form');
+        const cancelModalBtn = getElement('cancel-modal-btn');
+        const deleteRepoBtn = getElement('delete-repo-btn');
+
+        const openModal = (repoId = null) => {
+            repoForm.reset();
+            getElement('modal-config-sections').innerHTML = '';
+            let repoData;
+
+            if (repoId) {
+                const originalRepoData = dataFromAPI.settings.githubRepos.find(r => r.id === repoId);
+                if (!originalRepoData) return alert('Repository not found!');
+                repoData = JSON.parse(JSON.stringify(originalRepoData));
+                repoData = { ...createDefaultRepoConfig(), ...repoData };
+
+                getElement('modal-title').textContent = i18n.t('dashboard_server_github_modal_edit_title');
+                getElement('repo-id').value = repoData.id;
+                getElement('repo-url').value = repoData.url;
+                getElement('repo-url').disabled = true;
+                getElement('repo-secret').value = repoData.secret || '';
+                deleteRepoBtn.style.display = 'inline-block';
+            } else {
+                repoData = createDefaultRepoConfig();
+                getElement('modal-title').textContent = i18n.t('dashboard_server_github_modal_add_title');
+                getElement('repo-id').value = '';
+                getElement('repo-url').disabled = false;
+                deleteRepoBtn.style.display = 'none';
+            }
+
+            buildModalConfigUI(repoData);
+            modal.style.display = 'flex';
+        };
+
+        const closeModal = () => {
+            modal.style.display = 'none';
+        };
+
+        const renderRepoList = () => {
+            const repoListContainer = getElement('repo-list');
+            repoListContainer.innerHTML = '';
+            const repos = (dataFromAPI.settings && dataFromAPI.settings.githubRepos) ? dataFromAPI.settings.githubRepos : [];
+
+            if (repos.length === 0) {
+                repoListContainer.innerHTML = `<p style="color: var(--muted);">${i18n.t('dashboard_server_github_no_repos')}</p>`;
+                return;
+            }
+
+            repos.forEach(repo => {
+                const repoCard = document.createElement('div');
+                repoCard.className = 'repo-card';
+                const repoName = repo.name || (repo.url ? new URL(repo.url).pathname.substring(1) : 'Unnamed Repo');
+                repoCard.innerHTML = `
+                    <div class="repo-info">
+                        <h4>${repoName}</h4>
+                        <span>${repo.enabled ? `🟢 ${i18n.t('dashboard_server_github_repo_enabled')}` : `🔴 ${i18n.t('dashboard_server_github_repo_disabled')}`}</span>
+                    </div>
+                    <button class="edit-repo-btn" data-repo-id="${repo.id}">${i18n.t('dashboard_server_github_repo_edit_button')}</button>
+                `;
+                repoListContainer.appendChild(repoCard);
+            });
+
+            repoListContainer.querySelectorAll('.edit-repo-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => openModal(e.currentTarget.dataset.repoId));
+            });
+        };
+
+        const buildModalConfigUI = (repoData) => {
+            const modalConfigSections = getElement('modal-config-sections');
+            const createChannelSelect = (selectedId) => {
+                const options = dataFromAPI.availableChannels.map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>#${c.name}</option>`).join('');
+                return `<option value="">-- ${i18n.t('dashboard_server_github_modal_select_channel')} --</option>${options}`;
+            };
+
+            const sections = [
+                { key: 'commits', title: i18n.t('dashboard_server_github_modal_commits_title') },
+                { key: 'pullRequests', title: i18n.t('dashboard_server_github_modal_prs_title') },
+                { key: 'issues', title: i18n.t('dashboard_server_github_modal_issues_title') },
+                { key: 'releases', title: i18n.t('dashboard_server_github_modal_releases_title') },
+            ];
+
+            let html = `<div class="form-group" style="flex-direction: row; align-items: center; justify-content: space-between;"><label>${i18n.t('dashboard_server_github_modal_repo_status_label')}</label><label class="switch"><input type="checkbox" id="repo-enabled" ${repoData.enabled ? 'checked' : ''}><span class="slider"></span></label></div>`;
+
+            sections.forEach(({ key, title }) => {
+                const config = repoData[key];
+                html += `
+                    <div class="config-section">
+                        <div class="section-header">
+                            <h4>${title}</h4>
+                            <label class="switch"><input type="checkbox" class="section-toggle" id="${key}-enabled" data-section="${key}" ${config.enabled ? 'checked' : ''}><span class="slider"></span></label>
+                        </div>
+                        <div class="section-content" id="${key}-content" style="display: ${config.enabled ? 'block' : 'none'};">
+                            <div class="form-group"><label for="${key}-channelId">${i18n.t('dashboard_server_github_modal_channel_label')}</label><select id="${key}-channelId" class="form-select">${createChannelSelect(config.channelId)}</select></div>
+                            ${generateExtraFields(key, config)}
+                        </div>
+                    </div>`;
+            });
+
+            modalConfigSections.innerHTML = html;
+
+            modalConfigSections.querySelectorAll('.section-toggle').forEach(toggle => {
+                toggle.addEventListener('change', (e) => {
+                    const content = document.getElementById(`${e.target.dataset.section}-content`);
+                    if (content) content.style.display = e.target.checked ? 'block' : 'none';
+                });
+            });
+        };
+
+        const generateExtraFields = (key, config) => {
+            const createFilterInput = (list) => (list || []).join(', ');
+            let fields = '';
+            switch (key) {
+                case 'commits':
+                    fields += `<div class="form-group small-group"><label>${i18n.t('dashboard_server_github_modal_branch_filter_label')}</label><select class="form-select" id="commits-branchFilter-mode"><option value="blacklist" ${config.branchFilter.mode === 'blacklist' ? 'selected' : ''}>${i18n.t('dashboard_server_github_modal_filter_blacklist')}</option><option value="whitelist" ${config.branchFilter.mode === 'whitelist' ? 'selected' : ''}>${i18n.t('dashboard_server_github_modal_filter_whitelist')}</option></select><input type="text" class="form-input" id="commits-branchFilter-list" placeholder="main, develop" value="${createFilterInput(config.branchFilter.list)}"></div>`;
+                    fields += `<div class="form-group small-group"><label>${i18n.t('dashboard_server_github_modal_message_filter_label')}</label><select class="form-select" id="commits-messageFilter-mode"><option value="blacklist" ${config.messageFilter.mode === 'blacklist' ? 'selected' : ''}>${i18n.t('dashboard_server_github_modal_filter_blacklist')}</option><option value="whitelist" ${config.messageFilter.mode === 'whitelist' ? 'selected' : ''}>${i18n.t('dashboard_server_github_modal_filter_whitelist')}</option></select><input type="text" class="form-input" id="commits-messageFilter-list" placeholder="WIP, chore" value="${createFilterInput(config.messageFilter.list)}"></div>`;
+                    fields += `<div class="form-group small-group"><label>${i18n.t('dashboard_server_github_modal_author_filter_label')}</label><select class="form-select" id="commits-authorFilter-mode"><option value="blacklist" ${config.authorFilter.mode === 'blacklist' ? 'selected' : ''}>${i18n.t('dashboard_server_github_modal_filter_blacklist')}</option><option value="whitelist" ${config.authorFilter.mode === 'whitelist' ? 'selected' : ''}>${i18n.t('dashboard_server_github_modal_filter_whitelist')}</option></select><input type="text" class="form-input" id="commits-authorFilter-list" placeholder="bot-name" value="${createFilterInput(config.authorFilter.list)}"></div>`;
+                    break;
+                case 'pullRequests':
+                    fields += `<div class="form-group" style="flex-direction: row; align-items: center; gap: 10px;"><label>${i18n.t('dashboard_server_github_modal_ignore_drafts_label')}</label><input type="checkbox" id="pullRequests-ignoreDrafts" ${config.ignoreDrafts ? 'checked' : ''}></div>`;
+                    fields += `<div class="form-group"><label>${i18n.t('dashboard_server_github_modal_base_branch_filter_label')}</label><input type="text" class="form-input" id="pullRequests-branchFilter-base" value="${createFilterInput(config.branchFilter.base)}"></div>`;
+                    fields += `<div class="form-group small-group"><label>${i18n.t('dashboard_server_github_modal_label_filter_label')}</label><select class="form-select" id="pullRequests-labelFilter-mode"><option value="blacklist" ${config.labelFilter.mode === 'blacklist' ? 'selected' : ''}>${i18n.t('dashboard_server_github_modal_filter_blacklist')}</option><option value="whitelist" ${config.labelFilter.mode === 'whitelist' ? 'selected' : ''}>${i18n.t('dashboard_server_github_modal_filter_whitelist')}</option></select><input type="text" class="form-input" id="pullRequests-labelFilter-list" placeholder="do-not-merge" value="${createFilterInput(config.labelFilter.list)}"></div>`;
+                    break;
+                case 'issues':
+                    fields += `<div class="form-group small-group"><label>${i18n.t('dashboard_server_github_modal_label_filter_label')}</label><select class="form-select" id="issues-labelFilter-mode"><option value="blacklist" ${config.labelFilter.mode === 'blacklist' ? 'selected' : ''}>${i18n.t('dashboard_server_github_modal_filter_blacklist')}</option><option value="whitelist" ${config.labelFilter.mode === 'whitelist' ? 'selected' : ''}>${i18n.t('dashboard_server_github_modal_filter_whitelist')}</option></select><input type="text" class="form-input" id="issues-labelFilter-list" placeholder="wontfix" value="${createFilterInput(config.labelFilter.list)}"></div>`;
+                    break;
+            }
+            return fields;
+        };
+
+        const handleFormSubmit = async (e) => {
             e.preventDefault();
-            window.location.href = `/github.html?guildId=${guildId}`;
-        });
+            const id = getElement('repo-id').value;
+            const url = getElement('repo-url').value.trim();
+
+            if (!url.match(/^https:\/\/github\.com\/[a-zA-Z0-9-]+\/[a-zA-Z0-9-._]+$/)) {
+                return alert(i18n.t('dashboard_server_github_modal_invalid_url_alert'));
+            }
+            const repoName = new URL(url).pathname.substring(1);
+            const parseList = (str) => str.split(',').map(item => item.trim()).filter(Boolean);
+
+            const newRepoData = {
+                id: id || `repo_${Date.now()}`,
+                name: repoName,
+                url: url,
+                secret: getElement('repo-secret').value.trim(),
+                enabled: getElement('repo-enabled').checked,
+                commits: {
+                    enabled: getElement('commits-enabled').checked,
+                    channelId: getElement('commits-channelId').value,
+                    branchFilter: { mode: getElement('commits-branchFilter-mode').value, list: parseList(getElement('commits-branchFilter-list').value) },
+                    messageFilter: { mode: getElement('commits-messageFilter-mode').value, list: parseList(getElement('commits-messageFilter-list').value) },
+                    authorFilter: { mode: getElement('commits-authorFilter-mode').value, list: parseList(getElement('commits-authorFilter-list').value) },
+                },
+                pullRequests: {
+                    enabled: getElement('pullRequests-enabled').checked,
+                    channelId: getElement('pullRequests-channelId').value,
+                    ignoreDrafts: getElement('pullRequests-ignoreDrafts').checked,
+                    branchFilter: { base: parseList(getElement('pullRequests-branchFilter-base').value), head: [] }, // head is not configured in UI
+                    labelFilter: { mode: getElement('pullRequests-labelFilter-mode').value, list: parseList(getElement('pullRequests-labelFilter-list').value) },
+                },
+                issues: {
+                    enabled: getElement('issues-enabled').checked,
+                    channelId: getElement('issues-channelId').value,
+                    labelFilter: { mode: getElement('issues-labelFilter-mode').value, list: parseList(getElement('issues-labelFilter-list').value) },
+                },
+                releases: {
+                    enabled: getElement('releases-enabled').checked,
+                    channelId: getElement('releases-channelId').value,
+                },
+            };
+
+            if (!dataFromAPI.settings.githubRepos) {
+                dataFromAPI.settings.githubRepos = [];
+            }
+
+            if (id) {
+                const index = dataFromAPI.settings.githubRepos.findIndex(r => r.id === id);
+                dataFromAPI.settings.githubRepos[index] = newRepoData;
+            } else {
+                if (dataFromAPI.settings.githubRepos.some(r => r.name === repoName)) {
+                    return alert(i18n.t('dashboard_server_github_modal_repo_exists_alert', { repoName }));
+                }
+                dataFromAPI.settings.githubRepos.push(newRepoData);
+            }
+            renderRepoList();
+            closeModal();
+        };
+
+        const handleDeleteRepo = () => {
+            const id = getElement('repo-id').value;
+            if (!id) return;
+            if (confirm(i18n.t('dashboard_server_github_modal_delete_confirm'))) {
+                dataFromAPI.settings.githubRepos = dataFromAPI.settings.githubRepos.filter(r => r.id !== id);
+                renderRepoList();
+                closeModal();
+            }
+        };
+
+        const createDefaultRepoConfig = () => {
+            return {
+                id: null, name: '', url: '', secret: '', enabled: true,
+                commits: { enabled: false, channelId: null, branchFilter: { mode: 'blacklist', list: [] }, messageFilter: { mode: 'blacklist', list: [] }, authorFilter: { mode: 'blacklist', list: [] } },
+                pullRequests: { enabled: true, channelId: null, branchFilter: { base: [], head: [] }, labelFilter: { mode: 'blacklist', list: [] }, ignoreDrafts: true },
+                issues: { enabled: true, channelId: null, labelFilter: { mode: 'blacklist', list: [] } },
+                releases: { enabled: true, channelId: null }
+            };
+        };
+
+        addRepoBtn.addEventListener('click', () => openModal());
+        cancelModalBtn.addEventListener('click', closeModal);
+        repoForm.addEventListener('submit', handleFormSubmit);
+        deleteRepoBtn.addEventListener('click', handleDeleteRepo);
+
+        renderRepoList();
     }
 
     async function initializePage() {
@@ -336,8 +547,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const enabledTools = Array.from(document.querySelectorAll('#ai-tools-list input:checked')).map(cb => cb.value);
 
         const aiConfig = {
-            personality: dataFromAPI.getPersonality(), // Use the new getter function
-            examples: dataFromAPI.getExamples(),       // Use the new getter function
+            personality: getPersonality(), // Use the new getter function
+            examples: getExamples(),       // Use the new getter function
             contextLimit: parseInt(getElement('ai-context-limit').value, 10) || 15,
             enabledTools: enabledTools
         };
@@ -349,18 +560,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const faq = (dataFromAPI.settings && dataFromAPI.settings.faq) ? dataFromAPI.settings.faq : [];
         const knowledge = (dataFromAPI.settings && dataFromAPI.settings.knowledge) ? dataFromAPI.settings.knowledge : [];
 
-        // githubRepos is no longer managed here. It's handled by github.html
+        const githubRepos = (dataFromAPI.settings && dataFromAPI.settings.githubRepos) ? dataFromAPI.settings.githubRepos : [];
 
         saveStatus.textContent = i18n.t('dashboard_server_saving_status');
         try {
             const token = localStorage.getItem('dashboard-token');
-            // We need to preserve the existing githubRepos settings
-            const existingGithubRepos = (dataFromAPI.settings && dataFromAPI.settings.githubRepos) ? dataFromAPI.settings.githubRepos : [];
-
             const response = await fetch(`/api/guilds/${guildId}/settings`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ aiChannelIds, aiConfig, faq, knowledge, musicConfig, githubRepos: existingGithubRepos })
+                body: JSON.stringify({ aiChannelIds, aiConfig, faq, knowledge, musicConfig, githubRepos })
             });
             if (handleAuthError(response)) return;
             if (!response.ok) throw new Error('Response not OK');
@@ -414,8 +622,8 @@ document.addEventListener('DOMContentLoaded', () => {
         sendChatBtn.disabled = true;
 
         const currentConfig = {
-            personality: dataFromAPI.getPersonality(), // Use the getter
-            examples: dataFromAPI.getExamples(),       // Use the getter
+            personality: getPersonality(), // Use the getter
+            examples: getExamples(),       // Use the getter
             contextLimit: parseInt(getElement('ai-context-limit').value, 10) || 15
         };
         const historyForAPI = chatHistory.slice(-currentConfig.contextLimit);
@@ -442,88 +650,6 @@ document.addEventListener('DOMContentLoaded', () => {
     sendChatBtn.addEventListener('click', sendChatMessage);
     chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChatMessage(); });
     clearChatBtn.addEventListener('click', () => { chatDisplay.innerHTML = ''; chatHistory = []; });
-
-    // Re-colocando o build dos painéis que foram omitidos
-    function buildAiPanel(channels = [], selectedIds = [], config = {}) {
-        const listDiv = getElement('channels-list');
-        listDiv.innerHTML = '';
-        channels.forEach(ch => {
-            const isChecked = (selectedIds || []).includes(ch.id);
-            listDiv.innerHTML += `<div class="checkbox-group"><input type="checkbox" id="${ch.id}" value="${ch.id}" ${isChecked ? 'checked' : ''}><label for="${ch.id}">#${ch.name}</label></div>`;
-        });
-        getElement('ai-context-limit').value = config.contextLimit || 15;
-    }
-
-    function buildFaqPanel(faqData = []) {
-        const faqListDiv = getElement('faq-list');
-        const faqAddBtn = getElement('faq-add-btn');
-        faqData = faqData || [];
-        function render() {
-            faqListDiv.innerHTML = '';
-            faqData.forEach((item, index) => {
-                const faqItem = document.createElement('div');
-                faqItem.className = 'faq-item';
-                const removeButtonText = i18n.t('dashboard_server_remove_button');
-                faqItem.innerHTML = `<button data-index="${index}">${removeButtonText}</button><strong>Q: ${item.question}</strong><p>A: ${item.answer}</p>`;
-                faqListDiv.appendChild(faqItem);
-            });
-            faqListDiv.querySelectorAll('button').forEach(button => {
-                button.addEventListener('click', () => {
-                    faqData.splice(button.dataset.index, 1);
-                    render();
-                });
-            });
-        }
-        render();
-        faqAddBtn.addEventListener('click', () => {
-            const q = getElement('faq-new-question').value.trim();
-            const a = getElement('faq-new-answer').value.trim();
-            if (q && a) {
-                faqData.push({ question: q, answer: a });
-                render();
-                getElement('faq-new-question').value = '';
-                getElement('faq-new-answer').value = '';
-            }
-        });
-    }
-
-    function buildNotificationsPanel(availableChannels = [], repos = []) {
-        const reposListDiv = getElement('repos-list');
-        const repoAddBtn = getElement('repo-add-btn');
-        const newRepoChannelSelect = getElement('repo-new-channel');
-        repos = repos || [];
-        newRepoChannelSelect.innerHTML = availableChannels.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-        function render() {
-            reposListDiv.innerHTML = '';
-            repos.forEach((repo, index) => {
-                const channelName = availableChannels.find(c => c.id === repo.channelId)?.name || i18n.t('dashboard_server_notifications_channel_not_found');
-                const repoItem = document.createElement('div');
-                repoItem.className = 'faq-item';
-                const removeButtonText = i18n.t('dashboard_server_remove_button');
-                const sendingToText = i18n.t('dashboard_server_notifications_sending_to', { channelName });
-                repoItem.innerHTML = `<button data-index="${index}">${removeButtonText}</button><strong>${repo.repo}</strong><p>${sendingToText}</p>`;
-                reposListDiv.appendChild(repoItem);
-            });
-            reposListDiv.querySelectorAll('button').forEach(button => {
-                button.addEventListener('click', () => {
-                    repos.splice(button.dataset.index, 1);
-                    render();
-                });
-            });
-        }
-        render();
-        repoAddBtn.addEventListener('click', () => {
-            const repoName = getElement('repo-new-name').value.trim().toLowerCase();
-            if (repoName.match(/^[a-z0-9-]+\/[a-z0-9-._]+$/)) {
-                repos.push({ repo: repoName, channelId: newRepoChannelSelect.value });
-                render();
-                getElement('repo-new-name').value = '';
-            } else {
-                alert(i18n.t('dashboard_server_notifications_invalid_repo_format_alert'));
-            }
-        });
-    }
-
 
     // Placeholders traduzidos
     chatInput.placeholder = i18n.t('dashboard_server_ai_tester_input_placeholder');
