@@ -632,7 +632,7 @@ async function startDashboard() {
       console.error(client.getLocale('err_missing_token'));
       process.exit(1);
     }
-    // await client.login(token); // Temporarily disabled for dashboard verification
+    await client.login(token);
   } catch (err) {
     console.error(client.getLocale('err_fatal_init', { error: err }));
     process.exit(1);

@@ -3,53 +3,92 @@ document.addEventListener('DOMContentLoaded', () => {
     const chartCanvas = document.getElementById('command-chart').getContext('2d');
     let commandChart = null;
 
+    function handleAuthError(response) {
+        if (response.status === 401) {
+            localStorage.removeItem('dashboard-token');
+            window.location.href = '/login.html';
+            return true;
+        }
+        return false;
+    }
+
     async function fetchStats() {
         try {
-            const response = await fetch('/api/stats');
-            const stats = await response.json();
-
-            totalCommandsElement.textContent = stats.totalCommands;
-            
-            // Prepara os dados para o gráfico
-            const labels = stats.commandUsage.map(cmd => cmd._id);
-            const data = stats.commandUsage.map(cmd => cmd.count);
-
-            // Cria ou atualiza o gráfico
-            if (commandChart) {
-                commandChart.destroy(); // Destrói o gráfico antigo para criar um novo
+            const token = localStorage.getItem('dashboard-token');
+            if (!token) {
+                window.location.href = '/login.html';
+                return;
             }
-            
-            commandChart = new Chart(chartCanvas, {
-                type: 'bar', // Tipo do gráfico (barras)
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: i18n.t('dashboard_stats_command_usage'),
-                        data: data,
-                        backgroundColor: 'rgba(153, 0, 255, 0.6)', // Cor das barras (accent1 com transparência)
-                        borderColor: 'rgba(153, 0, 255, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false // Esconde a legenda para um visual mais limpo
-                        }
-                    }
+
+            const response = await fetch('/api/stats', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
                 }
             });
 
+            if (handleAuthError(response)) return;
+
+            const stats = await response.json();
+
+            if (totalCommandsElement) {
+                totalCommandsElement.textContent = stats.totalCommands;
+            }
+
+            if (stats.commandUsage && chartCanvas) {
+                const labels = stats.commandUsage.map(cmd => cmd.commandName); // Corrected from cmd._id
+                const data = stats.commandUsage.map(cmd => cmd.count);
+
+                const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-rgb').trim();
+
+                if (commandChart) {
+                    commandChart.destroy();
+                }
+
+                commandChart = new Chart(chartCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Command Usage', // This will be translated by i18n if key is set
+                            data: data,
+                            backgroundColor: `rgba(${accentColor}, 0.6)`,
+                            borderColor: `rgba(${accentColor}, 1)`,
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: 'var(--text-secondary)' },
+                                grid: { color: 'var(--border-color)' }
+                            },
+                            x: {
+                                ticks: { color: 'var(--text-secondary)' },
+                                grid: { color: 'var(--border-color)' }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+            }
+
         } catch (error) {
-            console.error(i18n.t('err_fetch_stats_failed'), error);
-            totalCommandsElement.textContent = i18n.t('err_generic_error');
+            console.error('Failed to fetch or render stats:', error);
+            if (totalCommandsElement) {
+                totalCommandsElement.textContent = 'Error';
+            }
         }
     }
 
-    fetchStats();
+    // We need to ensure translations are loaded before fetching stats that use them
+    // A simple timeout can work for this, or a more robust event-based system.
+    // For now, let's assume translator.js handles this or we call it after a delay.
+    setTimeout(fetchStats, 200); // Give translator a moment to load
 });
