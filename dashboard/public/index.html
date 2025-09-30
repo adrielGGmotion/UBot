@@ -2,37 +2,41 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <script src="auth.js"></script> <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-locale-key="dashboard_title">Ubot Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <!-- Fonts & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <!-- Centralized Stylesheet & Scripts -->
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="main-container">
     <aside class="sidebar">
       <div class="sidebar-header">
-        <h1 id="bot-name" data-locale-key="dashboard_loading">Carregando...</h1>
+        <h1 id="bot-name" data-locale-key="dashboard_loading">Ubot</h1>
       </div>
       <nav class="sidebar-nav">
         <a href="index.html" class="nav-link active">
-            <i class="material-icons">space_dashboard</i>
-            <span data-locale-key="nav_overview">Visão Geral</span>
+          <i class="material-icons">space_dashboard</i>
+          <span data-locale-key="nav_overview">Visão Geral</span>
         </a>
         <a href="server.html" class="nav-link">
-            <i class="material-icons">dns</i>
-            <span data-locale-key="nav_servers">Servidores</span>
+          <i class="material-icons">dns</i>
+          <span data-locale-key="nav_servers">Servidores</span>
         </a>
         <a href="stats.html" class="nav-link">
-            <i class="material-icons">bar_chart</i>
-            <span data-locale-key="nav_stats">Estatísticas</span>
+          <i class="material-icons">bar_chart</i>
+          <span data-locale-key="nav_stats">Estatísticas</span>
         </a>
         <a href="profile.html" class="nav-link">
-            <i class="material-icons">person</i>
-            <span data-locale-key="nav_profile">Perfil</span>
+          <i class="material-icons">person</i>
+          <span data-locale-key="nav_profile">Perfil</span>
         </a>
       </nav>
     </aside>
@@ -46,55 +50,35 @@
         <h2><i class="material-icons">terminal</i> <span data-locale-key="dashboard_stats_total_commands">Total de Comandos</span></h2>
         <p id="total-commands">-</p>
       </div>
+       <div class="widget stat-card" id="bot-status-widget">
+        <h2><i class="material-icons">bolt</i> <span data-locale-key="dashboard_bot_status_title">Status do Bot</span></h2>
+        <p id="bot-status">-</p>
+        <div style="font-size:0.9rem;color:var(--text-secondary)">
+          <span>Uptime: <span id="bot-uptime">-</span></span> | <span>Latência: <span id="bot-latency">-</span>ms</span>
+        </div>
+      </div>
       <div class="widget large-widget chart-container">
-        <h2><i class="material-icons">bar_chart</i> <span data-locale-key="dashboard_stats_command_usage">Uso de Comandos</span></h2>
+        <h2><i class="material-icons">analytics</i> <span data-locale-key="dashboard_stats_command_usage">Uso de Comandos</span></h2>
         <canvas id="command-chart"></canvas>
       </div>
       <div class="widget large-widget" id="guilds-widget">
         <h2><i class="material-icons">groups</i> <span data-locale-key="dashboard_my_servers_title">Meus Servidores</span></h2>
-        <div id="guilds-list"></div>
-      </div>
-      <div class="widget stat-card" id="bot-status-widget">
-        <h2><i class="material-icons">bolt</i> <span data-locale-key="dashboard_bot_status_title">Status do Bot</span></h2>
-        <p id="bot-status">-</p>
-        <div style="font-size:0.95em;color:var(--muted)">
-          <span id="bot-uptime"></span> | <span id="bot-latency"></span>
+        <div id="guilds-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--gap);">
+          <!-- Server icons will be dynamically inserted here -->
         </div>
       </div>
       <div class="widget large-widget" id="help-widget">
         <h2><i class="material-icons">help_outline</i> <span data-locale-key="dashboard_help_title">Ajuda & Links Rápidos</span></h2>
-        <ul style="padding-left:18px">
-          <li><a href="https://github.com/adrieIgg/Ubot" target="_blank" style="color:var(--accent)" data-locale-key="dashboard_help_link_github">GitHub: Código Fonte do Bot</a></li>
-          <li><a href="https://discord.com/developers/docs" target="_blank" style="color:var(--accent)" data-locale-key="dashboard_help_link_discord_api">Documentação Discord API</a></li>
-          <li><a href="https://www.chartjs.org/docs/latest/" target="_blank" style="color:var(--accent)" data-locale-key="dashboard_help_link_chartjs">Chart.js Tutorial</a></li>
+        <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 10px;">
+          <li><a href="https://github.com/adrieIgg/Ubot" target="_blank" style="color:var(--accent); text-decoration: none;">GitHub: Código Fonte do Bot</a></li>
+          <li><a href="https://discord.com/developers/docs" target="_blank" style="color:var(--accent); text-decoration: none;">Documentação Discord API</a></li>
         </ul>
       </div>
     </main>
   </div>
 
+  <script src="auth.js"></script>
   <script src="translator.js"></script>
   <script src="script.js"></script>
-  <script>
-    // Random colors for charts
-    function randomColor() {
-      return `hsl(${Math.floor(Math.random()*360)}, 70%, 50%)`;
-    }
-
-    document.addEventListener("DOMContentLoaded", () => {
-      if (window.Chart) {
-        const originalUpdate = Chart.prototype.update;
-        Chart.prototype.update = function(...args) {
-          if (this.config.data && this.config.data.datasets) {
-            this.config.data.datasets.forEach(ds => {
-              if (!ds.backgroundColor) { // Only if there's no color set
-                ds.backgroundColor = randomColor();
-              }
-            });
-          }
-          originalUpdate.apply(this, args);
-        };
-      }
-    });
-  </script>
 </body>
 </html>

@@ -4,28 +4,40 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-locale-key="dashboard_login_page_title">Login - Ubot Dashboard</title>
-  <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <!-- Fonts & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <!-- Centralized Stylesheet -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
   <div class="login-container">
-    <h1 data-locale-key="dashboard_title">Ubot Dashboard</h1>
-    <form id="login-form" class="profile-form">
-      <div class="form-group">
-        <label for="password"><i class="material-icons">lock</i> <span data-locale-key="dashboard_login_password_placeholder">Senha</span></label>
-        <input type="password" id="password" required>
-      </div>
-      <button type="submit" class="form-button">
-        <i class="material-icons">login</i>
-        <span data-locale-key="dashboard_login_button">Entrar</span>
-      </button>
-      <p id="login-status" class="status-message"></p>
-    </form>
+    <div class="login-form-container">
+      <h1 data-locale-key="dashboard_title">Ubot Dashboard</h1>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="password">
+            <i class="material-icons">password</i>
+            <span data-locale-key="dashboard_login_password_placeholder">Senha</span>
+          </label>
+          <input type="password" id="password" class="form-input" required>
+        </div>
+        <button type="submit" class="form-button">
+          <i class="material-icons">login</i>
+          <span data-locale-key="dashboard_login_button">Entrar</span>
+        </button>
+        <p id="login-status" class="status-message" style="min-height: 20px; color: var(--error);"></p>
+      </form>
+    </div>
   </div>
+
   <script src="login.js"></script>
   <script src="translator.js"></script>
+
 </body>
 </html>

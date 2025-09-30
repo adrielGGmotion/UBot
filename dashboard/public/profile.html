@@ -4,17 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-locale-key="dashboard_profile_page_title">Perfil - Ubot Dashboard</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <!-- Centralized Stylesheet -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="main-container">
         <aside class="sidebar">
             <div class="sidebar-header">
-                <h1 id="bot-name" data-locale-key="dashboard_loading">Carregando...</h1>
+                <h1 id="bot-name" data-locale-key="dashboard_loading">Ubot</h1>
             </div>
             <nav class="sidebar-nav">
                 <a href="index.html" class="nav-link">
@@ -37,27 +41,30 @@
         </aside>
         <main class="dashboard-grid">
             <div class="widget large-widget">
-                <h2><i class="material-icons">manage_accounts</i> <span data-locale-key="dashboard_profile_title">Gerenciar Perfil</span></h2>
-                <form id="profile-form" class="profile-form">
+                <h2>
+                    <i class="material-icons">manage_accounts</i>
+                    <span data-locale-key="dashboard_profile_title">Gerenciar Perfil</span>
+                </h2>
+                <form id="profile-form" class="form-group">
                     <div class="form-group">
                         <label for="username" data-locale-key="dashboard_profile_username">Nome de Usuário</label>
-                        <input type="text" id="username" data-locale-placeholder-key="dashboard_profile_username_placeholder">
+                        <input type="text" id="username" class="form-input" data-locale-placeholder-key="dashboard_profile_username_placeholder">
                     </div>
                     <div class="form-group">
                         <label for="avatar" data-locale-key="dashboard_profile_avatar">URL do Avatar</label>
-                        <input type="text" id="avatar" data-locale-placeholder-key="dashboard_profile_avatar_placeholder">
+                        <input type="text" id="avatar" class="form-input" data-locale-placeholder-key="dashboard_profile_avatar_placeholder">
                     </div>
                     <button type="submit" class="form-button">
                         <i class="material-icons">save</i>
                         <span data-locale-key="dashboard_profile_save_button">Salvar Alterações</span>
                     </button>
                 </form>
-                <p id="profile-status" class="status-message"></p>
+                <p id="profile-status" class="status-message" style="min-height: 20px; color: var(--accent);"></p>
             </div>
         </main>
     </div>
     <script src="auth.js"></script>
     <script src="translator.js"></script>
-    <script src="script.js"></script> <!-- Reusing script.js for profile functionality -->
+    <script src="script.js"></script>
 </body>
 </html>
