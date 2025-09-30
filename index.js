@@ -198,7 +198,11 @@ async function startDashboard() {
   if (!client.config.activateDashboard) return;
   const app = express();
   const port = process.env.DASHBOARD_PORT || 3000;
-  app.use(express.json());
+  app.use(express.json({
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    }
+  }));
 
   const sessionTokens = new Set();
   const password = process.env.DASHBOARD_PASSWORD;
@@ -469,15 +473,12 @@ async function startDashboard() {
 
   app.use('/', express.static(path.join(ROOT, 'dashboard', 'public')));
 
-  // Middleware para parsing do corpo raw, necessário para a verificação da assinatura do webhook
-  const rawBodyParser = express.raw({ type: 'application/json' });
-
-  app.post('/api/webhooks/github', rawBodyParser, async (req, res) => {
+  app.post('/api/webhooks/github', async (req, res) => {
     if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
 
     const githubEvent = req.headers['x-github-event'];
     const signature = req.headers['x-hub-signature-256'];
-    const payload = JSON.parse(req.body); // O corpo raw é um buffer, precisa ser parseado
+    const payload = req.body;
     const repoFullName = payload.repository.full_name;
 
     if (!githubEvent || !signature || !payload || !repoFullName) {
@@ -501,7 +502,7 @@ async function startDashboard() {
 
             // Verifica a assinatura para cada configuração
             const hmac = crypto.createHmac('sha256', repoConfig.secret);
-            const digest = `sha256=${hmac.update(req.body).digest('hex')}`;
+            const digest = `sha256=${hmac.update(req.rawBody).digest('hex')}`;
 
             if (crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(signature))) {
                 // Assinatura válida, processa o evento
