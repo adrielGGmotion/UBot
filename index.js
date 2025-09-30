@@ -518,6 +518,18 @@ async function startDashboard() {
                     case 'release':
                         githubNotifier.handleReleaseEvent(client, repoConfig, payload);
                         break;
+                    case 'watch':
+                        githubNotifier.handleStarEvent(client, repoConfig, payload);
+                        break;
+                    case 'fork':
+                        githubNotifier.handleForkEvent(client, repoConfig, payload);
+                        break;
+                    case 'issue_comment':
+                        githubNotifier.handleIssueCommentEvent(client, repoConfig, payload);
+                        break;
+                    case 'pull_request_review':
+                        githubNotifier.handlePullRequestReviewEvent(client, repoConfig, payload);
+                        break;
                 }
                 processed = true;
             } else {
