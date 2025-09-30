@@ -111,6 +111,21 @@
   "dashboard_server_saved_success_status": "¡Configuración guardada!",
   "dashboard_server_saved_fail_status": "No se pudo guardar.",
   "dashboard_server_remove_button": "Eliminar",
-  "dashboard_help_title": "Ayuda",
-  "dashboard_bot_status_title": "Estado del Bot"
+  "dashboard_help_title": "Ayuda y Enlaces Rápidos",
+  "dashboard_bot_status_title": "Estado del Bot",
+  "dashboard_bot_status_online": "En línea 🟢",
+  "dashboard_bot_status_offline": "Desconectado 🔴",
+  "dashboard_bot_status_uptime": "Tiempo de actividad",
+  "dashboard_bot_status_latency": "Latencia",
+  "dashboard_profile_page_title": "Perfil - Panel de Ubot",
+  "dashboard_profile_saving": "Guardando...",
+  "dashboard_profile_success": "¡Perfil actualizado con éxito!",
+  "dashboard_profile_error": "Error al actualizar",
+  "dashboard_profile_username_placeholder": "Introduce el nombre del bot aquí",
+  "dashboard_profile_avatar_placeholder": "https://example.com/image.png",
+  "dashboard_guild_icon_alt": "Icono de {guildName}",
+  "dashboard_error_loading_servers": "Error al cargar los servidores.",
+  "dashboard_command_usage_chart": "Uso de Comandos",
+  "dashboard_command_usage_chart_background": "Fondo de Uso de Comandos",
+  "dashboard_command_usage_chart_border": "Borde de Uso de Comandos"
 }

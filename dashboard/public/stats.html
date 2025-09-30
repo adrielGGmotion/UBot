@@ -4,18 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-locale-key="dashboard_stats_page_title">Estatísticas - Ubot Dashboard</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <!-- Centralized Stylesheet & Scripts -->
+    <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="main-container">
         <aside class="sidebar">
             <div class="sidebar-header">
-                <h1 id="bot-name" data-locale-key="dashboard_loading">Carregando...</h1>
+                <h1 id="bot-name" data-locale-key="dashboard_loading">Ubot</h1>
             </div>
             <nav class="sidebar-nav">
                 <a href="index.html" class="nav-link">
@@ -41,7 +45,7 @@
                 <h2><i class="material-icons">analytics</i> <span data-locale-key="dashboard_stats_title">Estatísticas de Uso</span></h2>
             </div>
             <div class="widget stat-card">
-                <h2><i class="material-icons">terminal</i> <span data-locale-key="dashboard_stats_total_commands">Total de Comandos Usados</span></h2>
+                <h2><i class="material-icons">functions</i> <span data-locale-key="dashboard_stats_total_commands">Total de Comandos Usados</span></h2>
                 <p id="total-commands">-</p>
             </div>
             <div class="widget large-widget chart-container">
