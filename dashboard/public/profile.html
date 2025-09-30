@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-locale-key="dashboard_stats_page_title">Estatísticas - Ubot Dashboard</title>
+    <title data-locale-key="dashboard_profile_page_title">Perfil - Ubot Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="main-container">
@@ -26,11 +25,11 @@
                     <i class="material-icons">dns</i>
                     <span data-locale-key="nav_servers">Servidores</span>
                 </a>
-                <a href="stats.html" class="nav-link active">
+                <a href="stats.html" class="nav-link">
                     <i class="material-icons">bar_chart</i>
                     <span data-locale-key="nav_stats">Estatísticas</span>
                 </a>
-                <a href="profile.html" class="nav-link">
+                <a href="profile.html" class="nav-link active">
                     <i class="material-icons">person</i>
                     <span data-locale-key="nav_profile">Perfil</span>
                 </a>
@@ -38,20 +37,27 @@
         </aside>
         <main class="dashboard-grid">
             <div class="widget large-widget">
-                <h2><i class="material-icons">analytics</i> <span data-locale-key="dashboard_stats_title">Estatísticas de Uso</span></h2>
-            </div>
-            <div class="widget stat-card">
-                <h2><i class="material-icons">terminal</i> <span data-locale-key="dashboard_stats_total_commands">Total de Comandos Usados</span></h2>
-                <p id="total-commands">-</p>
-            </div>
-            <div class="widget large-widget chart-container">
-                <h2><i class="material-icons">pie_chart</i> <span data-locale-key="dashboard_stats_command_usage">Uso de Comandos</span></h2>
-                <canvas id="command-chart"></canvas>
+                <h2><i class="material-icons">manage_accounts</i> <span data-locale-key="dashboard_profile_title">Gerenciar Perfil</span></h2>
+                <form id="profile-form" class="profile-form">
+                    <div class="form-group">
+                        <label for="username" data-locale-key="dashboard_profile_username">Nome de Usuário</label>
+                        <input type="text" id="username" data-locale-placeholder-key="dashboard_profile_username_placeholder">
+                    </div>
+                    <div class="form-group">
+                        <label for="avatar" data-locale-key="dashboard_profile_avatar">URL do Avatar</label>
+                        <input type="text" id="avatar" data-locale-placeholder-key="dashboard_profile_avatar_placeholder">
+                    </div>
+                    <button type="submit" class="form-button">
+                        <i class="material-icons">save</i>
+                        <span data-locale-key="dashboard_profile_save_button">Salvar Alterações</span>
+                    </button>
+                </form>
+                <p id="profile-status" class="status-message"></p>
             </div>
         </main>
     </div>
     <script src="auth.js"></script>
     <script src="translator.js"></script>
-    <script src="stats.js"></script>
+    <script src="script.js"></script> <!-- Reusing script.js for profile functionality -->
 </body>
 </html>

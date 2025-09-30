@@ -4,118 +4,28 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-locale-key="dashboard_login_page_title">Login - Ubot Dashboard</title>
-  <style>
-    :root {
-      --bg: #000000;
-      --panel: #111111;
-      --accent: #FFFFFF;
-      --text: #2c2c2c;
-      --radius: 14px;
-      --error: #FF0000;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: "Orbitron", system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .login-container {
-      background: var(--panel);
-      padding: 40px;
-      border-radius: var(--radius);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
-      width: 100%;
-      max-width: 380px;
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    .login-container h1 {
-      font-size: 1.6rem;
-      color: var(--accent);
-    }
-
-    form {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .form-input {
-      padding: 12px;
-      border-radius: var(--radius);
-      border: 1px solid rgba(255,255,255,0.2);
-      background: rgba(255,255,255,0.05);
-      color: var(--text);
-      font-size: 1rem;
-      text-align: center;
-      transition: border 0.2s, background 0.2s;
-    }
-    .form-input:focus {
-      outline: none;
-      border: 1px solid var(--accent);
-      background: color-mix(in srgb, var(--accent) 10%, transparent);
-    }
-
-    .form-button {
-      padding: 12px;
-      border-radius: var(--radius);
-      border: none;
-      background: var(--accent);
-      color: var(--text);
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
-    }
-    .form-button:hover { background: var(--accent); filter: brightness(0.85); transform: scale(1.02); }
-    .form-button:active { transform: scale(0.98); }
-
-    .status-message {
-      font-size: 0.9rem;
-      color: var(--text);
-      min-height: 20px;
-    }
-
-    @media (max-width: 480px) {
-      .login-container {
-        margin: 0 20px;
-        padding: 30px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="login-container">
     <h1 data-locale-key="dashboard_title">Ubot Dashboard</h1>
-    <form id="login-form">
-      <input type="password" id="password" class="form-input" data-locale-placeholder-key="dashboard_login_password_placeholder" required>
-      <button type="submit" class="form-button" data-locale-key="dashboard_login_button">Entrar</button>
+    <form id="login-form" class="profile-form">
+      <div class="form-group">
+        <label for="password"><i class="material-icons">lock</i> <span data-locale-key="dashboard_login_password_placeholder">Senha</span></label>
+        <input type="password" id="password" required>
+      </div>
+      <button type="submit" class="form-button">
+        <i class="material-icons">login</i>
+        <span data-locale-key="dashboard_login_button">Entrar</span>
+      </button>
       <p id="login-status" class="status-message"></p>
     </form>
   </div>
-  <script>
-    // Fetch config.json and set CSS variables
-    fetch('/config.json')
-      .then(response => response.json())
-      .then(config => {
-        const root = document.documentElement;
-        if (config.colors) {
-          if (config.colors.primary) root.style.setProperty('--bg', config.colors.primary);
-          if (config.colors.accent1) root.style.setProperty('--accent', config.colors.accent1);
-          if (config.colors.error) root.style.setProperty('--error', config.colors.error);
-          // Optionally set text color if you add it to config.json
-          // if (config.colors.text) root.style.setProperty('--text', config.colors.text);
-        }
-      });
-  </script>
   <script src="login.js"></script>
+  <script src="translator.js"></script>
 </body>
 </html>
