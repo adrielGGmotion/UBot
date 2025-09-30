@@ -1,6 +1,21 @@
 const { EmbedBuilder } = require('discord.js');
 
 /**
+ * Checks if a string matches any of a list of patterns with wildcards.
+ * @param {string} text The string to check.
+ * @param {string[]} patterns An array of patterns (e.g., 'feature/*').
+ * @returns {boolean}
+ */
+function branchMatches(text, patterns) {
+    if (!patterns || patterns.length === 0) return true;
+    return patterns.some(pattern => {
+        const regexPattern = pattern.replace(/([.+?^${}()|\[\]\/\\])/g, '\\$1').replace(/\*/g, '.*');
+        const regex = new RegExp(`^${regexPattern}$`);
+        return regex.test(text);
+    });
+}
+
+/**
  * Envia uma mensagem de embed para um canal específico.
  * @param {Client} client O cliente Discord.
  * @param {string} channelId O ID do canal de destino.
@@ -98,8 +113,8 @@ function handlePullRequestEvent(client, config, payload) {
     // 3. Filtro de Branch (Base e Head)
     const baseBranch = pr.base.ref;
     const headBranch = pr.head.ref;
-    if (prConfig.branchFilter.base.length > 0 && !prConfig.branchFilter.base.includes(baseBranch)) return;
-    if (prConfig.branchFilter.head.length > 0 && !prConfig.branchFilter.head.includes(headBranch)) return;
+    if (!branchMatches(baseBranch, prConfig.branchFilter.base)) return;
+    if (!branchMatches(headBranch, prConfig.branchFilter.head)) return;
 
     // 4. Filtro de Labels
     const prLabels = pr.labels.map(label => label.name.toLowerCase());
@@ -249,9 +264,128 @@ function handleReleaseEvent(client, config, payload) {
     sendMessage(client, releaseConfig.channelId, embed);
 }
 
+/**
+ * Processa eventos de watch (star) do GitHub.
+ * @param {Client} client O cliente Discord.
+ * @param {object} config A configuração do repositório para a guild.
+ * @param {object} payload O payload do evento do GitHub.
+ */
+function handleStarEvent(client, config, payload) {
+    const { stars: starsConfig } = config;
+    if (!starsConfig.enabled || payload.action !== 'started') {
+        return;
+    }
+
+    const embed = new EmbedBuilder()
+        .setColor('#ffac33') // Laranja/Dourado para estrelas
+        .setTitle(`[${payload.repository.name}] New Star! ⭐`)
+        .setURL(payload.repository.html_url)
+        .setAuthor({ name: payload.sender.login, iconURL: payload.sender.avatar_url, url: payload.sender.html_url })
+        .setDescription(`The repository now has **${payload.repository.stargazers_count}** stars!`)
+        .setTimestamp();
+
+    sendMessage(client, starsConfig.channelId, embed);
+}
+
+/**
+ * Processa eventos de fork do GitHub.
+ * @param {Client} client O cliente Discord.
+ * @param {object} config A configuração do repositório para a guild.
+ * @param {object} payload O payload do evento do GitHub.
+ */
+function handleForkEvent(client, config, payload) {
+    const { forks: forksConfig } = config;
+    if (!forksConfig.enabled) {
+        return;
+    }
+
+    const forkee = payload.forkee;
+    const embed = new EmbedBuilder()
+        .setColor('#8957e5') // Roxo claro para forks
+        .setTitle(`[${payload.repository.name}] Repository Forked!`)
+        .setURL(forkee.html_url)
+        .setAuthor({ name: payload.sender.login, iconURL: payload.sender.avatar_url, url: payload.sender.html_url })
+        .setDescription(`Forked to **[${forkee.full_name}](${forkee.html_url})**. The repository now has **${payload.repository.forks_count}** forks.`)
+        .setTimestamp();
+
+    sendMessage(client, forksConfig.channelId, embed);
+}
+
+/**
+ * Processa eventos de comentário em issue do GitHub.
+ * @param {Client} client O cliente Discord.
+ * @param {object} config A configuração do repositório para a guild.
+ * @param {object} payload O payload do evento do GitHub.
+ */
+function handleIssueCommentEvent(client, config, payload) {
+    const { issueComments: commentsConfig } = config;
+    if (!commentsConfig.enabled || payload.action !== 'created') {
+        return;
+    }
+
+    const { issue, comment } = payload;
+    const embed = new EmbedBuilder()
+        .setColor('#58a6ff') // Azul para comentários
+        .setTitle(`[${payload.repository.name}] New Comment on Issue #${issue.number}`)
+        .setURL(comment.html_url)
+        .setAuthor({ name: comment.user.login, iconURL: comment.user.avatar_url, url: comment.user.html_url })
+        .setDescription(`**${issue.title}**\n\n${comment.body.substring(0, 1500)}${comment.body.length > 1500 ? '...' : ''}`)
+        .setTimestamp(new Date(comment.created_at));
+
+    sendMessage(client, commentsConfig.channelId, embed);
+}
+
+/**
+ * Processa eventos de revisão de pull request do GitHub.
+ * @param {Client} client O cliente Discord.
+ * @param {object} config A configuração do repositório para a guild.
+ * @param {object} payload O payload do evento do GitHub.
+ */
+function handlePullRequestReviewEvent(client, config, payload) {
+    const { pullRequestReviews: reviewsConfig } = config;
+    if (!reviewsConfig.enabled || payload.action !== 'submitted') {
+        return;
+    }
+
+    const { review, pull_request: pr } = payload;
+
+    let embedColor;
+    let stateText;
+    switch (review.state) {
+        case 'approved':
+            embedColor = '#2da44e'; // Verde
+            stateText = 'Approved ✅';
+            break;
+        case 'changes_requested':
+            embedColor = '#cf222e'; // Vermelho
+            stateText = 'Changes Requested ❌';
+            break;
+        case 'commented':
+            embedColor = '#58a6ff'; // Azul
+            stateText = 'Commented 💬';
+            break;
+        default:
+            return; // Ignora outros estados
+    }
+
+    const embed = new EmbedBuilder()
+        .setColor(embedColor)
+        .setTitle(`[${payload.repository.name}] PR #${pr.number} Review: ${stateText}`)
+        .setURL(review.html_url)
+        .setAuthor({ name: review.user.login, iconURL: review.user.avatar_url, url: review.user.html_url })
+        .setDescription(`**${pr.title}**\n\n${review.body ? review.body.substring(0, 1500) : '*No comment provided.*'}`)
+        .setTimestamp(new Date(review.submitted_at));
+
+    sendMessage(client, reviewsConfig.channelId, embed);
+}
+
 module.exports = {
     handlePushEvent,
     handlePullRequestEvent,
     handleIssuesEvent,
     handleReleaseEvent,
+    handleStarEvent,
+    handleForkEvent,
+    handleIssueCommentEvent,
+    handlePullRequestReviewEvent
 };

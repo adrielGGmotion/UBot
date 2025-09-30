@@ -353,6 +353,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 { key: 'pullRequests', title: i18n.t('dashboard_server_github_modal_prs_title') },
                 { key: 'issues', title: i18n.t('dashboard_server_github_modal_issues_title') },
                 { key: 'releases', title: i18n.t('dashboard_server_github_modal_releases_title') },
+                { key: 'forks', title: i18n.t('dashboard_server_github_modal_forks_title') },
+                { key: 'stars', title: i18n.t('dashboard_server_github_modal_stars_title') },
+                { key: 'issueComments', title: i18n.t('dashboard_server_github_modal_issue_comments_title') },
+                { key: 'pullRequestReviews', title: i18n.t('dashboard_server_github_modal_pr_reviews_title') },
             ];
 
             let html = `<div class="form-group" style="flex-direction: row; align-items: center; justify-content: space-between;"><label>${i18n.t('dashboard_server_github_modal_repo_status_label')}</label><label class="switch"><input type="checkbox" id="repo-enabled" ${repoData.enabled ? 'checked' : ''}><span class="slider"></span></label></div>`;
@@ -394,10 +398,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'pullRequests':
                     fields += `<div class="form-group" style="flex-direction: row; align-items: center; gap: 10px;"><label>${i18n.t('dashboard_server_github_modal_ignore_drafts_label')}</label><input type="checkbox" id="pullRequests-ignoreDrafts" ${config.ignoreDrafts ? 'checked' : ''}></div>`;
                     fields += `<div class="form-group"><label>${i18n.t('dashboard_server_github_modal_base_branch_filter_label')}</label><input type="text" class="form-input" id="pullRequests-branchFilter-base" value="${createFilterInput(config.branchFilter.base)}"></div>`;
+                    fields += `<div class="form-group"><label>${i18n.t('dashboard_server_github_modal_head_branch_filter_label')}</label><input type="text" class="form-input" id="pullRequests-branchFilter-head" value="${createFilterInput(config.branchFilter.head)}"></div>`;
                     fields += `<div class="form-group small-group"><label>${i18n.t('dashboard_server_github_modal_label_filter_label')}</label><select class="form-select" id="pullRequests-labelFilter-mode"><option value="blacklist" ${config.labelFilter.mode === 'blacklist' ? 'selected' : ''}>${i18n.t('dashboard_server_github_modal_filter_blacklist')}</option><option value="whitelist" ${config.labelFilter.mode === 'whitelist' ? 'selected' : ''}>${i18n.t('dashboard_server_github_modal_filter_whitelist')}</option></select><input type="text" class="form-input" id="pullRequests-labelFilter-list" placeholder="do-not-merge" value="${createFilterInput(config.labelFilter.list)}"></div>`;
                     break;
                 case 'issues':
                     fields += `<div class="form-group small-group"><label>${i18n.t('dashboard_server_github_modal_label_filter_label')}</label><select class="form-select" id="issues-labelFilter-mode"><option value="blacklist" ${config.labelFilter.mode === 'blacklist' ? 'selected' : ''}>${i18n.t('dashboard_server_github_modal_filter_blacklist')}</option><option value="whitelist" ${config.labelFilter.mode === 'whitelist' ? 'selected' : ''}>${i18n.t('dashboard_server_github_modal_filter_whitelist')}</option></select><input type="text" class="form-input" id="issues-labelFilter-list" placeholder="wontfix" value="${createFilterInput(config.labelFilter.list)}"></div>`;
+                    break;
+                case 'issueComments':
+                case 'pullRequestReviews':
+                case 'forks':
+                case 'stars':
+                    // No extra fields for these sections
                     break;
             }
             return fields;
@@ -431,7 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     enabled: getElement('pullRequests-enabled').checked,
                     channelId: getElement('pullRequests-channelId').value,
                     ignoreDrafts: getElement('pullRequests-ignoreDrafts').checked,
-                    branchFilter: { base: parseList(getElement('pullRequests-branchFilter-base').value), head: [] }, // head is not configured in UI
+                    branchFilter: { base: parseList(getElement('pullRequests-branchFilter-base').value), head: parseList(getElement('pullRequests-branchFilter-head').value) },
                     labelFilter: { mode: getElement('pullRequests-labelFilter-mode').value, list: parseList(getElement('pullRequests-labelFilter-list').value) },
                 },
                 issues: {
@@ -442,6 +453,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 releases: {
                     enabled: getElement('releases-enabled').checked,
                     channelId: getElement('releases-channelId').value,
+                },
+                forks: {
+                    enabled: getElement('forks-enabled').checked,
+                    channelId: getElement('forks-channelId').value,
+                },
+                stars: {
+                    enabled: getElement('stars-enabled').checked,
+                    channelId: getElement('stars-channelId').value,
+                },
+                issueComments: {
+                    enabled: getElement('issueComments-enabled').checked,
+                    channelId: getElement('issueComments-channelId').value,
+                },
+                pullRequestReviews: {
+                    enabled: getElement('pullRequestReviews-enabled').checked,
+                    channelId: getElement('pullRequestReviews-channelId').value,
                 },
             };
 
@@ -478,7 +505,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 commits: { enabled: false, channelId: null, branchFilter: { mode: 'blacklist', list: [] }, messageFilter: { mode: 'blacklist', list: [] }, authorFilter: { mode: 'blacklist', list: [] } },
                 pullRequests: { enabled: true, channelId: null, branchFilter: { base: [], head: [] }, labelFilter: { mode: 'blacklist', list: [] }, ignoreDrafts: true },
                 issues: { enabled: true, channelId: null, labelFilter: { mode: 'blacklist', list: [] } },
-                releases: { enabled: true, channelId: null }
+                releases: { enabled: true, channelId: null },
+                forks: { enabled: false, channelId: null },
+                stars: { enabled: false, channelId: null },
+                issueComments: { enabled: false, channelId: null },
+                pullRequestReviews: { enabled: false, channelId: null }
             };
         };
 
