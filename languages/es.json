@@ -192,6 +192,7 @@
   "dashboard_server_saved_fail_status": "No se pudo guardar.",
   "dashboard_server_saved_success_status": "¡Configuración guardada!",
   "dashboard_server_saving_status": "Guardando...",
+  "dashboard_server_disabled_message": "A petición suya, la configuración del servidor a través del panel ha sido desactivada.",
   "dashboard_servers_page_title": "Servidores - Panel de Ubot",
   "dashboard_servers_title": "Servidores",
   "dashboard_stats_command_usage": "Uso de Comandos",
