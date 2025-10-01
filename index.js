@@ -289,6 +289,16 @@ async function startDashboard() {
     }
   });
 
+  app.get('/api/dashboard/locales/:lang', (req, res) => {
+    const lang = req.params.lang;
+    const langFilePath = path.join(ROOT, 'dashboard', 'languages', `${lang}.json`);
+    if (fs.existsSync(langFilePath)) {
+      res.sendFile(langFilePath);
+    } else {
+      res.status(404).json({ error: client.getLocale('err_lang_file_not_found') });
+    }
+  });
+
   app.get('/api/guilds/:guildId/settings', authMiddleware, async (req, res) => {
     if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
     const { guildId } = req.params;

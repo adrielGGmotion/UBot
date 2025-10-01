@@ -53,13 +53,13 @@ async function initializeTranslations() {
     let loadedLocales = null;
     try {
         console.log(`Fetching locales for language: ${selectedLang}`);
-        const localeResponse = await fetch(`/api/locales/${selectedLang}`);
+        const localeResponse = await fetch(`/api/dashboard/locales/${selectedLang}`);
         if (localeResponse.ok) {
             loadedLocales = await localeResponse.json();
             console.log("Successfully fetched and parsed locales.");
         } else {
             console.warn(`Failed to fetch ${selectedLang}, falling back to 'en'.`);
-            const fallbackResponse = await fetch(`/api/locales/en`);
+            const fallbackResponse = await fetch(`/api/dashboard/locales/en`);
             if (fallbackResponse.ok) {
                 loadedLocales = await fallbackResponse.json();
                 console.log("Successfully fetched and parsed fallback 'en' locales.");
