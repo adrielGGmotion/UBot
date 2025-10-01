@@ -191,6 +191,7 @@
   "dashboard_server_saved_fail_status": "Failed to save.",
   "dashboard_server_saved_success_status": "Settings saved!",
   "dashboard_server_saving_status": "Saving...",
+  "dashboard_server_disabled_message": "At your request, server configuration via the dashboard has been disabled.",
   "dashboard_servers_page_title": "Servers - Ubot Dashboard",
   "dashboard_servers_title": "Servers",
   "dashboard_stats_command_usage": "Command Usage",

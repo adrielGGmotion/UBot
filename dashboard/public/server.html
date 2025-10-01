@@ -16,105 +16,12 @@
 </head>
 <body>
   <div class="main-container">
-    <aside class="sidebar">
-      <div class="sidebar-header"><h1 id="bot-name" data-locale-key="dashboard_loading">Ubot</h1></div>
-      <nav class="sidebar-nav" id="server-nav-links"></nav>
-    </aside>
-
-    <main class="dashboard-grid">
+    <main class="dashboard-grid" style="grid-template-columns: 1fr; justify-content: center;">
       <div class="widget large-widget">
         <h2 id="server-name-title"><i class="material-icons">dns</i> <span data-locale-key="dashboard_loading_server">Carregando...</span></h2>
-      </div>
-
-      <div id="panel-ai" class="settings-panel large-widget">
-          <div id="panel-ai-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap);">
-              <div class="widget">
-                  <h2><i class="material-icons">smart_toy</i> <span data-locale-key="dashboard_server_ai_settings">Configurações de IA</span></h2>
-                  <div class="form-group">
-                      <label data-locale-key="dashboard_server_ai_channels">Canais de IA</label>
-                      <div id="channels-list" class="form-input" style="min-height: 100px; overflow-y: auto;"></div>
-                  </div>
-                  <div class="form-group">
-                      <label data-locale-key="dashboard_server_chatbot_settings">Configurações do Chatbot</label>
-                      <form id="chatbot-settings-form" class="form-group">
-                          <label for="ai-context-limit" data-locale-key="dashboard_server_ai_context_limit_label">Limite de Contexto</label>
-                          <input type="number" id="ai-context-limit" class="form-input" min="1" max="50" value="15">
-                          <label data-locale-key="dashboard_server_ai_personality_label">Personalidade</label>
-                          <div id="ai-personality-container"></div>
-                          <button type="button" id="add-personality-btn" class="form-button">+</button>
-                          <label data-locale-key="dashboard_server_ai_examples_label">Exemplos</label>
-                          <div id="ai-examples-container"></div>
-                          <button type="button" id="add-example-btn" class="form-button">+</button>
-                          <label data-locale-key="dashboard_server_ai_tool_permissions">Permissões de Ferramentas de IA</label>
-                          <div id="ai-tools-list" class="form-input" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;"></div>
-                      </form>
-                  </div>
-              </div>
-              <div class="widget">
-                  <h2><i class="material-icons">psychology</i> <span data-locale-key="dashboard_server_ai_tester_title">Testar Chatbot</span></h2>
-                  <div id="chat-display" style="height: 300px; overflow-y: auto; background-color: var(--bg); padding: 10px; border-radius: var(--radius);"></div>
-                  <div class="form-group" style="margin-top: auto; display:flex; flex-direction:column; gap: 10px;">
-                      <input type="text" id="chat-input" class="form-input" data-locale-placeholder-key="dashboard_server_ai_tester_input_placeholder">
-                      <div style="display:flex; gap: 10px;">
-                          <button id="send-chat-btn" class="form-button" style="flex-grow: 1;"><i class="material-icons">send</i> <span data-locale-key="dashboard_server_ai_tester_send_button">Enviar</span></button>
-                          <button id="clear-chat-btn" class="form-button" style="background-color: var(--text-secondary);"><i class="material-icons">delete_sweep</i> <span data-locale-key="dashboard_server_ai_tester_clear_button">Limpar</span></button>
-                      </div>
-                  </div>
-              </div>
-          </div>
-      </div>
-
-      <div id="panel-music" class="settings-panel large-widget" style="display: none;">
-         <div class="widget">
-            <h2><i class="material-icons">music_note</i> <span data-locale-key="dashboard_server_music_title">Música</span></h2>
-         </div>
-      </div>
-      <div id="panel-faq" class="settings-panel large-widget" style="display: none;">
-        <div class="widget">
-            <h2><i class="material-icons">quiz</i> <span data-locale-key="dashboard_server_faq_settings">FAQ</span></h2>
-        </div>
-      </div>
-      <div id="panel-knowledge" class="settings-panel large-widget" style="display: none;">
-        <div class="widget">
-            <h2><i class="material-icons">school</i> <span data-locale-key="dashboard_server_knowledge_settings">Base de Conhecimento</span></h2>
-        </div>
-      </div>
-      <div id="panel-github" class="settings-panel large-widget" style="display: none;">
-        <div class="widget">
-            <h2><i class="material-icons">hub</i> <span data-locale-key="dashboard_server_github_title">Monitoramento do GitHub</span></h2>
-        </div>
-      </div>
-      <div class="widget">
-        <button id="save-settings-btn" class="form-button">
-            <i class="material-icons">save</i>
-            <span data-locale-key="dashboard_server_save_button">Salvar Configurações</span>
-        </button>
-        <p id="save-status" class="status-message"></p>
+        <p data-locale-key="dashboard_server_disabled_message" style="text-align: center; padding: 40px; font-size: 1.1rem; color: var(--text-secondary);">A pedido, a configuração do servidor através do painel foi desativada.</p>
       </div>
     </main>
-
-    <div id="repo-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content widget">
-            <h3 id="modal-title"><i class="material-icons">add_circle</i> <span data-locale-key="dashboard_server_github_modal_add_title">Adicionar Repositório</span></h3>
-            <form id="repo-form" class="form-group">
-                <input type="hidden" id="repo-id">
-                <div class="form-group">
-                    <label for="repo-url" data-locale-key="dashboard_server_github_modal_repo_url_label">URL do Repositório GitHub</label>
-                    <input type="text" id="repo-url" class="form-input" placeholder="https://github.com/user/repo" required>
-                </div>
-                <div class="form-group">
-                    <label for="repo-secret" data-locale-key="dashboard_server_github_modal_repo_secret_label">Segredo do Webhook</label>
-                    <input type="text" id="repo-secret" class="form-input" data-locale-placeholder-key="dashboard_server_github_modal_repo_secret_placeholder">
-                </div>
-                <div id="modal-config-sections"></div>
-                <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 15px; margin-top: 20px;">
-                    <button type="button" id="delete-repo-btn" class="form-button danger-btn" style="display: none;"><i class="material-icons">delete</i> <span data-locale-key="dashboard_server_github_modal_delete_button">Deletar</span></button>
-                    <button type="submit" class="form-button"><i class="material-icons">save</i> <span data-locale-key="dashboard_server_github_modal_save_button">Salvar</span></button>
-                    <button type="button" id="cancel-modal-btn" class="form-button" style="background-color: var(--text-secondary);"><i class="material-icons">cancel</i> <span data-locale-key="dashboard_server_github_modal_cancel_button">Cancelar</span></button>
-                </div>
-            </form>
-        </div>
-    </div>
   </div>
 
   <script src="auth.js"></script>
