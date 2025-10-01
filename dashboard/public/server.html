@@ -21,11 +21,56 @@
                 <h1 data-locale-key="dashboard_title">Dashboard</h1>
             </div>
             <nav class="sidebar-nav">
-                <a href="index.html" class="nav-item"><i class="material-icons">home</i><span data-locale-key="dashboard_nav_home">Home</span></a>
-                <a href="stats.html" class="nav-item"><i class="material-icons">bar_chart</i><span data-locale-key="dashboard_nav_stats">Statistics</span></a>
-                <a href="profile.html" class="nav-item"><i class="material-icons">account_circle</i><span data-locale-key="dashboard_nav_profile">Bot Profile</span></a>
-                 <a href="#" id="logout-button" class="nav-item"><i class="material-icons">exit_to_app</i><span data-locale-key="dashboard_nav_logout">Logout</span></a>
+                <div class="sidebar-category" data-locale-key="nav_category_main">Main</div>
+                <a href="index.html" class="nav-link">
+                    <i class="material-icons">space_dashboard</i>
+                    <span data-locale-key="nav_overview">Overview</span>
+                </a>
+                <a href="stats.html" class="nav-link">
+                    <i class="material-icons">bar_chart</i>
+                    <span data-locale-key="nav_stats">Statistics</span>
+                </a>
+                <a href="profile.html" class="nav-link">
+                    <i class="material-icons">person</i>
+                    <span data-locale-key="nav_profile">Bot Profile</span>
+                </a>
+
+                <div class="sidebar-category" data-locale-key="nav_category_general">General</div>
+                <a href="github.html" class="nav-link">
+                    <i class="material-icons">code</i>
+                    <span data-locale-key="nav_github">GitHub</span>
+                </a>
+                <a href="ai_features.html" class="nav-link">
+                    <i class="material-icons">psychology</i>
+                    <span data-locale-key="nav_ai_features">AI Features</span>
+                </a>
+                <a href="server_stats.html" class="nav-link">
+                    <i class="material-icons">query_stats</i>
+                    <span data-locale-key="nav_server_stats">Server Statistics</span>
+                </a>
+                <a href="music_system.html" class="nav-link">
+                    <i class="material-icons">music_note</i>
+                    <span data-locale-key="nav_music_system">Music System</span>
+                </a>
+
+                <div class="sidebar-category" data-locale-key="nav_category_community">Community</div>
+                <a href="#" class="nav-link" id="discord-link">
+                    <i class="material-icons">discord</i>
+                    <span data-locale-key="nav_discord">Discord</span>
+                </a>
+
+                <div class="sidebar-category" data-locale-key="nav_category_system">System</div>
+                <a href="#" class="nav-link" id="logout-button">
+                    <i class="material-icons">logout</i>
+                    <span data-locale-key="nav_logout">Logout</span>
+                </a>
             </nav>
+            <div class="sidebar-footer">
+                <button id="sidebar-toggle" class="nav-link">
+                    <i class="material-icons">menu_open</i>
+                    <span data-locale-key="nav_toggle_sidebar">Collapse</span>
+                </button>
+            </div>
         </aside>
 
         <main class="dashboard-grid">
@@ -143,6 +188,13 @@
 
     <script src="auth.js"></script>
     <script src="translator.js"></script>
+    <script src="sidebar.js"></script>
     <script src="server.js"></script>
+    <script>
+        document.getElementById('logout-button').addEventListener('click', () => {
+            localStorage.removeItem('dashboard-token');
+            window.location.href = '/login.html';
+        });
+    </script>
 </body>
 </html>

@@ -106,10 +106,56 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const labels = stats.commandUsage.map(cmd => cmd.commandName);
                 const data = stats.commandUsage.map(cmd => cmd.count);
 
+                const style = getComputedStyle(document.documentElement);
+                const accentColor = style.getPropertyValue('--accent').trim();
+                const panelColor = style.getPropertyValue('--panel').trim();
+                const textColor = style.getPropertyValue('--text-primary').trim();
+                const borderColor = style.getPropertyValue('--border-color').trim();
+
                 new Chart(chartCanvas, {
                     type: 'bar',
-                    data: { labels, datasets: [{ data, label: 'Command Usage' }] },
-                    options: { /* ... options ... */ }
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: i18n.t('dashboard_stats_command_usage'),
+                            data,
+                            backgroundColor: accentColor,
+                            borderColor: accentColor,
+                            borderWidth: 1,
+                            hoverBackgroundColor: panelColor,
+                            hoverBorderColor: accentColor,
+                            borderRadius: 6,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    color: textColor,
+                                    precision: 0
+                                },
+                                grid: {
+                                    color: borderColor
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    color: textColor
+                                },
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
                 });
             }
         } catch (error) {
