@@ -23,7 +23,7 @@
       </div>
       <nav class="sidebar-nav">
         <div class="sidebar-category" data-locale-key="nav_category_main">Main</div>
-        <a href="index.html" class="nav-link active">
+        <a href="index.html" class="nav-link">
           <i class="material-icons">space_dashboard</i>
           <span data-locale-key="nav_overview">Overview</span>
         </a>
@@ -37,7 +37,7 @@
         </a>
 
         <div class="sidebar-category" data-locale-key="nav_category_general">General</div>
-        <a href="github.html" class="nav-link">
+        <a href="github.html" class="nav-link active">
           <i class="material-icons">code</i>
           <span data-locale-key="nav_github">GitHub</span>
         </a>
@@ -75,37 +75,9 @@
     </aside>
 
     <main class="dashboard-grid">
-      <div class="widget stat-card">
-        <h2><i class="material-icons">dns</i> <span data-locale-key="dashboard_servers_title">Servidores</span></h2>
-        <p id="guild-count">-</p>
-      </div>
-      <div class="widget stat-card">
-        <h2><i class="material-icons">terminal</i> <span data-locale-key="dashboard_stats_total_commands">Total de Comandos</span></h2>
-        <p id="total-commands">-</p>
-      </div>
-       <div class="widget stat-card" id="bot-status-widget">
-        <h2><i class="material-icons">bolt</i> <span data-locale-key="dashboard_bot_status_title">Status do Bot</span></h2>
-        <p id="bot-status">-</p>
-        <div style="font-size:0.9rem;color:var(--text-secondary)">
-          <span>Uptime: <span id="bot-uptime">-</span></span> | <span>Latência: <span id="bot-latency">-</span>ms</span>
-        </div>
-      </div>
-      <div class="widget large-widget chart-container">
-        <h2><i class="material-icons">analytics</i> <span data-locale-key="dashboard_stats_command_usage">Uso de Comandos</span></h2>
-        <canvas id="command-chart"></canvas>
-      </div>
-      <div class="widget large-widget" id="guilds-widget">
-        <h2><i class="material-icons">groups</i> <span data-locale-key="dashboard_my_servers_title">Meus Servidores</span></h2>
-        <div id="guilds-list">
-          <!-- Server icons will be dynamically inserted here -->
-        </div>
-      </div>
-      <div class="widget large-widget" id="help-widget">
-        <h2><i class="material-icons">help_outline</i> <span data-locale-key="dashboard_help_title">Ajuda & Links Rápidos</span></h2>
-        <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 10px;">
-          <li><a href="https://github.com/adrieIgg/Ubot" target="_blank" style="color:var(--accent); text-decoration: none;">GitHub: Código Fonte do Bot</a></li>
-          <li><a href="https://discord.com/developers/docs" target="_blank" style="color:var(--accent); text-decoration: none;">Documentação Discord API</a></li>
-        </ul>
+      <div class="widget large-widget">
+        <h2><i class="material-icons">code</i> <span data-locale-key="nav_github">GitHub</span></h2>
+        <p>This page is under construction. GitHub management features will be available here soon.</p>
       </div>
     </main>
   </div>

@@ -48,16 +48,58 @@ body {
 }
 
 .sidebar {
-  width: 240px;
+  width: 260px;
   background-color: var(--bg);
   padding: var(--gap);
   display: flex;
   flex-direction: column;
-  gap: 30px;
   border-right: 1px solid var(--border-color);
+  transition: width 0.3s ease;
+  position: relative; /* For footer positioning */
+}
+
+.sidebar.collapsed {
+  width: 88px; /* Width for just icons and padding */
+}
+
+.sidebar.collapsed .sidebar-header h1 {
+  visibility: hidden; /* Hide text */
+  opacity: 0;
+}
+
+.sidebar.collapsed .sidebar-header::before {
+  content: 'U'; /* Or your bot's initial */
+  visibility: visible;
+  opacity: 1;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.sidebar.collapsed .nav-link span,
+.sidebar.collapsed .sidebar-category,
+.sidebar.collapsed .sidebar-footer span {
+  display: none;
+}
+
+.sidebar.collapsed .nav-link {
+  justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-footer {
+  justify-content: center;
+}
+
+.sidebar.collapsed #sidebar-toggle i {
+  transform: rotate(180deg);
+}
+
+.sidebar-header {
+  margin-bottom: 20px;
 }
 
 .sidebar-header h1 {
+  transition: opacity 0.3s ease;
   font-size: 1.6rem;
   color: var(--accent);
   font-weight: 700;
@@ -77,7 +119,34 @@ body {
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px; /* Tighter spacing between links */
+  flex-grow: 1; /* Pushes the footer down */
+}
+
+.sidebar-category {
+  padding: 15px 15px 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.sidebar-footer {
+  margin-top: auto; /* Pushes footer to the bottom */
+  padding-top: var(--gap);
+  border-top: 1px solid var(--border-color);
+}
+
+#sidebar-toggle {
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+#sidebar-toggle i {
+  transition: transform 0.3s ease;
 }
 
 .nav-link {
@@ -152,6 +221,60 @@ body {
   grid-column: span 2;
 }
 
+#guilds-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: var(--gap);
+}
+
+.guild-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--text-secondary);
+    padding: 10px;
+    border-radius: var(--radius);
+    transition: all 0.2s ease;
+}
+
+.guild-item:hover {
+    background-color: var(--panel);
+    color: var(--text-primary);
+}
+
+.guild-item img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border-color);
+}
+
+.guild-item .guild-icon-placeholder {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background-color: var(--accent);
+    color: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    font-weight: 700;
+}
+
+.guild-item span {
+    text-align: center;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+
 /* --- 6. Forms & Buttons --- */
 .form-group {
   display: flex;
@@ -206,7 +329,184 @@ body {
   box-shadow: var(--shadow-lg);
 }
 
-/* --- 7. Login Page --- */
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border-radius: var(--radius);
+    border: 1px solid var(--accent);
+    background-color: transparent;
+    color: var(--accent);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    text-align: center;
+}
+
+.btn:hover {
+    background-color: var(--accent);
+    color: var(--bg);
+}
+
+.btn-primary {
+    background-color: var(--accent);
+    color: var(--bg);
+}
+
+.btn-danger {
+    border-color: var(--error);
+    color: var(--error);
+}
+
+.btn-danger:hover {
+    background-color: var(--error);
+    color: var(--text-primary);
+}
+
+
+/* --- 7. Server Settings Page --- */
+.settings-form .form-section {
+  padding: var(--gap) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.settings-form .form-section:last-of-type {
+  border-bottom: none;
+}
+
+.settings-form h3 {
+  font-size: 1.2rem;
+  color: var(--accent);
+  margin-bottom: var(--gap);
+}
+
+/* Custom Checkbox */
+.form-group input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid var(--border-color);
+  background-color: var(--bg);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.form-group input[type="checkbox"]:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.form-group input[type="checkbox"]:checked::after {
+  content: '✔';
+  font-size: 14px;
+  color: var(--bg);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Custom Select */
+select {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23888' class='bi bi-chevron-down' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 15px center;
+}
+
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.3);
+}
+
+/* Modal Styling */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+}
+
+.modal-content {
+  background-color: var(--panel);
+  margin: 10% auto;
+  padding: var(--gap);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  width: 80%;
+  max-width: 600px;
+  box-shadow: var(--shadow-lg);
+}
+
+.close-btn {
+  color: var(--text-secondary);
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.close-btn:hover,
+.close-btn:focus {
+  color: var(--text-primary);
+}
+
+
+/* Collapsible Sections */
+.collapsible-btn {
+  width: 100%;
+  background-color: var(--bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 15px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  text-align: left;
+  font-size: 1.1rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.collapsible-btn:hover {
+  background-color: rgba(var(--accent-rgb), 0.1);
+}
+
+.collapsible-content {
+  padding: 0 18px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+  background-color: var(--bg);
+  border-radius: 0 0 var(--radius) var(--radius);
+  border: 1px solid var(--border-color);
+  border-top: none;
+}
+
+.collapsible-content .form-group {
+    padding: 10px 0;
+}
+
+
+/* --- 8. Login Page --- */
 .login-container {
   display: flex;
   align-items: center;
