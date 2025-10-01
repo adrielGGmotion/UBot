@@ -630,9 +630,14 @@ async function startDashboard() {
     const token = process.env.TOKEN;
     if (!token) {
       console.error(client.getLocale('err_missing_token'));
-      process.exit(1);
+      if (process.env.DEV_MODE !== 'true') process.exit(1);
     }
-    await client.login(token);
+
+    if (process.env.DEV_MODE !== 'true') {
+        await client.login(token);
+    } else {
+        console.log("DEV_MODE is true, skipping Discord login.");
+    }
   } catch (err) {
     console.error(client.getLocale('err_fatal_init', { error: err }));
     process.exit(1);
