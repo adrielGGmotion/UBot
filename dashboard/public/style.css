@@ -95,6 +95,8 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  flex-wrap: nowrap; /* Prevent button from wrapping to the next line */
+  gap: 10px; /* Add some space between title and button */
 }
 
 .sidebar-header h1 {
@@ -102,6 +104,10 @@ body {
   font-size: 1.6rem;
   color: var(--accent);
   font-weight: 700;
+  /* Prevent title from overflowing and pushing the button */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #sidebar-toggle {
@@ -113,7 +119,6 @@ body {
 
 .dashboard-grid {
   flex: 1;
-  min-width: 0; /* Fix for flexbox item not shrinking/growing correctly */
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: var(--gap);
