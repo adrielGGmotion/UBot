@@ -113,6 +113,7 @@ body {
 
 .dashboard-grid {
   flex: 1;
+  min-width: 0; /* Fix for flexbox item not shrinking/growing correctly */
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: var(--gap);
@@ -505,6 +506,7 @@ select:focus {
 
 /* --- 8. Login Page --- */
 .login-container {
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
