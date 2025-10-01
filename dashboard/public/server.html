@@ -1,31 +1,148 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-locale-key="dashboard_server_page_title">Gerenciar Servidor</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-locale-key="dashboard_server_page_title">Manage Server</title>
 
-  <!-- Fonts & Icons -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
-  <!-- Centralized Stylesheet -->
-  <link rel="stylesheet" href="style.css">
+    <!-- Centralized Stylesheet -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="main-container">
-    <main class="dashboard-grid" style="grid-template-columns: 1fr; justify-content: center;">
-      <div class="widget large-widget">
-        <h2 id="server-name-title"><i class="material-icons">dns</i> <span data-locale-key="dashboard_loading_server">Carregando...</span></h2>
-        <p data-locale-key="dashboard_server_disabled_message" style="text-align: center; padding: 40px; font-size: 1.1rem; color: var(--text-secondary);">A pedido, a configuração do servidor através do painel foi desativada.</p>
-      </div>
-    </main>
-  </div>
+    <div class="main-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1 data-locale-key="dashboard_title">Dashboard</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="index.html" class="nav-item"><i class="material-icons">home</i><span data-locale-key="dashboard_nav_home">Home</span></a>
+                <a href="stats.html" class="nav-item"><i class="material-icons">bar_chart</i><span data-locale-key="dashboard_nav_stats">Statistics</span></a>
+                <a href="profile.html" class="nav-item"><i class="material-icons">account_circle</i><span data-locale-key="dashboard_nav_profile">Bot Profile</span></a>
+                 <a href="#" id="logout-button" class="nav-item"><i class="material-icons">exit_to_app</i><span data-locale-key="dashboard_nav_logout">Logout</span></a>
+            </nav>
+        </aside>
 
-  <script src="auth.js"></script>
-  <script src="translator.js"></script>
-  <script src="server.js"></script>
+        <main class="dashboard-grid">
+            <div class="widget large-widget">
+                <h2 id="server-name-title"><i class="material-icons">dns</i> <span data-locale-key="dashboard_loading_server">Loading...</span></h2>
+
+                <form id="settings-form" class="settings-form">
+                    <div class="form-section">
+                        <h3 data-locale-key="settings_section_music">Music</h3>
+                        <div class="form-group">
+                            <label for="dj-role" data-locale-key="settings_music_djrole">DJ Role</label>
+                            <input type="text" id="dj-role" name="musicConfig.djRole">
+                        </div>
+                        <div class="form-group">
+                            <label for="music-autoplay" data-locale-key="settings_music_autoplay">Autoplay</label>
+                            <input type="checkbox" id="music-autoplay" name="musicConfig.autoplay">
+                        </div>
+                         <div class="form-group">
+                            <label for="music-embed-color" data-locale-key="settings_music_embedcolor">Use Accent Color in Embeds</label>
+                            <input type="checkbox" id="music-embed-color" name="musicConfig.embedColor">
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3 data-locale-key="settings_section_github">GitHub Notifications</h3>
+                        <div id="github-repos-container"></div>
+                        <button type="button" id="add-repo-btn" class="btn" data-locale-key="settings_github_add_repo">Add Repository</button>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary" data-locale-key="settings_save_changes">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for GitHub Repo Configuration -->
+    <div id="repo-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h3 data-locale-key="settings_github_modal_title">Configure Repository</h3>
+            <form id="repo-form">
+                <input type="hidden" id="repo-index">
+                <div class="form-group">
+                    <label for="repo-name" data-locale-key="settings_github_repo_name">Repository Name (e.g., user/repo)</label>
+                    <input type="text" id="repo-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="repo-secret" data-locale-key="settings_github_repo_secret">Webhook Secret</label>
+                    <input type="text" id="repo-secret" required>
+                </div>
+
+                <!-- Commit Notifications -->
+                <div class="form-group collapsible">
+                    <button type="button" class="collapsible-btn" data-locale-key="settings_github_commits">Commits</button>
+                    <div class="collapsible-content">
+                        <label><input type="checkbox" id="commits-enabled"> <span data-locale-key="settings_enable_notifications">Enable Notifications</span></label>
+                        <label data-locale-key="settings_channel">Channel: <select id="commits-channelId"></select></label>
+                        <!-- Filters for commits -->
+                    </div>
+                </div>
+
+                <!-- Pull Request Notifications -->
+                <div class="form-group collapsible">
+                     <button type="button" class="collapsible-btn" data-locale-key="settings_github_prs">Pull Requests</button>
+                     <div class="collapsible-content">
+                        <label><input type="checkbox" id="pulls-enabled"> <span data-locale-key="settings_enable_notifications">Enable Notifications</span></label>
+                        <label data-locale-key="settings_channel">Channel: <select id="pulls-channelId"></select></label>
+                        <label><input type="checkbox" id="pulls-ignore-drafts" checked> <span data-locale-key="settings_github_ignore_drafts">Ignore Drafts</span></label>
+                        <fieldset>
+                            <legend data-locale-key="settings_github_pr_events">Events to Notify</legend>
+                            <label><input type="checkbox" value="opened"> <span data-locale-key="settings_github_pr_opened">Opened</span></label>
+                            <label><input type="checkbox" value="closed"> <span data-locale-key="settings_github_pr_closed">Closed</span></label>
+                            <label><input type="checkbox" value="merged"> <span data-locale-key="settings_github_pr_merged">Merged</span></label>
+                        </fieldset>
+                     </div>
+                </div>
+
+                 <!-- Issues Notifications -->
+                <div class="form-group collapsible">
+                     <button type="button" class="collapsible-btn" data-locale-key="settings_github_issues">Issues</button>
+                     <div class="collapsible-content">
+                        <label><input type="checkbox" id="issues-enabled"> <span data-locale-key="settings_enable_notifications">Enable Notifications</span></label>
+                        <label data-locale-key="settings_channel">Channel: <select id="issues-channelId"></select></label>
+                         <fieldset>
+                            <legend data-locale-key="settings_github_issue_events">Events to Notify</legend>
+                            <label><input type="checkbox" value="opened"> <span data-locale-key="settings_github_issue_opened">Opened</span></label>
+                            <label><input type="checkbox" value="closed"> <span data-locale-key="settings_github_issue_closed">Closed</span></label>
+                        </fieldset>
+                     </div>
+                </div>
+
+                <!-- Release Notifications -->
+                <div class="form-group collapsible">
+                     <button type="button" class="collapsible-btn" data-locale-key="settings_github_releases">Releases</button>
+                     <div class="collapsible-content">
+                        <label><input type="checkbox" id="releases-enabled"> <span data-locale-key="settings_enable_notifications">Enable Notifications</span></label>
+                        <label data-locale-key="settings_channel">Channel: <select id="releases-channelId"></select></label>
+                         <fieldset>
+                            <legend data-locale-key="settings_github_release_events">Events to Notify</legend>
+                            <label><input type="checkbox" value="published"> <span data-locale-key="settings_github_release_published">Published</span></label>
+                            <label><input type="checkbox" value="prerelease"> <span data-locale-key="settings_github_release_prereleased">Pre-released</span></label>
+                        </fieldset>
+                     </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" data-locale-key="settings_github_modal_save">Save Repository</button>
+                    <button type="button" id="delete-repo-btn" class="btn btn-danger" style="display: none;" data-locale-key="settings_github_modal_delete">Delete Repository</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script src="translator.js"></script>
+    <script src="server.js"></script>
 </body>
 </html>
