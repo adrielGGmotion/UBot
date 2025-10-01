@@ -1,16 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Variáveis Globais e Helpers ---
     const urlParams = new URLSearchParams(window.location.search);
     const guildId = urlParams.get('id');
     if (!guildId) {
-        window.location.href = '/index.html'; // Redireciona se não houver ID do servidor
+        window.location.href = '/index.html';
         return;
     }
 
     let dataFromAPI = {};
-    let chatHistory = [];
-    let musicDataInterval;
-    // Inicializa as funções para evitar erros de "não é uma função"
     let getPersonality = () => [];
     let getExamples = () => [];
 
@@ -26,135 +22,140 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleAuthError(response) {
         if (response.status === 401) {
             localStorage.removeItem('dashboard-token');
-            if (musicDataInterval) clearInterval(musicDataInterval);
             window.location.href = '/login.html';
             return true;
         }
         return false;
     }
 
-    // --- Lógica de Música ---
-    async function fetchMusicData() {
-        // ... (código existente, sem alterações)
-    }
-
-    function updateMusicPanel(data) {
-        // ... (código existente, sem alterações)
-    }
-
-    async function controlMusicPlayer(action) {
-        // ... (código existente, sem alterações)
-    }
-
-    // --- Lógica do Testador de Chat ---
-    function setupChatTester() {
-        const chatInput = getElement('chat-input', false);
-        const sendChatBtn = getElement('send-chat-btn', false);
-        const clearChatBtn = getElement('clear-chat-btn', false);
-
-        if (!chatInput || !sendChatBtn || !clearChatBtn) return; // Se os elementos não existem, não faz nada
-
-        sendChatBtn.addEventListener('click', sendChatMessage);
-        chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChatMessage(); });
-        clearChatBtn.addEventListener('click', () => {
-            const chatDisplay = getElement('chat-display');
-            chatDisplay.innerHTML = '';
-            chatHistory = [];
+    function buildAiPanel(channels, selectedIds, config, allTools) {
+        const listDiv = getElement('channels-list');
+        listDiv.innerHTML = '';
+        channels.forEach(ch => {
+            const isChecked = (selectedIds || []).includes(ch.id);
+            listDiv.innerHTML += `<div class="checkbox-group"><input type="checkbox" id="chan-${ch.id}" value="${ch.id}" ${isChecked ? 'checked' : ''}><label for="chan-${ch.id}">#${ch.name}</label></div>`;
         });
-    }
 
-    async function sendChatMessage() {
-        const chatInput = getElement('chat-input');
-        const sendChatBtn = getElement('send-chat-btn');
-        const messageText = chatInput.value.trim();
-        if (!messageText) return;
+        getElement('ai-context-limit').value = config.contextLimit || 15;
 
-        addMessageToChat('user', messageText);
-        chatHistory.push({ role: 'user', content: messageText });
-        chatInput.value = '';
-        chatInput.disabled = true;
-        sendChatBtn.disabled = true;
-
-        const currentConfig = {
-            personality: getPersonality(), // Agora está garantido que existe
-            examples: getExamples(),       // Agora está garantido que existe
-            contextLimit: parseInt(getElement('ai-context-limit').value, 10) || 15
-        };
-        // ... resto da função sendChatMessage
-    }
-
-    function addMessageToChat(role, content) {
-        const chatDisplay = getElement('chat-display');
-        // ... (código existente, sem alterações)
-    }
-
-
-    // --- Construção da Página e Painéis ---
-    function buildAiPanel(channels = [], selectedIds = [], config = {}, allTools = []) {
-        // ... (código existente, sem alterações)
-        // A atribuição das funções acontece aqui, de forma segura
         getPersonality = setupDynamicTextAreas('ai-personality-container', 'add-personality-btn', config.personality, 'dashboard_server_ai_personality_placeholder');
         getExamples = setupDynamicTextAreas('ai-examples-container', 'add-example-btn', config.examples, 'dashboard_server_ai_examples_placeholder');
 
-        setupChatTester(); // Configura os listeners do chat DEPOIS que o painel de IA é construído
+        const toolsListDiv = getElement('ai-tools-list');
+        toolsListDiv.innerHTML = '';
+        const enabledTools = config.enabledTools || allTools;
+        allTools.forEach(toolName => {
+            const isChecked = enabledTools.includes(toolName);
+            toolsListDiv.innerHTML += `<div class="checkbox-group"><input type="checkbox" id="tool-${toolName}" value="${toolName}" ${isChecked ? 'checked' : ''}><label for="tool-${toolName}">${toolName}</label></div>`;
+        });
     }
 
-    function buildFaqPanel(faqData = []) {
-        const listDiv = getElement('faq-list', false);
-        const addBtn = getElement('faq-add-btn', false);
-        if(!listDiv || !addBtn) return; // Não executa se os elementos não existirem
+    function setupDynamicTextAreas(containerId, addButtonId, dataArray, placeholderKey) {
+        const container = getElement(containerId);
+        const addButton = getElement(addButtonId);
+        let internalData = Array.isArray(dataArray) ? [...dataArray] : (dataArray ? [dataArray] : []);
 
-        // ... (resto do código do painel de FAQ)
-    }
-
-    function buildKnowledgePanel(knowledgeData = []) {
-        const listDiv = getElement('knowledge-list', false);
-        const addBtn = getElement('knowledge-add-btn', false);
-        if(!listDiv || !addBtn) return; // Não executa se os elementos não existirem
-
-        // ... (resto do código do painel de Knowledge)
-    }
-
-    // ... (outras funções de construção de painel seguem o mesmo padrão)
-
-    function setupNavigation() {
-        const serverNavContainer = getElement('server-nav-links');
-        const panels = {
-            ai: getElement('panel-ai'),
-            music: getElement('panel-music'),
-            faq: getElement('panel-faq'),
-            knowledge: getElement('panel-knowledge'),
-            github: getElement('panel-github')
+        const render = () => {
+            container.innerHTML = '';
+            internalData.forEach((item, index) => {
+                const inputGroup = document.createElement('div');
+                inputGroup.style.display = 'flex';
+                inputGroup.style.gap = '10px';
+                const textArea = document.createElement('textarea');
+                textArea.className = 'form-textarea';
+                textArea.placeholder = i18n.t(placeholderKey);
+                textArea.value = item;
+                textArea.addEventListener('change', (e) => { internalData[index] = e.target.value; });
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.textContent = '-';
+                removeBtn.className = 'form-button';
+                removeBtn.addEventListener('click', () => { internalData.splice(index, 1); render(); });
+                inputGroup.appendChild(textArea);
+                inputGroup.appendChild(removeBtn);
+                container.appendChild(inputGroup);
+            });
         };
-
-        // ... (código de navegação existente, sem alterações)
+        addButton.addEventListener('click', () => { internalData.push(''); render(); });
+        render();
+        return () => internalData.filter(item => item.trim() !== '');
     }
 
     async function initializePage() {
-        const botNameElement = getElement('bot-name');
-        const serverNameTitle = getElement('server-name-title');
-
         try {
-            // ... (código de fetch e autenticação existente)
+            const token = localStorage.getItem('dashboard-token');
+            if (!token) {
+                window.location.href = '/login.html';
+                return;
+            }
 
-            // As chamadas para construir os painéis permanecem aqui
-            buildAiPanel(availableChannels, settings.aiChannelIds, settings.aiConfig, allTools.tools);
-            buildFaqPanel(settings.faq);
-            buildKnowledgePanel(settings.knowledge);
-            // ... etc
+            const [settingsRes, guildsRes, toolsRes] = await Promise.all([
+                fetch(`/api/guilds/${guildId}/settings`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch('/api/guilds', { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch('/api/ai-tools', { headers: { 'Authorization': `Bearer ${token}` } })
+            ]);
 
-            setupNavigation();
+            if ([settingsRes, guildsRes, toolsRes].some(handleAuthError)) return;
+
+            const settingsData = await settingsRes.json();
+            const guildsData = await guildsRes.json();
+            const toolsData = await toolsRes.json();
+
+            dataFromAPI = settingsData;
+            const { availableChannels, settings } = settingsData;
+
+            const serverNameTitle = getElement('server-name-title');
+            const currentGuild = guildsData.find(g => g.id === guildId);
+            if (currentGuild) {
+                serverNameTitle.innerHTML = `<i class="material-icons">dns</i> <span>Gerenciando: ${currentGuild.name}</span>`;
+            }
+
+            buildAiPanel(availableChannels, settings.aiChannelIds, settings.aiConfig, toolsData.tools);
 
         } catch (error) {
-            serverNameTitle.textContent = 'Erro ao carregar dados do servidor.';
             console.error("Erro na inicialização:", error);
+            const serverNameTitle = getElement('server-name-title');
+            serverNameTitle.innerHTML = `<i class="material-icons">error</i> <span>Erro ao carregar dados.</span>`;
         }
     }
 
     const saveButton = getElement('save-settings-btn');
-    saveButton.addEventListener('click', async () => {
-        // ... (código de salvamento existente, sem alterações)
-    });
+    if (saveButton) {
+        saveButton.addEventListener('click', async () => {
+            const token = localStorage.getItem('dashboard-token');
+            const saveStatus = getElement('save-status');
+            saveStatus.textContent = 'Salvando...';
+
+            const aiChannelIds = Array.from(document.querySelectorAll('#channels-list input:checked')).map(cb => cb.value);
+            const enabledTools = Array.from(document.querySelectorAll('#ai-tools-list input:checked')).map(cb => cb.value);
+
+            const payload = {
+                aiChannelIds,
+                aiConfig: {
+                    personality: getPersonality(),
+                    examples: getExamples(),
+                    contextLimit: parseInt(getElement('ai-context-limit').value, 10) || 15,
+                    enabledTools
+                }
+            };
+
+            try {
+                const response = await fetch(`/api/guilds/${guildId}/settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(payload)
+                });
+                if (handleAuthError(response)) return;
+                if (!response.ok) throw new Error('Falha ao salvar');
+                saveStatus.textContent = 'Configurações salvas com sucesso!';
+                saveStatus.style.color = 'var(--accent)';
+            } catch (err) {
+                saveStatus.textContent = 'Erro ao salvar.';
+                saveStatus.style.color = 'var(--error)';
+            }
+            setTimeout(() => saveStatus.textContent = '', 3000);
+        });
+    }
 
     initializePage();
 });

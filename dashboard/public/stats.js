@@ -1,4 +1,9 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Wait for the i18n promise to resolve
+    if (window.i18n) {
+        await window.i18n.ready;
+    }
+
     const totalCommandsElement = document.getElementById('total-commands');
     const chartCanvas = document.getElementById('command-chart').getContext('2d');
     let commandChart = null;
@@ -35,10 +40,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (stats.commandUsage && chartCanvas) {
-                const labels = stats.commandUsage.map(cmd => cmd.commandName); // Corrected from cmd._id
+                const labels = stats.commandUsage.map(cmd => cmd.commandName);
                 const data = stats.commandUsage.map(cmd => cmd.count);
 
-                const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-rgb').trim();
+                const accentRgb = getComputedStyle(document.documentElement).getPropertyValue('--accent-rgb').trim() || '0, 255, 0';
+                const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#888888';
+                const borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim() || 'rgba(255, 255, 255, 0.1)';
+
 
                 if (commandChart) {
                     commandChart.destroy();
@@ -49,11 +57,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     data: {
                         labels: labels,
                         datasets: [{
-                            label: 'Command Usage', // This will be translated by i18n if key is set
+                            label: i18n.t('dashboard_stats_command_usage'),
                             data: data,
-                            backgroundColor: `rgba(${accentColor}, 0.6)`,
-                            borderColor: `rgba(${accentColor}, 1)`,
-                            borderWidth: 1
+                            backgroundColor: `rgba(${accentRgb}, 0.6)`,
+                            borderColor: `rgba(${accentRgb}, 1)`,
+                            borderWidth: 1,
+                            borderRadius: 5
                         }]
                     },
                     options: {
@@ -62,12 +71,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         scales: {
                             y: {
                                 beginAtZero: true,
-                                ticks: { color: 'var(--text-secondary)' },
-                                grid: { color: 'var(--border-color)' }
+                                ticks: { color: textColor },
+                                grid: { color: borderColor }
                             },
                             x: {
-                                ticks: { color: 'var(--text-secondary)' },
-                                grid: { color: 'var(--border-color)' }
+                                ticks: { color: textColor },
+                                grid: { color: 'transparent' }
                             }
                         },
                         plugins: {
@@ -87,8 +96,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // We need to ensure translations are loaded before fetching stats that use them
-    // A simple timeout can work for this, or a more robust event-based system.
-    // For now, let's assume translator.js handles this or we call it after a delay.
-    setTimeout(fetchStats, 200); // Give translator a moment to load
+    fetchStats();
 });
