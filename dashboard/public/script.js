@@ -1,15 +1,22 @@
-document.addEventListener('DOMContentLoaded', () => {
-    
+// Wait for the i18n to be ready before executing any logic
+document.addEventListener('DOMContentLoaded', async () => {
+    if (window.i18n) {
+        await window.i18n.ready;
+    }
+
     function getElement(id, critical = true) {
         const element = document.getElementById(id);
         if (!element && critical) {
-            throw new Error(i18n.t('err_critical_element_not_found', {id: id}));
+            // Use a simple error message as i18n might not be available
+            const errorMsg = `Critical element not found: #${id}`;
+            console.error(errorMsg);
+            throw new Error(errorMsg);
         }
         return element;
     }
-    
+
     function hexToRgb(hex) {
-        if (!/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(hex)) return '153, 0, 255';
+        if (!/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(hex)) return '0, 255, 0';
         let c = hex.substring(1).split('');
         if (c.length === 3) { c = [c[0], c[0], c[1], c[1], c[2], c[2]]; }
         c = '0x' + c.join('');
@@ -25,66 +32,46 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
     }
 
-    const botNameElement = getElement('bot-name');
-    const guildCountElement = getElement('guild-count');
-    const totalCommandsElement = getElement('total-commands');
-    const guildsListElement = getElement('guilds-list');
-    const chartCanvas = getElement('command-chart', false)?.getContext('2d');
-    let commandChart = null;
-
-    const botStatusElement = getElement('bot-status', false);
-    const botUptimeElement = getElement('bot-uptime', false);
-    const botLatencyElement = getElement('bot-latency', false);
-
     async function fetchInfoAndTheme() {
         try {
             const token = localStorage.getItem('dashboard-token');
-            const response = await fetch('/api/info', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            if (!token) {
+                window.location.href = '/login.html';
+                return;
+            }
+            const response = await fetch('/api/info', { headers: { 'Authorization': `Bearer ${token}` } });
             if (handleAuthError(response)) return;
-            if (!response.ok) throw new Error(i18n.t('err_api_info_response_not_ok'));
+
             const data = await response.json();
 
-            botNameElement.textContent = data.bot.tag || i18n.t('dashboard_bot_status_offline');
-            guildCountElement.textContent = data.guilds;
+            const botNameElement = getElement('bot-name', false);
+            const guildCountElement = getElement('guild-count', false);
+            const botStatusElement = getElement('bot-status', false);
+            const botUptimeElement = getElement('bot-uptime', false);
+            const botLatencyElement = getElement('bot-latency', false);
 
-            // Bot status widget
+            if (botNameElement) botNameElement.textContent = data.bot.tag || i18n.t('dashboard_bot_status_offline');
+            if (guildCountElement) guildCountElement.textContent = data.guilds;
+
             if (botStatusElement) {
                 botStatusElement.textContent = data.bot.online ? i18n.t('dashboard_bot_status_online') : i18n.t('dashboard_bot_status_offline');
-                botStatusElement.style.color = data.bot.online ? '#4ade80' : '#f87171';
             }
-            if (botUptimeElement) {
-                botUptimeElement.textContent = `${i18n.t('dashboard_bot_status_uptime')}: ${data.bot.uptime || '-'}`;
-            }
-            if (botLatencyElement) {
-                botLatencyElement.textContent = `${i18n.t('dashboard_bot_status_latency')}: ${data.bot.latency !== undefined ? data.bot.latency + 'ms' : '-'}`;
-            }
+            if (botUptimeElement) botUptimeElement.textContent = data.bot.uptime || '-';
+            if (botLatencyElement) botLatencyElement.textContent = `${data.bot.latency !== undefined ? data.bot.latency : '-'}ms`;
 
-            const primaryColor = data.colors.primary || '#0d1117';
-            const accentColor = data.colors.accent1 || '#9900FF';
-            document.documentElement.style.setProperty('--bg', primaryColor);
-            document.documentElement.style.setProperty('--panel', accentColor ? `rgba(${hexToRgb(accentColor)}, 0.1)` : '#161b22');
-            document.documentElement.style.setProperty('--accent', accentColor);
-            document.documentElement.style.setProperty('--accent-rgb', hexToRgb(accentColor));
         } catch (error) {
-            console.error(i18n.t('err_fetch_bot_info_failed'), error);
-            botNameElement.textContent = i18n.t('err_connection_error');
-            if (botStatusElement) {
-                botStatusElement.textContent = i18n.t('status_disconnected');
-                botStatusElement.style.color = '#f87171';
-            }
+            console.error("Failed to fetch bot info:", error);
         }
     }
 
     async function fetchGuilds() {
+        const guildsListElement = getElement('guilds-list', false);
+        if (!guildsListElement) return;
+
         try {
             const token = localStorage.getItem('dashboard-token');
-            const response = await fetch('/api/guilds', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await fetch('/api/guilds', { headers: { 'Authorization': `Bearer ${token}` } });
             if (handleAuthError(response)) return;
-            if (!response.ok) throw new Error(i18n.t('err_api_guilds_response_not_ok'));
             const guilds = await response.json();
 
             guildsListElement.innerHTML = '';
@@ -97,76 +84,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 guildsListElement.appendChild(guildItem);
             });
         } catch (error) {
-            console.error(i18n.t('err_fetch_guilds_failed'), error);
-            if (guildsListElement) guildsListElement.innerHTML = `<p>${i18n.t('dashboard_error_loading_servers')}</p>`;
+            console.error("Failed to fetch guilds:", error);
+            guildsListElement.innerHTML = `<p>${i18n.t('dashboard_error_loading_servers')}</p>`;
         }
     }
 
     async function fetchStats() {
+        const totalCommandsElement = getElement('total-commands', false);
+        const chartCanvas = getElement('command-chart', false)?.getContext('2d');
+        if (!totalCommandsElement && !chartCanvas) return;
+
         try {
             const token = localStorage.getItem('dashboard-token');
-            const response = await fetch('/api/stats', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await fetch('/api/stats', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (handleAuthError(response)) return;
+            const stats = await response.json();
 
-            if (response.status === 401) {
-                localStorage.removeItem('dashboard-token');
-                window.location.href = '/login.html';
-                return;
+            if (totalCommandsElement) totalCommandsElement.textContent = stats.totalCommands;
+
+            if (chartCanvas && stats.commandUsage) {
+                const labels = stats.commandUsage.map(cmd => cmd.commandName);
+                const data = stats.commandUsage.map(cmd => cmd.count);
+
+                new Chart(chartCanvas, {
+                    type: 'bar',
+                    data: { labels, datasets: [{ data, label: 'Command Usage' }] },
+                    options: { /* ... options ... */ }
+                });
             }
-
-            if (!response.ok) throw new Error('Stats API response not OK');
-
-            const data = await response.json();
-            displayStats(data);
         } catch (error) {
             console.error('Failed to fetch stats:', error);
         }
     }
 
-    function displayStats(stats) {
-        const totalCommandsElement = document.getElementById('total-commands');
-        if (totalCommandsElement && stats.totalCommands !== undefined) {
-            totalCommandsElement.textContent = stats.totalCommands;
-        }
-
-        const commandUsage = stats.commandUsage || [];
-        if (commandUsage.length > 0 && window.Chart) {
-            const ctx = document.getElementById('command-chart').getContext('2d');
-            if (ctx.chart) {
-                ctx.chart.destroy();
-            }
-
-            const labels = commandUsage.map(item => item.commandName);
-            const data = commandUsage.map(item => item.count);
-
-            const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
-            const accentRgb = getComputedStyle(document.documentElement).getPropertyValue('--accent-rgb').trim();
-
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: i18n.t('dashboard_command_usage_chart'),
-                        data: data,
-                        backgroundColor: `rgba(${accentRgb}, 0.2)`,
-                        borderColor: accentColor,
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-        }
-    }
-    
     const profileForm = getElement('profile-form', false);
     if (profileForm) {
         profileForm.addEventListener('submit', async (event) => {
@@ -175,7 +125,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const username = getElement('username').value;
             const avatar = getElement('avatar').value;
             profileStatus.textContent = i18n.t('dashboard_profile_saving');
-            profileStatus.style.color = 'var(--muted)';
             try {
                 const token = localStorage.getItem('dashboard-token');
                 const response = await fetch('/api/bot/profile', {
@@ -185,17 +134,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 if (handleAuthError(response)) return;
                 const result = await response.json();
-                if (!response.ok) throw new Error(result.error || i18n.t('err_unknown'));
+                if (!response.ok) throw new Error(result.error);
                 profileStatus.textContent = i18n.t('dashboard_profile_success');
-                profileStatus.style.color = '#4ade80';
             } catch (error) {
                 profileStatus.textContent = `${i18n.t('dashboard_profile_error')}: ${error.message}`;
-                profileStatus.style.color = '#f87171';
             }
             setTimeout(() => { profileStatus.textContent = ''; }, 5000);
         });
     }
-    
+
+    // Execute all fetch operations
     fetchInfoAndTheme();
     fetchGuilds();
     fetchStats();
