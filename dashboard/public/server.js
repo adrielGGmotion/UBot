@@ -6,47 +6,287 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+    // Wait for i18n to be ready
     if (window.i18n) {
         await window.i18n.ready;
     }
 
+    const token = localStorage.getItem('dashboard-token');
+    if (!token) {
+        window.location.href = '/login.html';
+        return;
+    }
+
+    const headers = { 'Authorization': `Bearer ${token}` };
+
+    // DOM Elements
     const serverNameTitle = document.getElementById('server-name-title');
+    const settingsForm = document.getElementById('settings-form');
+    const djRoleInput = document.getElementById('dj-role');
+    const musicAutoplayInput = document.getElementById('music-autoplay');
+    const musicEmbedColorInput = document.getElementById('music-embed-color');
+    const githubReposContainer = document.getElementById('github-repos-container');
+    const addRepoBtn = document.getElementById('add-repo-btn');
+    const repoModal = document.getElementById('repo-modal');
+    const repoForm = document.getElementById('repo-form');
+    const closeModalBtn = document.querySelector('.modal .close-btn');
+    const deleteRepoBtn = document.getElementById('delete-repo-btn');
 
-    async function initializePage() {
+    let serverSettings = {};
+    let availableChannels = [];
+
+    async function fetchGuildInfo() {
         try {
-            const token = localStorage.getItem('dashboard-token');
-            if (!token) {
-                window.location.href = '/login.html';
-                return;
-            }
-
-            const guildsRes = await fetch('/api/guilds', { headers: { 'Authorization': `Bearer ${token}` } });
-
-            if (guildsRes.status === 401) {
-                 localStorage.removeItem('dashboard-token');
-                 window.location.href = '/login.html';
-                 return;
-            }
-            if (!guildsRes.ok) {
-                throw new Error('Failed to fetch guilds');
-            }
-
-            const guildsData = await guildsRes.json();
-            const currentGuild = guildsData.find(g => g.id === guildId);
-
-            if (currentGuild) {
-                serverNameTitle.innerHTML = `<i class="material-icons">dns</i> <span>${i18n.t('dashboard_server_managing_title', { serverName: currentGuild.name })}</span>`;
+            const res = await fetch('/api/guilds', { headers });
+            if (res.status === 401) throw new Error('Unauthorized');
+            const guilds = await res.json();
+            const guild = guilds.find(g => g.id === guildId);
+            if (guild) {
+                serverNameTitle.innerHTML = `<i class="material-icons">dns</i> <span>${i18n.t('dashboard_server_managing_title', { serverName: guild.name })}</span>`;
             } else {
-                 serverNameTitle.innerHTML = `<i class="material-icons">error</i> <span>${i18n.t('err_guild_not_found', { guildId: guildId })}</span>`;
+                serverNameTitle.innerHTML = `<i class="material-icons">error</i> <span>${i18n.t('err_guild_not_found')}</span>`;
             }
-
-            if(window.applyTranslations) window.applyTranslations();
-
         } catch (error) {
-            console.error("Erro na inicialização:", error);
-            serverNameTitle.innerHTML = `<i class="material-icons">error</i> <span>${i18n.t('dashboard_server_error_loading')}</span>`;
+            console.error('Failed to fetch guild info:', error);
+            if (error.message === 'Unauthorized') {
+                localStorage.removeItem('dashboard-token');
+                window.location.href = '/login.html';
+            }
         }
     }
 
-    initializePage();
+    async function fetchSettings() {
+        try {
+            const res = await fetch(`/api/guilds/${guildId}/settings`, { headers });
+            if (res.status === 401) throw new Error('Unauthorized');
+            const data = await res.json();
+            serverSettings = data.settings;
+            availableChannels = data.availableChannels;
+            populateForm();
+            renderGithubRepos();
+            populateChannelSelects();
+            if (window.applyTranslationsToDOM) {
+                window.applyTranslationsToDOM();
+            }
+        } catch (error) {
+            console.error('Failed to fetch settings:', error);
+            if (error.message === 'Unauthorized') {
+                localStorage.removeItem('dashboard-token');
+                window.location.href = '/login.html';
+            }
+        }
+    }
+
+    function populateForm() {
+        if (!serverSettings.musicConfig) serverSettings.musicConfig = {};
+        djRoleInput.value = serverSettings.musicConfig.djRole || 'DJ';
+        musicAutoplayInput.checked = serverSettings.musicConfig.autoplay || false;
+        musicEmbedColorInput.checked = serverSettings.musicConfig.embedColor || false;
+    }
+
+    function renderGithubRepos() {
+        githubReposContainer.innerHTML = '';
+        if (!serverSettings.githubRepos || serverSettings.githubRepos.length === 0) {
+            githubReposContainer.innerHTML = `<p data-locale-key="settings_github_no_repos">${i18n.t('settings_github_no_repos')}</p>`;
+            return;
+        }
+        serverSettings.githubRepos.forEach((repo, index) => {
+            const repoElement = document.createElement('div');
+            repoElement.className = 'repo-item';
+            repoElement.innerHTML = `<span>${repo.name}</span><button type="button" class="btn btn-secondary edit-repo-btn" data-index="${index}" data-locale-key="settings_github_edit_repo">${i18n.t('settings_github_edit_repo')}</button>`;
+            githubReposContainer.appendChild(repoElement);
+        });
+    }
+
+    function populateChannelSelects() {
+        const selects = document.querySelectorAll('select[id$="-channelId"]');
+        selects.forEach(select => {
+            select.innerHTML = `<option value="" data-locale-key="settings_select_channel">${i18n.t('settings_select_channel')}</option>`;
+            availableChannels.forEach(channel => {
+                const option = document.createElement('option');
+                option.value = channel.id;
+                option.textContent = channel.name;
+                select.appendChild(option);
+            });
+        });
+    }
+
+    function openRepoModal(repoIndex = null) {
+        repoForm.reset();
+        populateChannelSelects(); // Ensure selects are populated before filling
+        const isNew = repoIndex === null;
+        document.getElementById('repo-index').value = isNew ? '' : repoIndex;
+        deleteRepoBtn.style.display = isNew ? 'none' : 'inline-block';
+
+        const modalTitleKey = isNew ? 'settings_github_modal_add_title' : 'settings_github_modal_edit_title';
+        document.querySelector('#repo-modal h3').setAttribute('data-locale-key', modalTitleKey);
+
+
+        if (!isNew) {
+            const repo = serverSettings.githubRepos[repoIndex];
+            document.getElementById('repo-name').value = repo.name;
+            document.getElementById('repo-secret').value = repo.secret;
+
+            // Commits
+            const commits = repo.commits || {};
+            document.getElementById('commits-enabled').checked = commits.enabled;
+            document.getElementById('commits-channelId').value = commits.channelId || '';
+
+            // Pull Requests
+            const pulls = repo.pullRequests || {};
+            document.getElementById('pulls-enabled').checked = pulls.enabled;
+            document.getElementById('pulls-channelId').value = pulls.channelId || '';
+            document.getElementById('pulls-ignore-drafts').checked = pulls.ignoreDrafts !== false;
+            (pulls.eventFilter || []).forEach(event => {
+                const checkbox = document.querySelector(`#repo-form input[type="checkbox"][value="${event}"]`);
+                if(checkbox) checkbox.checked = true;
+            });
+
+            // Issues
+            const issues = repo.issues || {};
+            document.getElementById('issues-enabled').checked = issues.enabled;
+            document.getElementById('issues-channelId').value = issues.channelId || '';
+             (issues.eventFilter || []).forEach(event => {
+                const checkbox = document.querySelector(`#repo-modal #repo-form input[type="checkbox"][value="${event}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+
+
+            // Releases
+            const releases = repo.releases || {};
+            document.getElementById('releases-enabled').checked = releases.enabled;
+            document.getElementById('releases-channelId').value = releases.channelId || '';
+             (releases.typeFilter || []).forEach(event => {
+                const checkbox = document.querySelector(`#repo-modal #repo-form input[type="checkbox"][value="${event}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+
+        }
+
+        if(window.applyTranslations) window.applyTranslations();
+        repoModal.style.display = 'block';
+    }
+
+    function closeRepoModal() {
+        repoModal.style.display = 'none';
+    }
+
+    addRepoBtn.addEventListener('click', () => openRepoModal());
+    closeModalBtn.addEventListener('click', closeRepoModal);
+    window.addEventListener('click', (event) => {
+        if (event.target === repoModal) {
+            closeRepoModal();
+        }
+    });
+
+    githubReposContainer.addEventListener('click', (event) => {
+        if (event.target.classList.contains('edit-repo-btn')) {
+            const index = event.target.dataset.index;
+            openRepoModal(index);
+        }
+    });
+
+    // Collapsible sections in modal
+    document.querySelectorAll('.collapsible-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            button.classList.toggle('active');
+            const content = button.nextElementSibling;
+            if (content.style.maxHeight) {
+                content.style.maxHeight = null;
+            } else {
+                content.style.maxHeight = content.scrollHeight + "px";
+            }
+        });
+    });
+
+
+    repoForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const repoIndex = document.getElementById('repo-index').value;
+        const isNew = repoIndex === '';
+
+        const pullEventFilters = Array.from(document.querySelectorAll('#repo-form fieldset:nth-of-type(1) input[type="checkbox"]:checked')).map(cb => cb.value);
+        const issueEventFilters = Array.from(document.querySelectorAll('#repo-form fieldset:nth-of-type(2) input[type="checkbox"]:checked')).map(cb => cb.value);
+        const releaseTypeFilters = Array.from(document.querySelectorAll('#repo-form fieldset:nth-of-type(3) input[type="checkbox"]:checked')).map(cb => cb.value);
+
+
+        const repoData = {
+            name: document.getElementById('repo-name').value,
+            secret: document.getElementById('repo-secret').value,
+            commits: {
+                enabled: document.getElementById('commits-enabled').checked,
+                channelId: document.getElementById('commits-channelId').value,
+            },
+            pullRequests: {
+                enabled: document.getElementById('pulls-enabled').checked,
+                channelId: document.getElementById('pulls-channelId').value,
+                ignoreDrafts: document.getElementById('pulls-ignore-drafts').checked,
+                eventFilter: pullEventFilters,
+            },
+            issues: {
+                enabled: document.getElementById('issues-enabled').checked,
+                channelId: document.getElementById('issues-channelId').value,
+                eventFilter: issueEventFilters,
+            },
+            releases: {
+                enabled: document.getElementById('releases-enabled').checked,
+                channelId: document.getElementById('releases-channelId').value,
+                typeFilter: releaseTypeFilters,
+            },
+        };
+
+        if (isNew) {
+            if (!serverSettings.githubRepos) serverSettings.githubRepos = [];
+            serverSettings.githubRepos.push(repoData);
+        } else {
+            serverSettings.githubRepos[repoIndex] = repoData;
+        }
+
+        renderGithubRepos();
+        closeRepoModal();
+    });
+
+    deleteRepoBtn.addEventListener('click', () => {
+        const repoIndex = document.getElementById('repo-index').value;
+        if (repoIndex !== '') {
+            serverSettings.githubRepos.splice(repoIndex, 1);
+            renderGithubRepos();
+            closeRepoModal();
+        }
+    });
+
+    settingsForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const formData = {
+            musicConfig: {
+                djRole: djRoleInput.value,
+                autoplay: musicAutoplayInput.checked,
+                embedColor: musicEmbedColorInput.checked,
+            },
+            githubRepos: serverSettings.githubRepos,
+        };
+
+        try {
+            const res = await fetch(`/api/guilds/${guildId}/settings`, {
+                method: 'POST',
+                headers: { ...headers, 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            });
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'Failed to save settings');
+            }
+            alert(i18n.t('settings_updated_success'));
+        } catch (error) {
+            console.error('Failed to save settings:', error);
+            alert(`${i18n.t('settings_updated_error')}: ${error.message}`);
+        }
+    });
+
+    // Initial Load
+    await fetchGuildInfo();
+    await fetchSettings();
+    if (window.applyTranslations) {
+        window.applyTranslations();
+    }
 });

@@ -1,4 +1,3 @@
-// Create a global promise that resolves when translations are ready.
 window.i18n = {
     ready: new Promise(resolve => {
         window.i18n_resolve = resolve;
@@ -6,6 +5,9 @@ window.i18n = {
     locales: {},
     t: function(key, replacements = {}) {
         let text = this.locales[key] || `Missing key: ${key}`;
+        if (!this.locales[key]) {
+            console.warn(`Translation key not found: ${key}`);
+        }
         for (const placeholder in replacements) {
             const regex = new RegExp(`\\{${placeholder}\\}`, 'g');
             text = text.replace(regex, replacements[placeholder]);
@@ -14,7 +16,27 @@ window.i18n = {
     }
 };
 
-async function applyTranslations() {
+function applyTranslationsToDOM() {
+    console.log("--- applyTranslationsToDOM called ---");
+    const elements = document.querySelectorAll('[data-locale-key]');
+    console.log(`Found ${elements.length} elements to translate.`);
+    console.log("Current i18n.locales state:", window.i18n.locales);
+
+    elements.forEach(element => {
+        const key = element.getAttribute('data-locale-key');
+        element.innerHTML = i18n.t(key);
+    });
+
+    document.querySelectorAll('[data-locale-placeholder-key]').forEach(element => {
+        const key = element.getAttribute('data-locale-placeholder-key');
+        element.placeholder = i18n.t(key);
+    });
+    console.log("--- applyTranslationsToDOM finished ---");
+}
+window.applyTranslationsToDOM = applyTranslationsToDOM;
+
+async function initializeTranslations() {
+    console.log("--- initializeTranslations started ---");
     let selectedLang = 'en'; // Default language
     try {
         const configResponse = await fetch('/config.json');
@@ -30,14 +52,17 @@ async function applyTranslations() {
 
     let loadedLocales = null;
     try {
+        console.log(`Fetching locales for language: ${selectedLang}`);
         const localeResponse = await fetch(`/api/locales/${selectedLang}`);
         if (localeResponse.ok) {
             loadedLocales = await localeResponse.json();
+            console.log("Successfully fetched and parsed locales.");
         } else {
-            // Fallback to English if the selected language is not found
+            console.warn(`Failed to fetch ${selectedLang}, falling back to 'en'.`);
             const fallbackResponse = await fetch(`/api/locales/en`);
             if (fallbackResponse.ok) {
                 loadedLocales = await fallbackResponse.json();
+                console.log("Successfully fetched and parsed fallback 'en' locales.");
             }
         }
     } catch (e) {
@@ -46,25 +71,19 @@ async function applyTranslations() {
 
     if (!loadedLocales) {
         console.error('Translation system failed to initialize.');
-        window.i18n_resolve(); // Resolve the promise anyway to not block other scripts
+        window.i18n_resolve();
         return;
     }
 
     window.i18n.locales = loadedLocales;
+    console.log("Assigned locales to window.i18n.locales.");
 
-    document.querySelectorAll('[data-locale-key]').forEach(element => {
-        const key = element.getAttribute('data-locale-key');
-        element.innerHTML = i18n.t(key);
-    });
-
-    document.querySelectorAll('[data-locale-placeholder-key]').forEach(element => {
-        const key = element.getAttribute('data-locale-placeholder-key');
-        element.placeholder = i18n.t(key);
-    });
+    // Apply translations for the first time
+    applyTranslationsToDOM();
 
     // Signal that translations are ready.
+    console.log("--- initializeTranslations finished, resolving ready promise. ---");
     window.i18n_resolve();
 }
 
-// Apply translations as soon as the DOM is ready.
-document.addEventListener('DOMContentLoaded', applyTranslations);
+document.addEventListener('DOMContentLoaded', initializeTranslations);
