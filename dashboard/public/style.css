@@ -86,15 +86,14 @@ body {
   justify-content: center;
 }
 
-.sidebar.collapsed .sidebar-footer {
-  justify-content: center;
-}
-
 .sidebar.collapsed #sidebar-toggle i {
   transform: rotate(180deg);
 }
 
 .sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
 }
 
@@ -103,7 +102,13 @@ body {
   font-size: 1.6rem;
   color: var(--accent);
   font-weight: 700;
-  text-align: center;
+}
+
+#sidebar-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px; /* Smaller padding for a more compact button */
 }
 
 .dashboard-grid {
@@ -130,19 +135,6 @@ body {
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.8px;
-}
-
-.sidebar-footer {
-  margin-top: auto; /* Pushes footer to the bottom */
-  padding-top: var(--gap);
-  border-top: 1px solid var(--border-color);
-}
-
-#sidebar-toggle {
-  width: 100%;
-  background: none;
-  border: none;
-  cursor: pointer;
 }
 
 #sidebar-toggle i {
@@ -219,6 +211,11 @@ body {
 
 .large-widget {
   grid-column: span 2;
+}
+
+.chart-container {
+    position: relative;
+    height: 400px;
 }
 
 #guilds-list {
