@@ -137,48 +137,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Commits
             const commits = repo.commits || {};
-            const commitsEnabledInput = document.getElementById('commits-enabled');
-            const commitsChannelIdInput = document.getElementById('commits-channelId');
-            if (commitsEnabledInput) commitsEnabledInput.checked = commits.enabled;
-            if (commitsChannelIdInput) commitsChannelIdInput.value = commits.channelId || '';
+            document.getElementById('commits-enabled').checked = commits.enabled || false;
+            document.getElementById('commits-channelId').value = commits.channelId || '';
 
             // Pull Requests
             const pulls = repo.pullRequests || {};
-            const pullsEnabledInput = document.getElementById('pulls-enabled');
-            const pullsChannelIdInput = document.getElementById('pulls-channelId');
-            const pullsIgnoreDraftsInput = document.getElementById('pulls-ignore-drafts');
-            if (pullsEnabledInput) pullsEnabledInput.checked = pulls.enabled;
-            if (pullsChannelIdInput) pullsChannelIdInput.value = pulls.channelId || '';
-            if (pullsIgnoreDraftsInput) pullsIgnoreDraftsInput.checked = pulls.ignoreDrafts !== false;
+            document.getElementById('pulls-enabled').checked = pulls.enabled || false;
+            document.getElementById('pulls-channelId').value = pulls.channelId || '';
+            document.getElementById('pulls-ignore-drafts').checked = pulls.ignoreDrafts !== false;
             (pulls.eventFilter || []).forEach(event => {
-                const checkbox = repoForm.querySelector(`input[type="checkbox"][value="${event}"]`);
+                const checkbox = repoForm.querySelector(`input[type="checkbox"][value="${event}"][id^="pr-"]`);
                 if (checkbox) checkbox.checked = true;
             });
 
             // Issues
             const issues = repo.issues || {};
-            const issuesEnabledInput = document.getElementById('issues-enabled');
-            const issuesChannelIdInput = document.getElementById('issues-channelId');
-            if (issuesEnabledInput) issuesEnabledInput.checked = issues.enabled;
-            if (issuesChannelIdInput) issuesChannelIdInput.value = issues.channelId || '';
+            document.getElementById('issues-enabled').checked = issues.enabled || false;
+            document.getElementById('issues-channelId').value = issues.channelId || '';
             (issues.eventFilter || []).forEach(event => {
-                const checkbox = repoForm.querySelector(`input[type="checkbox"][value="${event}"]`);
+                const checkbox = repoForm.querySelector(`input[type="checkbox"][value="${event}"][id^="issue-"]`);
                 if (checkbox) checkbox.checked = true;
             });
 
             // Releases
             const releases = repo.releases || {};
-            const releasesEnabledInput = document.getElementById('releases-enabled');
-            const releasesChannelIdInput = document.getElementById('releases-channelId');
-            if (releasesEnabledInput) releasesEnabledInput.checked = releases.enabled;
-            if (releasesChannelIdInput) releasesChannelIdInput.value = releases.channelId || '';
+            document.getElementById('releases-enabled').checked = releases.enabled || false;
+            document.getElementById('releases-channelId').value = releases.channelId || '';
             (releases.typeFilter || []).forEach(event => {
-                const checkbox = repoForm.querySelector(`input[type="checkbox"][value="${event}"]`);
+                const checkbox = repoForm.querySelector(`input[type="checkbox"][value="${event}"][id^="release-"]`);
                 if (checkbox) checkbox.checked = true;
             });
         }
 
-        if(window.applyTranslations) window.applyTranslations();
+        if (window.applyTranslationsToDOM) window.applyTranslationsToDOM();
         repoModal.style.display = 'block';
     }
 
@@ -206,20 +197,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    if (repoModal) {
-        const collapsibleBtns = repoModal.querySelectorAll('.collapsible-btn');
-        collapsibleBtns.forEach(button => {
-            button.addEventListener('click', () => {
-                button.classList.toggle('active');
-                const content = button.nextElementSibling;
-                if (content.style.maxHeight) {
-                    content.style.maxHeight = null;
-                } else {
-                    content.style.maxHeight = content.scrollHeight + "px";
-                }
-            });
-        });
-    }
+    // This logic is no longer needed with the new card-based design.
+    // if (repoModal) { ... }
 
     if (repoForm) {
         repoForm.addEventListener('submit', (event) => {
@@ -227,9 +206,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const repoIndex = document.getElementById('repo-index').value;
             const isNew = repoIndex === '';
 
-            const pullEventFilters = Array.from(repoForm.querySelectorAll('fieldset:nth-of-type(1) input[type="checkbox"]:checked')).map(cb => cb.value);
-            const issueEventFilters = Array.from(repoForm.querySelectorAll('fieldset:nth-of-type(2) input[type="checkbox"]:checked')).map(cb => cb.value);
-            const releaseTypeFilters = Array.from(repoForm.querySelectorAll('fieldset:nth-of-type(3) input[type="checkbox"]:checked')).map(cb => cb.value);
+            // Helper to get checked values from a group based on a prefix
+            const getCheckedValues = (idPrefix) =>
+                Array.from(repoForm.querySelectorAll(`input[id^="${idPrefix}-"]:checked`))
+                     .map(cb => cb.value);
 
             const repoData = {
                 name: document.getElementById('repo-name').value,
@@ -242,17 +222,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                     enabled: document.getElementById('pulls-enabled').checked,
                     channelId: document.getElementById('pulls-channelId').value,
                     ignoreDrafts: document.getElementById('pulls-ignore-drafts').checked,
-                    eventFilter: pullEventFilters,
+                    eventFilter: getCheckedValues('pr'),
                 },
                 issues: {
                     enabled: document.getElementById('issues-enabled').checked,
                     channelId: document.getElementById('issues-channelId').value,
-                    eventFilter: issueEventFilters,
+                    eventFilter: getCheckedValues('issue'),
                 },
                 releases: {
                     enabled: document.getElementById('releases-enabled').checked,
                     channelId: document.getElementById('releases-channelId').value,
-                    typeFilter: releaseTypeFilters,
+                    typeFilter: getCheckedValues('release'),
                 },
             };
 

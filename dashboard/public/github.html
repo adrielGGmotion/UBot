@@ -28,9 +28,9 @@
             <div class="form-section">
                 <h3 data-locale-key="settings_section_github">GitHub Notifications</h3>
                 <div id="github-repos-container"></div>
-                <button type="button" id="add-repo-btn" class="btn" data-locale-key="settings_github_add_repo">Add Repository</button>
             </div>
             <div class="form-actions">
+                <button type="button" id="add-repo-btn" class="btn" data-locale-key="settings_github_add_repo">Add Repository</button>
                 <button type="submit" class="btn btn-primary" data-locale-key="settings_save_changes">Save Changes</button>
             </div>
         </form>
@@ -39,82 +39,135 @@
   </div>
 
     <!-- Modal for GitHub Repo Configuration -->
-    <div id="repo-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <span class="close-btn">&times;</span>
+<div id="repo-modal" class="modal" style="display: none;">
+    <div class="modal-content wide">
+        <div class="modal-header">
             <h3 data-locale-key="settings_github_modal_title">Configure Repository</h3>
-            <form id="repo-form">
-                <input type="hidden" id="repo-index">
+            <span class="close-btn">&times;</span>
+        </div>
+        <form id="repo-form" class="modal-body">
+            <input type="hidden" id="repo-index">
+
+            <!-- Main Repo Details -->
+            <div class="repo-main-details">
                 <div class="form-group">
                     <label for="repo-name" data-locale-key="settings_github_repo_name">Repository Name (e.g., user/repo)</label>
-                    <input type="text" id="repo-name" required>
+                    <input type="text" id="repo-name" class="form-input" required>
                 </div>
                 <div class="form-group">
                     <label for="repo-secret" data-locale-key="settings_github_repo_secret">Webhook Secret</label>
-                    <input type="text" id="repo-secret" required>
+                    <input type="text" id="repo-secret" class="form-input" required>
                 </div>
+            </div>
 
-                <!-- Commit Notifications -->
-                <div class="form-group collapsible">
-                    <button type="button" class="collapsible-btn" data-locale-key="settings_github_commits">Commits</button>
-                    <div class="collapsible-content">
-                        <label><input type="checkbox" id="commits-enabled"> <span data-locale-key="settings_enable_notifications">Enable Notifications</span></label>
-                        <label data-locale-key="settings_channel">Channel: <select id="commits-channelId"></select></label>
-                        <!-- Filters for commits -->
+            <!-- Notification Sections Grid -->
+            <div class="notification-grid">
+                <!-- Commits -->
+                <div class="notification-card">
+                    <div class="notification-header">
+                        <i class="material-icons">commit</i>
+                        <h4 data-locale-key="settings_github_commits">Commits</h4>
+                        <label class="switch">
+                            <input type="checkbox" id="commits-enabled">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="notification-body">
+                        <div class="form-group">
+                            <label for="commits-channelId" data-locale-key="settings_channel">Channel</label>
+                            <select id="commits-channelId"></select>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Pull Request Notifications -->
-                <div class="form-group collapsible">
-                     <button type="button" class="collapsible-btn" data-locale-key="settings_github_prs">Pull Requests</button>
-                     <div class="collapsible-content">
-                        <label><input type="checkbox" id="pulls-enabled"> <span data-locale-key="settings_enable_notifications">Enable Notifications</span></label>
-                        <label data-locale-key="settings_channel">Channel: <select id="pulls-channelId"></select></label>
-                        <label><input type="checkbox" id="pulls-ignore-drafts" checked> <span data-locale-key="settings_github_ignore_drafts">Ignore Drafts</span></label>
+                <!-- Pull Requests -->
+                <div class="notification-card">
+                    <div class="notification-header">
+                        <i class="material-icons">merge_type</i>
+                        <h4 data-locale-key="settings_github_prs">Pull Requests</h4>
+                        <label class="switch">
+                            <input type="checkbox" id="pulls-enabled">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="notification-body">
+                        <div class="form-group">
+                            <label for="pulls-channelId" data-locale-key="settings_channel">Channel</label>
+                            <select id="pulls-channelId"></select>
+                        </div>
+                        <div class="form-group-inline">
+                            <input type="checkbox" id="pulls-ignore-drafts" checked>
+                            <label for="pulls-ignore-drafts" data-locale-key="settings_github_ignore_drafts">Ignore Drafts</label>
+                        </div>
                         <fieldset>
                             <legend data-locale-key="settings_github_pr_events">Events to Notify</legend>
-                            <label><input type="checkbox" value="opened"> <span data-locale-key="settings_github_pr_opened">Opened</span></label>
-                            <label><input type="checkbox" value="closed"> <span data-locale-key="settings_github_pr_closed">Closed</span></label>
-                            <label><input type="checkbox" value="merged"> <span data-locale-key="settings_github_pr_merged">Merged</span></label>
+                            <div class="checkbox-group">
+                                <div class="checkbox-item"><input type="checkbox" value="opened" id="pr-opened"><label for="pr-opened" data-locale-key="settings_github_pr_opened">Opened</label></div>
+                                <div class="checkbox-item"><input type="checkbox" value="closed" id="pr-closed"><label for="pr-closed" data-locale-key="settings_github_pr_closed">Closed</label></div>
+                                <div class="checkbox-item"><input type="checkbox" value="merged" id="pr-merged"><label for="pr-merged" data-locale-key="settings_github_pr_merged">Merged</label></div>
+                            </div>
                         </fieldset>
-                     </div>
+                    </div>
                 </div>
 
-                 <!-- Issues Notifications -->
-                <div class="form-group collapsible">
-                     <button type="button" class="collapsible-btn" data-locale-key="settings_github_issues">Issues</button>
-                     <div class="collapsible-content">
-                        <label><input type="checkbox" id="issues-enabled"> <span data-locale-key="settings_enable_notifications">Enable Notifications</span></label>
-                        <label data-locale-key="settings_channel">Channel: <select id="issues-channelId"></select></label>
-                         <fieldset>
+                <!-- Issues -->
+                <div class="notification-card">
+                    <div class="notification-header">
+                        <i class="material-icons">bug_report</i>
+                        <h4 data-locale-key="settings_github_issues">Issues</h4>
+                        <label class="switch">
+                            <input type="checkbox" id="issues-enabled">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="notification-body">
+                        <div class="form-group">
+                            <label for="issues-channelId" data-locale-key="settings_channel">Channel</label>
+                            <select id="issues-channelId"></select>
+                        </div>
+                        <fieldset>
                             <legend data-locale-key="settings_github_issue_events">Events to Notify</legend>
-                            <label><input type="checkbox" value="opened"> <span data-locale-key="settings_github_issue_opened">Opened</span></label>
-                            <label><input type="checkbox" value="closed"> <span data-locale-key="settings_github_issue_closed">Closed</span></label>
+                            <div class="checkbox-group">
+                                <div class="checkbox-item"><input type="checkbox" value="opened" id="issue-opened"><label for="issue-opened" data-locale-key="settings_github_issue_opened">Opened</label></div>
+                                <div class="checkbox-item"><input type="checkbox" value="closed" id="issue-closed"><label for="issue-closed" data-locale-key="settings_github_issue_closed">Closed</label></div>
+                            </div>
                         </fieldset>
-                     </div>
+                    </div>
                 </div>
 
-                <!-- Release Notifications -->
-                <div class="form-group collapsible">
-                     <button type="button" class="collapsible-btn" data-locale-key="settings_github_releases">Releases</button>
-                     <div class="collapsible-content">
-                        <label><input type="checkbox" id="releases-enabled"> <span data-locale-key="settings_enable_notifications">Enable Notifications</span></label>
-                        <label data-locale-key="settings_channel">Channel: <select id="releases-channelId"></select></label>
-                         <fieldset>
+                <!-- Releases -->
+                <div class="notification-card">
+                    <div class="notification-header">
+                        <i class="material-icons">rocket_launch</i>
+                        <h4 data-locale-key="settings_github_releases">Releases</h4>
+                        <label class="switch">
+                            <input type="checkbox" id="releases-enabled">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="notification-body">
+                        <div class="form-group">
+                            <label for="releases-channelId" data-locale-key="settings_channel">Channel</label>
+                            <select id="releases-channelId"></select>
+                        </div>
+                        <fieldset>
                             <legend data-locale-key="settings_github_release_events">Events to Notify</legend>
-                            <label><input type="checkbox" value="published"> <span data-locale-key="settings_github_release_published">Published</span></label>
-                            <label><input type="checkbox" value="prerelease"> <span data-locale-key="settings_github_release_prereleased">Pre-released</span></label>
+                            <div class="checkbox-group">
+                                <div class="checkbox-item"><input type="checkbox" value="published" id="release-published"><label for="release-published" data-locale-key="settings_github_release_published">Published</label></div>
+                                <div class="checkbox-item"><input type="checkbox" value="prerelease" id="release-prereleased"><label for="release-prereleased" data-locale-key="settings_github_release_prereleased">Pre-released</label></div>
+                            </div>
                         </fieldset>
-                     </div>
+                    </div>
                 </div>
+            </div>
 
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary" data-locale-key="settings_github_modal_save">Save Repository</button>
-                    <button type="button" id="delete-repo-btn" class="btn btn-danger" style="display: none;" data-locale-key="settings_github_modal_delete">Delete Repository</button>
-                </div>
-            </form>
-        </div>
+            <div class="modal-footer">
+                <button type="button" id="delete-repo-btn" class="btn btn-danger" style="display: none;" data-locale-key="settings_github_modal_delete">Delete Repository</button>
+                <button type="submit" class="btn btn-primary" data-locale-key="settings_github_modal_save">Save Repository</button>
+            </div>
+        </form>
     </div>
+</div>
 
   <script src="auth.js"></script>
   <script src="translator.js"></script>
