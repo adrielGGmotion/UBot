@@ -106,5 +106,26 @@
   "settings_github_release_published": "Published",
   "settings_github_release_prereleased": "Pre-released",
   "settings_github_modal_save": "Save Repository",
-  "settings_github_modal_delete": "Delete Repository"
+  "settings_github_modal_delete": "Delete Repository",
+
+  "save_settings": "Save Settings",
+  "ai_general_settings": "General Settings",
+  "ai_enable_chatbot": "Enable Chatbot",
+  "ai_channel_restrictions": "Channel Restrictions",
+  "ai_allowed_channels": "Allowed Channels",
+  "ai_allowed_channels_desc": "The bot will speak freely in these channels without being mentioned. Leave empty to allow all channels.",
+  "ai_restricted_channels": "Restricted Channels",
+  "ai_restricted_channels_desc": "The bot will never speak in these channels, even if mentioned.",
+  "ai_personality_setup": "Personality & Instructions",
+  "ai_personality": "Personality",
+  "ai_personality_desc": "Define the chatbot's personality. Provide one trait or instruction per line.",
+  "ai_extra_instructions": "Extra Instructions",
+  "ai_extra_instructions_desc": "Provide specific, hard-coded instructions for the bot to follow at all times.",
+  "ai_knowledge_base": "Knowledge Base",
+  "ai_add_knowledge": "Add Knowledge",
+  "ai_faq": "FAQ",
+  "ai_add_faq": "Add FAQ",
+  "ai_live_test": "Live Test",
+  "ai_live_test_desc": "Test your settings here before saving. Changes are reflected live. Note: Tool usage is disabled in this test environment.",
+  "ai_enable_faq_tool": "Enable FAQ Tool"
 }

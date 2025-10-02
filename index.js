@@ -402,6 +402,71 @@ async function startDashboard() {
     res.status(200).json({ success: client.getLocale('settings_updated') });
   });
 
+  // --- AI FEATURES ENDPOINTS ---
+
+  app.get('/api/guilds/:guildId/ai-settings', authMiddleware, async (req, res) => {
+    if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
+    const { guildId } = req.params;
+    try {
+        const settingsCollection = client.db.collection('server-settings');
+        let settings = await settingsCollection.findOne({ guildId });
+
+        const defaultAiSettings = {
+            enabled: false,
+            allowedChannels: [],
+            restrictedChannels: [],
+            personality: '',
+            extraInstructions: '',
+            knowledge: [],
+            faq: [],
+        };
+
+        const aiSettings = settings?.aiConfig ? { ...defaultAiSettings, ...settings.aiConfig } : defaultAiSettings;
+
+        res.json(aiSettings);
+    } catch (error) {
+        console.error(`Failed to fetch AI settings for guild ${guildId}:`, error);
+        res.status(500).json({ error: 'Failed to fetch AI settings.' });
+    }
+  });
+
+  app.post('/api/guilds/:guildId/ai-settings', authMiddleware, async (req, res) => {
+      if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
+      const { guildId } = req.params;
+      const aiConfig = req.body;
+
+      try {
+          const settingsCollection = client.db.collection('server-settings');
+          await settingsCollection.updateOne(
+              { guildId },
+              { $set: { aiConfig: aiConfig } },
+              { upsert: true }
+          );
+          res.status(200).json({ success: 'AI settings updated successfully.' });
+      } catch (error) {
+          console.error(`Failed to save AI settings for guild ${guildId}:`, error);
+          res.status(500).json({ error: 'Failed to save AI settings.' });
+      }
+  });
+
+  app.post('/api/guilds/:guildId/ai-test', authMiddleware, async (req, res) => {
+      const { history, aiConfig } = req.body;
+      const { generateStandaloneResponse } = client.features.get('aiHandler');
+
+      if (!history || !aiConfig || !generateStandaloneResponse) {
+          return res.status(400).json({ error: 'Invalid payload: missing history, config, or AI handler.' });
+      }
+
+      try {
+          const response = await generateStandaloneResponse(history, aiConfig);
+          res.status(200).json({ reply: response });
+      } catch (error) {
+          console.error('Error during AI test response generation:', error);
+          res.status(500).json({ error: 'Failed to generate AI response.' });
+      }
+  });
+
+
   app.get('/api/guilds/:guildId/stats', authMiddleware, async (req, res) => {
     if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
     const { guildId } = req.params;
