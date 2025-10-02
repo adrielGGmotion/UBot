@@ -4,7 +4,6 @@ const { ChannelType } = require('discord.js');
 
 const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
 });
 
 /**
@@ -117,9 +116,10 @@ function constructSystemPrompt(aiConfig, guildName, botName, channel, userLocale
  * Main function to generate the AI response.
  */
 async function generateResponse(client, message) {
+  console.log(`[LOG] [aiHandler] [generateResponse] Starting for message ${message.id}`);
   try {
     if (!process.env.OPENROUTER_API_KEY) {
-        console.error('OpenRouter API Key not found.');
+        console.error('[LOG] [aiHandler] [generateResponse] Aborting: OPENROUTER_API_KEY not found.');
         return client.getLocale('err_ai_response');
     }
 
@@ -132,12 +132,17 @@ async function generateResponse(client, message) {
     const aiConfig = serverSettings.aiConfig || {};
     const contextLimit = aiConfig.contextLimit || 15;
     const model = aiConfig.model || 'x-ai/grok-4-fast:free';
+    console.log(`[LOG] [aiHandler] [generateResponse] Using model: ${model}, context limit: ${contextLimit}`);
 
     const conversation = await fetchConversationHistory(message, client, contextLimit);
+    console.log(`[LOG] [aiHandler] [generateResponse] Fetched conversation history:`, JSON.stringify(conversation, null, 2));
+    
     const userLocale = client.config.language || 'en';
     const systemPromptContent = constructSystemPrompt(aiConfig, message.guild.name, client.user.username, message.channel, userLocale);
+    console.log(`[LOG] [aiHandler] [generateResponse] Constructed system prompt.`); // Don't log the full prompt, it's huge
 
     const messagesForAPI = [{ role: 'system', content: systemPromptContent }, ...conversation];
+    console.log(`[LOG] [aiHandler] [generateResponse] Sending initial payload to OpenAI API.`);
 
     // Filter tools based on whether FAQ is enabled
     let availableTools = [...tools];
@@ -151,10 +156,12 @@ async function generateResponse(client, message) {
       tools: availableTools.length > 0 ? availableTools : undefined,
       tool_choice: availableTools.length > 0 ? "auto" : "none",
     });
+    console.log('[LOG] [aiHandler] [generateResponse] Received response from OpenAI API:', JSON.stringify(completion, null, 2));
 
     const responseMessage = completion.choices[0].message;
 
     if (responseMessage.tool_calls) {
+        console.log(`[LOG] [aiHandler] [generateResponse] Detected ${responseMessage.tool_calls.length} tool call(s).`);
         const availableFunctions = getToolFunctions(client);
         messagesForAPI.push(responseMessage);
 
@@ -162,40 +169,41 @@ async function generateResponse(client, message) {
             const functionName = toolCall.function.name;
             const functionToCall = availableFunctions[functionName];
             const functionArgs = JSON.parse(toolCall.function.arguments);
+            console.log(`[LOG] [aiHandler] [generateResponse] Executing tool: ${functionName} with args:`, JSON.stringify(functionArgs, null, 2));
 
             const functionResponse = await functionToCall(functionArgs, message);
+            console.log(`[LOG] [aiHandler] [generateResponse] Tool ${functionName} responded:`, JSON.stringify(functionResponse, null, 2));
 
-            // Even if a tool fails, we must report the result back to the model.
-            // The model can then decide how to respond to the user (e.g., "I tried to search, but it failed.")
             if (functionResponse.success === false) {
-                console.error(`[aiHandler] Tool call failed for '${functionName}'. Reason: ${functionResponse.content}`);
+                console.error(`[LOG] [aiHandler] [generateResponse] Tool call failed for '${functionName}'. Reason: ${functionResponse.content}`);
+                // Don't return here, let the model know it failed.
             }
 
             messagesForAPI.push({
                 tool_call_id: toolCall.id,
                 role: 'tool',
                 name: functionName,
-                // We stringify the *entire* object, including the success status,
-                // so the model knows if the tool succeeded or failed.
                 content: JSON.stringify(functionResponse),
             });
         }
 
+        console.log(`[LOG] [aiHandler] [generateResponse] Sending second payload to OpenAI API with tool responses.`);
         const secondCompletion = await openai.chat.completions.create({
             model: model,
             messages: messagesForAPI,
         });
+        console.log('[LOG] [aiHandler] [generateResponse] Received second response from OpenAI API:', JSON.stringify(secondCompletion, null, 2));
 
-        return secondCompletion.choices[0].message.content;
+        const finalContent = secondCompletion.choices[0].message.content;
+        console.log(`[LOG] [aiHandler] [generateResponse] Final content: "${finalContent}"`);
+        return finalContent;
     }
 
-    return responseMessage.content;
+    const finalContent = responseMessage.content;
+    console.log(`[LOG] [aiHandler] [generateResponse] No tool calls. Final content: "${finalContent}"`);
+    return finalContent;
   } catch (error) {
-    console.error(`[aiHandler] Failed to generate AI response for guild ${message.guild.id}. Error: ${error.message}`);
-    if (error.response) { // log more detailed API error if available
-        console.error(`[aiHandler] API Error Status: ${error.response.status}`);
-        console.error(`[aiHandler] API Error Data:`, error.response.data);
-    }
+    console.error('[LOG] [aiHandler] [generateResponse] CRITICAL ERROR:', error);
     return client.getLocale('err_ai_response');
   }
 }
@@ -205,20 +213,27 @@ async function generateResponse(client, message) {
  */
 async function processMessage(client, message) {
   if (message.author.id === client.user.id || !message.guild) return;
+  console.log(`[LOG] [aiHandler] Processing message ${message.id} in guild ${message.guild.id}`);
 
   const settingsCollection = client.getDbCollection('server-settings');
-  if (!settingsCollection) return;
+  if (!settingsCollection) {
+    console.log(`[LOG] [aiHandler] Aborting: Could not get server-settings collection.`);
+    return;
+  }
 
   const serverSettings = await settingsCollection.findOne({ guildId: message.guild.id }) || {};
   const aiConfig = serverSettings.aiConfig || {};
+  console.log(`[LOG] [aiHandler] Fetched AI Config for guild ${message.guild.id}: ${JSON.stringify(aiConfig, null, 2)}`);
 
   // 1. Check if the AI is enabled at all for this server.
   if (!aiConfig.enabled) {
+    console.log(`[LOG] [aiHandler] Aborting: AI is disabled for this server.`);
     return;
   }
 
   // 2. Check if the channel is explicitly restricted.
   if (aiConfig.restrictedChannels && aiConfig.restrictedChannels.includes(message.channel.id)) {
+    console.log(`[LOG] [aiHandler] Aborting: Channel ${message.channel.id} is restricted.`);
     return;
   }
 
@@ -232,15 +247,23 @@ async function processMessage(client, message) {
       isReplyingToBot = true;
     }
   }
+  
+  console.log(`[LOG] [aiHandler] Response conditions: isMentioned=${isMentioned}, isReplyingToBot=${isReplyingToBot}, isAllowedChannel=${isAllowedChannel}`);
 
   // Determine if the bot should respond:
   // - If it's mentioned or replied to.
   // - Or if it's in a designated "speak freely" channel.
   if (isMentioned || isReplyingToBot || isAllowedChannel) {
+    console.log(`[LOG] [aiHandler] Conditions met. Calling generateResponse.`);
     const response = await generateResponse(client, message);
     if (response) {
+      console.log(`[LOG] [aiHandler] Received response from generateResponse. Sending reply.`);
       await message.reply({ content: response, allowedMentions: { repliedUser: false } });
+    } else {
+      console.log(`[LOG] [aiHandler] generateResponse returned a falsy value. No reply will be sent.`);
     }
+  } else {
+      console.log(`[LOG] [aiHandler] Conditions not met. Ignoring message.`);
   }
 }
 
