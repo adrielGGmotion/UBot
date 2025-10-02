@@ -24,7 +24,26 @@
     <main class="dashboard-grid">
       <div class="widget large-widget">
         <h2><i class="material-icons">music_note</i> <span data-locale-key="nav_music_system">Music System</span></h2>
-        <p>This page is under construction. Music system controls and settings will be available here.</p>
+        <form id="settings-form" class="settings-form">
+            <div class="form-section">
+                <h3 data-locale-key="settings_section_music">Music</h3>
+                <div class="form-group">
+                    <label for="dj-role" data-locale-key="settings_music_djrole">DJ Role</label>
+                    <input type="text" id="dj-role" name="musicConfig.djRole">
+                </div>
+                <div class="form-group">
+                    <label for="music-autoplay" data-locale-key="settings_music_autoplay">Autoplay</label>
+                    <input type="checkbox" id="music-autoplay" name="musicConfig.autoplay">
+                </div>
+                 <div class="form-group">
+                    <label for="music-embed-color" data-locale-key="settings_music_embedcolor">Use Accent Color in Embeds</label>
+                    <input type="checkbox" id="music-embed-color" name="musicConfig.embedColor">
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" data-locale-key="settings_save_changes">Save Changes</button>
+            </div>
+        </form>
       </div>
     </main>
   </div>
@@ -32,6 +51,6 @@
   <script src="auth.js"></script>
   <script src="translator.js"></script>
   <script src="sidebar.js"></script>
-  <script src="script.js"></script>
+  <script src="settings.js"></script>
 </body>
 </html>

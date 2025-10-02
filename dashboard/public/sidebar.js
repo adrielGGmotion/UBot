@@ -51,6 +51,15 @@ function initializeSidebar() {
             serverSettingsLink.style.display = 'flex';
             serverSettingsLink.href = `settings.html?id=${guildId}`;
         }
+
+            // Also update other server-specific links
+            const serverSpecificHrefs = ['github.html', 'music_system.html', 'server_stats.html'];
+            serverSpecificHrefs.forEach(href => {
+                const link = document.querySelector(`a[href="${href}"]`);
+                if (link) {
+                    link.href = `${href}?id=${guildId}`;
+                }
+            });
     }
 
     // --- Active Page Highlighting ---
