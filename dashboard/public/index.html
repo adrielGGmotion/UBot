@@ -16,12 +16,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <div class="main-container">
-    <aside class="sidebar">
-        <!-- Sidebar will be dynamically loaded by sidebar.js -->
-    </aside>
-
-    <main class="dashboard-grid">
+  <div class="main-container" style="display: block;"> <!-- Overriding flex display for this page -->
+    <main class="dashboard-grid" style="width: 100%; max-width: 1600px; margin: auto;">
       <div class="widget stat-card">
         <h2><i class="material-icons">dns</i> <span data-locale-key="dashboard_servers_title">Servidores</span></h2>
         <p id="guild-count">-</p>
@@ -59,7 +55,6 @@
 
   <script src="auth.js"></script>
   <script src="translator.js"></script>
-  <script src="sidebar.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
