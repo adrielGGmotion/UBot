@@ -46,27 +46,32 @@ async function sendMessage(client, channelId, embed) {
  */
 function handlePushEvent(client, config, payload) {
     const { commits: commitConfig } = config;
-    if (!commitConfig.enabled || !payload.commits || payload.commits.length === 0) {
+    if (!commitConfig || !commitConfig.enabled || !payload.commits || payload.commits.length === 0) {
         return;
     }
 
     const branch = payload.ref.split('/').pop();
-    const branchInList = commitConfig.branchFilter.list.map(b => b.toLowerCase()).includes(branch.toLowerCase());
 
-    if (commitConfig.branchFilter.mode === 'whitelist' && !branchInList) return;
-    if (commitConfig.branchFilter.mode === 'blacklist' && branchInList) return;
+    // 1. Branch Filter
+    const branchFilter = commitConfig.branchFilter || { mode: 'whitelist', list: [] };
+    if (branchFilter.list && branchFilter.list.length > 0) {
+        const isMatch = branchMatches(branch, branchFilter.list);
+
+        if (branchFilter.mode === 'whitelist' && !isMatch) return;
+        if (branchFilter.mode === 'blacklist' && isMatch) return;
+    }
 
     const filteredCommits = payload.commits.filter(commit => {
         // Ignorar commits que são resultado de um merge de PR, pois eles geralmente têm seu próprio evento.
         if (commit.message.startsWith('Merge pull request')) return false;
 
         const authorName = commit.author.name;
-        const authorInList = commitConfig.authorFilter.list.map(a => a.toLowerCase()).includes(authorName.toLowerCase());
+        const authorInList = (commitConfig.authorFilter.list || []).map(a => a.toLowerCase()).includes(authorName.toLowerCase());
         if (commitConfig.authorFilter.mode === 'whitelist' && !authorInList) return false;
         if (commitConfig.authorFilter.mode === 'blacklist' && authorInList) return false;
 
         const commitMessage = commit.message;
-        const messageMatches = commitConfig.messageFilter.list.some(filter => commitMessage.toLowerCase().includes(filter.toLowerCase()));
+        const messageMatches = (commitConfig.messageFilter.list || []).some(filter => commitMessage.toLowerCase().includes(filter.toLowerCase()));
         if (commitConfig.messageFilter.mode === 'whitelist' && !messageMatches) return false;
         if (commitConfig.messageFilter.mode === 'blacklist' && messageMatches) return false;
 

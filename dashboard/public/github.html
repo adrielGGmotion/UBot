@@ -77,6 +77,20 @@
                             <label for="commits-channelId" data-locale-key="settings_channel">Channel</label>
                             <select id="commits-channelId"></select>
                         </div>
+                        <fieldset class="branch-filter-fieldset">
+                            <legend data-locale-key="settings_github_branch_filter">Branch Filter</legend>
+                            <div class="form-group">
+                                <label for="commits-branch-mode" data-locale-key="settings_github_branch_filter_mode">Mode</label>
+                                <select id="commits-branch-mode" class="form-input">
+                                    <option value="whitelist" data-locale-key="settings_github_branch_filter_whitelist">Whitelist</option>
+                                    <option value="blacklist" data-locale-key="settings_github_branch_filter_blacklist">Blacklist</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="commits-branch-list" data-locale-key="settings_github_branch_filter_list">Branches (comma-separated, supports *)</label>
+                                <textarea id="commits-branch-list" class="form-input" rows="2"></textarea>
+                            </div>
+                        </fieldset>
                     </div>
                 </div>
 
