@@ -46,7 +46,8 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildVoiceStates
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildPresences
   ],
   partials: [Partials.Channel, Partials.Message, Partials.GuildMember]
 });
@@ -389,6 +390,43 @@ async function startDashboard() {
       { upsert: true }
     );
     res.status(200).json({ success: client.getLocale('settings_updated') });
+  });
+
+  app.get('/api/guilds/:guildId/stats', authMiddleware, async (req, res) => {
+    if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
+    const { guildId } = req.params;
+
+    try {
+        const guild = await client.guilds.fetch(guildId);
+        if (!guild) {
+            return res.status(404).json({ error: client.getLocale('err_guild_not_found') });
+        }
+
+        // Fetch members to attempt to get presence data. This is dependent on the GUILD_PRESENCES intent.
+        const members = await guild.members.fetch();
+        const onlineMembers = members.filter(m => m.presence && m.presence.status !== 'offline').size;
+
+        const commandLogs = client.db.collection('command-logs');
+        const commandUsageData = await commandLogs.aggregate([
+            { $match: { guildId: guildId } },
+            { $group: { _id: '$commandName', count: { $sum: 1 } } },
+            { $sort: { count: -1 } }
+        ]).toArray();
+
+        const commandUsage = commandUsageData.reduce((acc, item) => {
+            acc[item._id] = item.count;
+            return acc;
+        }, {});
+
+        res.json({ onlineMembers, commandUsage });
+
+    } catch (error) {
+        console.error(`Failed to fetch stats for guild ${guildId}:`, error);
+        if (error.code === 10007) { // Unknown Member, implies bot is not in guild
+             return res.status(404).json({ error: client.getLocale('err_guild_not_found') });
+        }
+        res.status(500).json({ error: client.getLocale('err_fetch_stats') });
+    }
   });
 
   // --- NOVOS ENDPOINTS DE MÚSICA ---
