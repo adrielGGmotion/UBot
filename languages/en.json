@@ -83,6 +83,7 @@
   "err_config_read": "Failed to read config.json, using defaults.",
   "err_db_not_connected": "Database not connected.",
   "err_event_load": "Failed to require event file {path}: {message}",
+  "err_ai_response": "I'm sorry, but I encountered an error while trying to generate a response. The issue has been logged for my developer to review.",
   "err_fatal_init": "Fatal error during initialization: {error}",
   "err_feature_load": "Failed to load feature from {file}: {message}",
   "err_function_load": "Failed to require function file {path}: {message}",
