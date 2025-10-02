@@ -165,15 +165,18 @@ async function generateResponse(client, message) {
 
             const functionResponse = await functionToCall(functionArgs, message);
 
+            // Even if a tool fails, we must report the result back to the model.
+            // The model can then decide how to respond to the user (e.g., "I tried to search, but it failed.")
             if (functionResponse.success === false) {
-                console.error(`Tool call failed for '${functionName}'. Reason: ${functionResponse.content}`);
-                return functionResponse.content; // Return error message directly
+                console.error(`[aiHandler] Tool call failed for '${functionName}'. Reason: ${functionResponse.content}`);
             }
 
             messagesForAPI.push({
                 tool_call_id: toolCall.id,
                 role: 'tool',
                 name: functionName,
+                // We stringify the *entire* object, including the success status,
+                // so the model knows if the tool succeeded or failed.
                 content: JSON.stringify(functionResponse),
             });
         }
@@ -188,9 +191,10 @@ async function generateResponse(client, message) {
 
     return responseMessage.content;
   } catch (error) {
-    console.error(`Error generating AI response for guild ${message.guild.id} in channel ${message.channel.id}:`, error);
-    if (error.response) {
-        console.error('API Response Error:', error.response.status, error.response.data);
+    console.error(`[aiHandler] Failed to generate AI response for guild ${message.guild.id}. Error: ${error.message}`);
+    if (error.response) { // log more detailed API error if available
+        console.error(`[aiHandler] API Error Status: ${error.response.status}`);
+        console.error(`[aiHandler] API Error Data:`, error.response.data);
     }
     return client.getLocale('err_ai_response');
   }

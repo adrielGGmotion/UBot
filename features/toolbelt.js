@@ -182,7 +182,7 @@ const getToolFunctions = (client) => ({
         return { success: true, content: `Found a relevant entry in the FAQ:\nQ: ${foundEntry.question}\nA: ${foundEntry.answer}` };
       }
 
-      return { success: false, content: `I searched the FAQ but couldn't find an answer for "${query}".` };
+      return { success: true, content: `I searched the FAQ for "${query}" but found no matching entries.` };
     } catch (error) {
       console.error('Error reading FAQ from DB:', error);
       return { success: false, content: 'An error occurred while accessing the FAQ.' };
@@ -210,7 +210,7 @@ const getToolFunctions = (client) => ({
             return { success: true, content: `Found relevant information in the knowledge base:\n${results}` };
         }
 
-        return { success: false, content: `I searched the knowledge base but couldn't find anything for "${query}".` };
+        return { success: true, content: `I searched the knowledge base for "${query}" but couldn't find anything.` };
     } catch (error) {
         console.error('Error reading knowledge base from DB:', error);
         return { success: false, content: 'An error occurred while accessing the knowledge base.' };
