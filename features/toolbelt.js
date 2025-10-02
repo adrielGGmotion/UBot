@@ -1,95 +1,12 @@
-/**
- * @file This file centralizes the definition and implementation of the tools
- * that the AI can use to interact with Discord.
- */
-
-const fetch = require('node-fetch');
 const https = require('https');
-const OpenAI = require('openai');
-const { ChannelType } = require('discord.js');
-const fs = require('fs').promises;
-const path = require('path');
-
-const openai = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-});
-
-/**
- * Returns the appropriate AI model based on the server configuration,
- * prioritizing a vision-capable model if necessary.
- * @param {object} aiConfig - The server's AI configuration.
- * @param {boolean} vision - Whether a vision model is required.
- * @returns {string} - The name of the model to use.
- */
-function getModel(aiConfig, vision = false) {
-  if (vision) {
-    // Prioritize a vision model if the config specifies one, otherwise use a default.
-    return aiConfig.visionModel || 'google/gemini-pro-vision';
-  }
-  return aiConfig.model || 'x-ai/grok-4-fast:free';
-}
+const { Riffy } = require("riffy");
 
 const tools = [
   {
     type: 'function',
     function: {
-      name: 'read_knowledge_base',
-      description: 'Searches the server\'s knowledge base for an answer to a user\'s query. Use this if a question seems like a FAQ or requires specific, pre-defined information.',
-      parameters: {
-        type: 'object',
-        properties: {
-          query: {
-            type: 'string',
-            description: 'The user\'s question or keywords to search for in the knowledge base.'
-          }
-        },
-        required: ['query']
-      }
-    }
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'analyze_image_from_url',
-      description: 'Analyzes an image from a given URL and describes its content. Use this tool when a user provides an image link and asks what it is, or when an image is relevant to the conversation.',
-      parameters: {
-        type: 'object',
-        properties: {
-          url: {
-            type: 'string',
-            description: 'The direct URL of the image to be analyzed.'
-          }
-        },
-        required: ['url']
-      }
-    }
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'search_github_issues',
-      description: 'Searches for issues in a specific GitHub repository. Use this to find bug reports, feature requests, or other issues.',
-      parameters: {
-        type: 'object',
-        properties: {
-          repository: {
-            type: 'string',
-            description: 'The full name of the repository (e.g., "owner/repo-name").'
-          },
-          query: {
-            type: 'string',
-            description: 'The search query for the issues (e.g., "login bug", "add new theme").'
-          }
-        },
-        required: ['repository', 'query']
-      }
-    }
-  },
-  {
-    type: 'function',
-    function: {
       name: 'google_search',
-      description: 'Searches the web using Google for up-to-date information, news, or specific topics. Use this when the user asks a question that requires current knowledge or information not available in the conversation history.',
+      description: 'Searches the web using Google for up-to-date information, news, or specific topics.',
       parameters: {
         type: 'object',
         properties: {
@@ -105,195 +22,36 @@ const tools = [
   {
     type: 'function',
     function: {
-      name: 'read_channel_messages',
-      description: 'Reads the latest messages from a specific text channel. If you only have the channel name, use the `get_id` tool first to find its ID.',
+      name: 'read_faq',
+      description: "Searches the server's frequently asked questions (FAQ) for an answer. Use this if a user's question might be in the FAQ.",
       parameters: {
         type: 'object',
         properties: {
-          channel_id: {
+          query: {
             type: 'string',
-            description: 'The ID of the text channel you want to read.',
-          },
-          limit: {
-            type: 'number',
-            description: 'The number of messages to read (default: 10, max: 50).',
+            description: 'The user\'s question or keywords to search for.'
           }
         },
-        required: ['channel_id'],
-      },
-    },
+        required: ['query']
+      }
+    }
   },
   {
-    type: 'function',
-    function: {
-      name: 'find_user_voice_channel',
-      description: 'Finds the voice channel a specific user is currently connected to. If you only have the username, use the `get_id` tool first to find their ID.',
-      parameters: {
-        type: 'object',
-        properties: {
-          user_id: {
-            type: 'string',
-            description: 'The ID of the user to locate on the server.',
-          },
-        },
-        required: ['user_id'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'get_user_avatar',
-      description: 'Gets the profile picture (avatar) URL of a specific user. If you only have the username, use the `get_id` tool first to find their ID.',
-      parameters: {
-        type: 'object',
-        properties: {
-          user_id: {
-            type: 'string',
-            description: 'The ID of the user to get the profile picture from.',
-          },
-        },
-        required: ['user_id'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'delete_message',
-      description: 'Deletes a specific message in a channel. Requires the message ID. If you only have the message content, use the `get_id` tool to find its ID.',
-      parameters: {
-        type: 'object',
-        properties: {
-          message_id: {
-            type: 'string',
-            description: 'The ID of the message to be deleted.',
-          },
-          reason: {
-            type: 'string',
-            description: 'The reason why the message is being deleted (optional).',
+      type: 'function',
+      function: {
+          name: 'search_knowledge_base',
+          description: "Searches the server's knowledge base for specific information provided by the admins.",
+          parameters: {
+              type: 'object',
+              properties: {
+                  query: {
+                      type: 'string',
+                      description: 'Keywords or topics to search for in the knowledge base.'
+                  }
+              },
+              required: ['query']
           }
-        },
-        required: ['message_id'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-        name: 'send_message_to_channel',
-        description: 'Sends a message to a specific text channel on the server. If you only have the channel name, use the `get_id` tool first to find its ID.',
-        parameters: {
-            type: 'object',
-            properties: {
-                channel_id: {
-                    type: 'string',
-                    description: 'The ID of the channel where the message will be sent.'
-                },
-                message_content: {
-                    type: 'string',
-                    description: 'The content of the message to be sent.'
-                },
-            },
-            required: ['channel_id', 'message_content'],
-        },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-        name: 'save_user_memory',
-        description: 'Saves a piece of information about the interacting user. Use this to remember preferences, personal details, or anything the user asks you to remember about them.',
-        parameters: {
-            type: 'object',
-            properties: {
-                key: {
-                    type: 'string',
-                    description: 'The key or name of the information to be remembered (e.g., "favorite color", "dog\'s name").'
-                },
-                value: {
-                    type: 'string',
-                    description: 'The value of the information to be saved (e.g., "blue", "Rex").'
-                },
-            },
-            required: ['key', 'value'],
-        },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-        name: 'get_user_memory',
-        description: 'Retrieves a previously saved piece of information about the interacting user. Use this to fetch data and personalize your responses.',
-        parameters: {
-            type: 'object',
-            properties: {
-                key: {
-                    type: 'string',
-                    description: 'The key or name of the information you want to retrieve (e.g., "favorite color").'
-                },
-            },
-            required: ['key'],
-        },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'join_voice_channel',
-      description: 'Connects the bot to a specific voice channel.',
-      parameters: {
-        type: 'object',
-        properties: {
-          channel_id: {
-            type: 'string',
-            description: 'The ID of the voice channel to connect to.',
-          },
-        },
-        required: ['channel_id'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'list_voice_channel_members',
-      description: 'Lists the members in a specific voice channel.',
-      parameters: {
-        type: 'object',
-        properties: {
-          channel_id: {
-            type: 'string',
-            description: 'The ID of the voice channel to check members in.',
-          },
-        },
-        required: ['channel_id'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'list_text_channels',
-      description: 'Lists all visible text channels on the server, along with their IDs and topics.',
-      parameters: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'list_channels',
-      description: 'Lists all visible channels in the server, including their ID, name, and type (text, voice, category, etc.). This is crucial for understanding the server layout and finding the right channel for an action.',
-      parameters: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
+      }
   },
   {
     type: 'function',
@@ -352,7 +110,7 @@ const tools = [
     type: 'function',
     function: {
         name: 'stop_music',
-        description: 'Stops the music completely, clears the queue, and disconnects the bot from the voice channel.',
+        description: 'Stops the music completely and clears the queue.',
         parameters: {
             type: 'object',
             properties: {},
@@ -360,125 +118,9 @@ const tools = [
         },
     },
   },
-  {
-    type: 'function',
-    function: {
-        name: 'get_id',
-        description: 'Gets the ID of a user, channel, role, or message based on its name or content.',
-        parameters: {
-            type: 'object',
-            properties: {
-                type: {
-                    type: 'string',
-                    description: 'The type of item to get the ID for (user, channel, role, message).',
-                    enum: ['user', 'channel', 'role', 'message']
-                },
-                query: {
-                    type: 'string',
-                    description: 'The name (for user, channel, role) or content (for message) to search for.'
-                },
-            },
-            required: ['type', 'query'],
-        },
-    },
-  },
 ];
 
-/**
- * Maps tool names to their execution functions.
- * @param {import('discord.js').Client} client - The Discord client.
- */
 const getToolFunctions = (client) => ({
-  read_knowledge_base: async ({ query }, originalMessage) => {
-    if (!client.db) {
-      return { success: false, content: "The database is not connected. This feature is unavailable." };
-    }
-    const settingsCollection = client.db.collection('server-settings');
-    try {
-      const settings = await settingsCollection.findOne({ guildId: originalMessage.guild.id });
-      const knowledgeBase = settings?.knowledge;
-
-      if (!Array.isArray(knowledgeBase) || knowledgeBase.length === 0) {
-        return { success: false, content: "The knowledge base for this server is empty." };
-      }
-
-      const lowerQuery = query.toLowerCase();
-      const foundEntry = knowledgeBase.find(entry =>
-        entry.question.toLowerCase().includes(lowerQuery) ||
-        entry.answer.toLowerCase().includes(lowerQuery)
-      );
-
-      if (foundEntry) {
-        return { success: true, content: `Found a relevant entry in the knowledge base:\nQ: ${foundEntry.question}\nA: ${foundEntry.answer}` };
-      }
-
-      return { success: false, content: `I searched the knowledge base but couldn't find an answer for "${query}".` };
-    } catch (error) {
-      console.error('Error reading knowledge base from DB:', error);
-      return { success: false, content: 'An error occurred while trying to access the knowledge base.' };
-    }
-  },
-
-  analyze_image_from_url: async ({ url }, originalMessage) => {
-    try {
-      const settingsCollection = client.getDbCollection('server-settings');
-      const serverSettings = await settingsCollection.findOne({ guildId: originalMessage.guild.id }) || {};
-      const aiConfig = serverSettings.aiConfig || {};
-      const visionModel = getModel(aiConfig, true);
-
-      const response = await openai.chat.completions.create({
-        model: visionModel,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: 'Describe this image in detail.' },
-              { type: 'image_url', image_url: { url } },
-            ],
-          },
-        ],
-        max_tokens: 300,
-      });
-
-      const description = response.choices[0].message.content;
-      return { success: true, content: `Image Analysis: ${description}` };
-    } catch (error) {
-      console.error('Error analyzing image:', error);
-      return { success: false, content: 'An error occurred while trying to analyze the image. The URL might be invalid or the vision model may be unavailable.' };
-    }
-  },
-
-  search_github_issues: async ({ repository, query }) => {
-    try {
-        const url = `https://api.github.com/search/issues?q=${encodeURIComponent(query)}+repo:${repository}`;
-        const response = await fetch(url, {
-            headers: {
-                'Accept': 'application/vnd.github.v3+json',
-                'User-Agent': 'node.js'
-            }
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            return { success: false, content: `Error searching GitHub issues: ${errorData.message}` };
-        }
-
-        const data = await response.json();
-        if (data.items.length === 0) {
-            return { success: true, content: 'No issues found for your query.' };
-        }
-
-        const issues = data.items.slice(0, 5).map(issue =>
-            `- [${issue.state.toUpperCase()}] #${issue.number}: ${issue.title}\n  Link: ${issue.html_url}`
-        ).join('\n');
-
-        return { success: true, content: `Found issues:\n${issues}` };
-    } catch (error) {
-        console.error('Error in search_github_issues:', error);
-        return { success: false, content: 'An internal error occurred while searching for GitHub issues.' };
-    }
-  },
-
   google_search: async ({ query }) => {
     const apiKey = process.env.GOOGLE_API_KEY;
     const cseId = process.env.GOOGLE_CSE_ID;
@@ -500,209 +142,98 @@ const getToolFunctions = (client) => ({
               resolve({ success: false, content: `I couldn't complete the web search. The service reported an error: ${results.error.message}` });
               return;
             }
-            const items = results.items?.slice(0, 5) || [];
+            const items = results.items?.slice(0, 3) || [];
             if (items.length === 0) {
               resolve({ success: true, content: 'No results found.' });
               return;
             }
-            const formattedResults = items.map((item, index) =>
-              `${index + 1}. ${item.title}\nSnippet: ${item.snippet}\nLink: ${item.link}`
+            const formattedResults = items.map((item) =>
+              `Title: ${item.title}\nSnippet: ${item.snippet}`
             ).join('\n\n');
             resolve({ success: true, content: `Here are the top search results:\n${formattedResults}` });
           } catch (error) {
-            resolve({ success: false, content: 'I received a response from the web search, but I couldn\'t understand it. Please try again.' });
+            resolve({ success: false, content: 'I received a response from the web search, but I couldn\'t understand it.' });
           }
         });
       }).on('error', (err) => {
-        resolve({ success: false, content: `I couldn't connect to the web search service. Please check the connection and try again.` });
+        resolve({ success: false, content: `I couldn't connect to the web search service.` });
       });
     });
   },
 
-  save_user_memory: async ({ key, value }, originalMessage) => {
-    const memories = client.getDbCollection('user-memories');
-    const userId = originalMessage.author.id;
+  read_faq: async ({ query }, originalMessage) => {
+    if (!client.db) return { success: false, content: "The database is not connected." };
+    const settingsCollection = client.db.collection('server-settings');
     try {
-      await memories.updateOne({ userId, key }, { $set: { value, userTag: originalMessage.author.tag, updatedAt: new Date() } }, { upsert: true });
-      return { success: true, content: `Okay, I've remembered that "${key}" is "${value}" for you.` };
-    } catch (error) {
-      console.error('Error saving user memory:', error);
-      return { success: false, content: 'An error occurred while trying to save this information.' };
-    }
-  },
+      const settings = await settingsCollection.findOne({ guildId: originalMessage.guild.id });
+      const faq = settings?.aiConfig?.faq;
 
-  get_user_memory: async ({ key }, originalMessage) => {
-    const memories = client.getDbCollection('user-memories');
-    const userId = originalMessage.author.id;
-    try {
-      const memory = await memories.findOne({ userId, key });
-      if (memory) {
-        return { success: true, content: `Information found for the key "${key}": ${memory.value}` };
+      if (!Array.isArray(faq) || faq.length === 0) {
+        return { success: false, content: "The FAQ for this server is empty." };
       }
-      return { success: false, content: `I couldn't find any information with the key "${key}" for you.` };
-    } catch (error) {
-      console.error('Error retrieving user memory:', error);
-      return { success: false, content: 'An error occurred while trying to retrieve this information.' };
-    }
-  },
 
-  delete_message: async ({ message_id, reason }, originalMessage) => {
-    try {
-      const messageToDelete = await originalMessage.channel.messages.fetch(message_id);
-      await messageToDelete.delete();
-      return { success: true, content: `Message ${message_id} deleted successfully.` };
-    } catch (error) {
-      console.error('Error deleting message:', error);
-      return { success: false, content: `Could not delete message ${message_id}. Please check if the ID is correct and if I have permission to do so.` };
-    }
-  },
+      const lowerQuery = query.toLowerCase();
+      const foundEntry = faq.find(entry =>
+        entry.question.toLowerCase().includes(lowerQuery) ||
+        entry.answer.toLowerCase().includes(lowerQuery)
+      );
 
-  send_message_to_channel: async ({ channel_id, message_content }) => {
-    try {
-      const channel = await client.channels.fetch(channel_id);
-      if (channel && channel.isTextBased()) {
-        await channel.send(message_content);
-        return { success: true, content: `Message sent to channel #${channel.name}.` };
+      if (foundEntry) {
+        return { success: true, content: `Found a relevant entry in the FAQ:\nQ: ${foundEntry.question}\nA: ${foundEntry.answer}` };
       }
-      return { success: false, content: `Channel with ID ${channel_id} not found or it is not a text channel.` };
+
+      return { success: false, content: `I searched the FAQ but couldn't find an answer for "${query}".` };
     } catch (error) {
-      console.error('Error sending message:', error);
-      return { success: false, content: 'An error occurred while trying to send the message.' };
+      console.error('Error reading FAQ from DB:', error);
+      return { success: false, content: 'An error occurred while accessing the FAQ.' };
     }
   },
 
-  list_text_channels: async (_, originalMessage) => {
+  search_knowledge_base: async ({ query }, originalMessage) => {
+    if (!client.db) return { success: false, content: "The database is not connected." };
+    const settingsCollection = client.db.collection('server-settings');
     try {
-      const guild = originalMessage.guild;
-      if (!guild) return { success: false, content: 'This function can only be used inside a server.' };
-      const channels = guild.channels.cache
-        .filter(channel => channel.isTextBased())
-        .map(channel => ({ id: channel.id, name: channel.name, topic: channel.topic || 'No description.' }));
-      return { success: true, content: channels };
-    } catch (error) {
-      console.error('Error listing text channels:', error);
-      return { success: false, content: 'An error occurred while trying to list the text channels.' };
-    }
-  },
+        const settings = await settingsCollection.findOne({ guildId: originalMessage.guild.id });
+        const knowledge = settings?.aiConfig?.knowledge;
 
-  list_channels: async (_, originalMessage) => {
-    try {
-      const guild = originalMessage.guild;
-      if (!guild) return { success: false, content: 'This function can only be used inside a server.' };
-      const getChannelTypeName = (type) => {
-        switch (type) {
-          case ChannelType.GuildText: return 'Text Channel';
-          case ChannelType.GuildVoice: return 'Voice Channel';
-          case ChannelType.GuildAnnouncement: return 'Announcement Channel';
-          case ChannelType.GuildForum: return 'Forum';
-          case ChannelType.PublicThread: return 'Public Thread';
-          case ChannelType.PrivateThread: return 'Private Thread';
-          case ChannelType.GuildStageVoice: return 'Stage Channel';
-          case ChannelType.GuildCategory: return 'Category';
-          default: return 'Other';
+        if (!Array.isArray(knowledge) || knowledge.length === 0) {
+            return { success: false, content: "The knowledge base for this server is empty." };
         }
-      };
-      const channels = guild.channels.cache.map(channel => ({ id: channel.id, name: channel.name, type: getChannelTypeName(channel.type) }));
-      return { success: true, content: channels };
-    } catch (error) {
-      console.error('Error listing all channels:', error);
-      return { success: false, content: 'An error occurred while trying to list the channels.' };
-    }
-  },
 
-  read_channel_messages: async ({ channel_id, limit = 10 }) => {
-    try {
-      const channel = await client.channels.fetch(channel_id);
-      if (!channel || !channel.isTextBased()) {
-        return { success: false, content: `Channel with ID ${channel_id} not found or it is not a text channel.` };
-      }
-      const messages = await channel.messages.fetch({ limit: Math.min(limit, 50) });
-      if (messages.size === 0) {
-        return { success: true, content: `No recent messages found in channel #${channel.name}.` };
-      }
-      const formattedMessages = messages.map(msg => `${msg.author.bot ? '[BOT] ' : ''}${msg.author.username}: ${msg.content}`).reverse().join('\n');
-      return { success: true, content: `Last ${messages.size} messages from channel #${channel.name}:\n${formattedMessages}` };
-    } catch (error) {
-      if (error.code === 10003 || error.code === 50001) {
-        return { success: false, content: `Could not access the channel with ID ${channel_id}. Please check if the ID is correct and if I have permission to view it.` };
-      }
-      return { success: false, content: 'An error occurred while trying to read the channel\'s messages.' };
-    }
-  },
+        const lowerQuery = query.toLowerCase();
+        const foundEntries = knowledge.filter(entry =>
+            entry.content.toLowerCase().includes(lowerQuery)
+        );
 
-  find_user_voice_channel: async ({ user_id }, originalMessage) => {
-    const guild = originalMessage.guild;
-    if (!guild) return { success: false, content: 'This function can only be used inside a server.' };
-    try {
-      const member = await guild.members.fetch(user_id);
-      if (!member) return { success: false, content: `User with ID ${user_id} not found in this server.` };
-      const voiceChannel = member.voice.channel;
-      if (voiceChannel) {
-        return { success: true, content: { userId: user_id, username: member.user.username, channelId: voiceChannel.id, channelName: voiceChannel.name } };
-      }
-      return { success: true, content: `The user ${member.user.username} is not connected to a voice channel.` };
-    } catch (error) {
-      if (error.code === 10007) return { success: false, content: `User with ID ${user_id} not found.` };
-      return { success: false, content: 'An error occurred while trying to locate the user.' };
-    }
-  },
+        if (foundEntries.length > 0) {
+            const results = foundEntries.map(entry => entry.content).join('\n---\n');
+            return { success: true, content: `Found relevant information in the knowledge base:\n${results}` };
+        }
 
-  join_voice_channel: async ({ channel_id }, originalMessage) => {
-    try {
-      const voiceChannel = await client.channels.fetch(channel_id);
-      if (!voiceChannel || !voiceChannel.isVoiceBased()) {
-        return { success: false, content: `Voice channel with ID ${channel_id} not found or is invalid.` };
-      }
-      if (!client.riffy) return { success: false, content: 'The music system is not currently available. Please try again later.' };
-      client.riffy.createConnection({
-        guildId: originalMessage.guild.id,
-        voiceChannel: voiceChannel.id,
-        textChannel: originalMessage.channel.id,
-        selfDeaf: true,
-      });
-      return { success: true, content: `Connected to voice channel: ${voiceChannel.name}` };
+        return { success: false, content: `I searched the knowledge base but couldn't find anything for "${query}".` };
     } catch (error) {
-      console.error('Error joining voice channel:', error);
-      return { success: false, content: 'An error occurred while trying to join the voice channel.' };
-    }
-  },
-
-  list_voice_channel_members: async ({ channel_id }) => {
-    try {
-      const channel = await client.channels.fetch(channel_id);
-      if (!channel || !channel.isVoiceBased()) {
-        return { success: false, content: `Voice channel with ID ${channel_id} not found or is invalid.` };
-      }
-      const members = channel.members.map(m => ({ id: m.id, username: m.user.username, isBot: m.user.bot }));
-      if (members.length === 0) return { success: true, content: `There is no one in the voice channel ${channel.name}.` };
-      return { success: true, content: members };
-    } catch (error) {
-      console.error('Error listing voice channel members:', error);
-      return { success: false, content: 'An error occurred while listing the members.' };
-    }
-  },
-
-  get_user_avatar: async ({ user_id }, originalMessage) => {
-    try {
-      const user = await client.users.fetch(user_id).catch(() => null);
-      if (!user) return { success: false, content: `User "${user_id}" not found.` };
-      return { success: true, content: user.displayAvatarURL({ dynamic: true, size: 512 }) };
-    } catch (error) {
-      console.error('Error fetching user avatar:', error);
-      return { success: false, content: 'An error occurred while trying to fetch the profile picture.' };
+        console.error('Error reading knowledge base from DB:', error);
+        return { success: false, content: 'An error occurred while accessing the knowledge base.' };
     }
   },
 
   play_music: async ({ query }, originalMessage) => {
-    try {
-      const member = originalMessage.member;
-      if (!member.voice.channel) return { success: false, content: 'You need to be in a voice channel to use this.' };
-      if (!client.riffy) return { success: false, content: 'The music system is not currently available. Please try again later.' };
+    const member = originalMessage.member;
+    if (!member || !member.voice.channel) {
+        return { success: false, content: "The user who asked me to play music is not in a voice channel. I have informed them they need to join one first." };
+    }
 
+    if (!client.riffy) {
+        return { success: false, content: 'The music system is not currently available.' };
+    }
+
+    try {
       const resolve = await client.riffy.resolve({ query, requester: originalMessage.author });
       const { loadType, tracks } = resolve;
 
-      if (loadType === 'empty' || !tracks.length) return { success: false, content: `No music found for "${query}".` };
+      if (loadType === 'empty' || !tracks.length) {
+        return { success: false, content: `No music found for "${query}".` };
+      }
 
       const player = client.riffy.players.get(originalMessage.guild.id) || client.riffy.createConnection({
         guildId: originalMessage.guild.id,
@@ -713,71 +244,44 @@ const getToolFunctions = (client) => ({
 
       const track = tracks.shift();
       player.queue.add(track);
-      if (!player.playing && !player.paused) player.play();
+      if (!player.playing && !player.paused) {
+        player.play();
+      }
 
-      return { success: true, content: `Added to queue: "${track.info.title}".` };
+      return { success: true, content: `Added to queue: "${track.info.title}" by ${track.info.author}.` };
     } catch (error) {
       console.error('Error playing music:', error);
-      return { success: false, content: 'An error occurred while trying to play the music.' };
+      return { success: false, content: 'An unknown error occurred while trying to play the music.' };
     }
   },
 
   pause_music: async (_, msg) => {
     const player = client.riffy.players.get(msg.guild.id);
-    if (!player) return { success: false, content: 'I am not playing anything right now.' };
+    if (!player || !player.playing) return { success: false, content: 'Nothing is being played right now.' };
     player.pause(true);
     return { success: true, content: 'Music paused.' };
   },
 
   resume_music: async (_, msg) => {
     const player = client.riffy.players.get(msg.guild.id);
-    if (!player) return { success: false, content: 'I am not playing anything right now.' };
+    if (!player || !player.paused) return { success: false, content: 'The music is not paused.' };
     player.pause(false);
     return { success: true, content: 'Music resumed.' };
   },
 
   skip_music: async (_, msg) => {
     const player = client.riffy.players.get(msg.guild.id);
-    if (!player) return { success: false, content: 'I am not playing anything right now.' };
+    if (!player || player.queue.size === 0) return { success: false, content: 'There is nothing in the queue to skip to.' };
     player.stop();
     return { success: true, content: 'Skipped to the next song.' };
   },
 
   stop_music: async (_, msg) => {
     const player = client.riffy.players.get(msg.guild.id);
-    if (player) player.destroy();
-    return { success: true, content: 'Music stopped and queue cleared.' };
-  },
-
-  get_id: async ({ type, query }, originalMessage) => {
-    const guild = originalMessage.guild;
-    if (!guild) return { success: false, content: 'Could not find the server.' };
-    try {
-      let found;
-      switch (type) {
-        case 'user':
-          const members = await guild.members.search({ query, limit: 1 });
-          found = members.first();
-          break;
-        case 'channel':
-          found = guild.channels.cache.find(c => c.name.toLowerCase() === query.toLowerCase());
-          break;
-        case 'role':
-          found = guild.roles.cache.find(r => r.name.toLowerCase() === query.toLowerCase());
-          break;
-        case 'message':
-          const messages = await originalMessage.channel.messages.fetch({ limit: 100 });
-          found = messages.find(m => m.content.includes(query));
-          break;
-        default:
-          return { success: false, content: `Invalid type: ${type}` };
-      }
-      if (found) return { success: true, content: `The ID for "${query}" (${type}) is: ${found.id}` };
-      return { success: false, content: `No ${type} found for "${query}".` };
-    } catch (error) {
-      console.error(`Error searching for ID of ${type} "${query}":`, error);
-      return { success: false, content: 'An error occurred while searching for the ID.' };
+    if (player) {
+        player.destroy();
     }
+    return { success: true, content: 'Music stopped, queue cleared, and I have left the voice channel.' };
   },
 });
 

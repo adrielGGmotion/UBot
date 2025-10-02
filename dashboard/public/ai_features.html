@@ -1,37 +1,177 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-locale-key="dashboard_title">Ubot Dashboard</title>
-
-  <!-- Fonts & Icons -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-
-  <!-- Centralized Stylesheet & Scripts -->
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-locale-key="nav_ai_features">AI Features</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .ai-features-container {
+            display: flex;
+            gap: 24px;
+            height: calc(100vh - 120px); /* Adjust based on your header/footer */
+        }
+        .settings-panel {
+            flex: 2;
+            overflow-y: auto;
+            padding-right: 16px;
+        }
+        .test-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--border-color);
+            padding-left: 24px;
+        }
+        .chat-window {
+            flex-grow: 1;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            overflow-y: auto;
+            background-color: var(--background-color-light);
+            margin-bottom: 16px;
+        }
+        .chat-message {
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 18px;
+            max-width: 85%;
+            word-wrap: break-word;
+        }
+        .chat-message.user {
+            background-color: var(--primary-color);
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-message.bot {
+            background-color: var(--widget-background-color);
+            border: 1px solid var(--border-color);
+            margin-right: auto;
+            border-bottom-left-radius: 4px;
+        }
+        .chat-input {
+            display: flex;
+        }
+        .chat-input input {
+            flex-grow: 1;
+            margin-right: 8px;
+        }
+        .list-editor .list-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .list-editor .list-item input {
+            flex-grow: 1;
+        }
+    </style>
 </head>
 <body>
-  <div class="main-container">
-    <aside class="sidebar">
-        <!-- Sidebar will be dynamically loaded by sidebar.js -->
-    </aside>
+    <div class="main-container">
+        <aside class="sidebar"></aside>
+        <main class="dashboard-grid">
+            <div class="widget full-width-widget">
+                <div class="widget-header">
+                    <h2><i class="material-icons">psychology</i> <span data-locale-key="nav_ai_features">AI Features</span></h2>
+                    <button id="save-ai-settings-btn" class="button primary-button"><i class="material-icons">save</i> <span data-locale-key="save_settings">Save Settings</span></button>
+                </div>
 
-    <main class="dashboard-grid">
-      <div class="widget large-widget">
-        <h2><i class="material-icons">psychology</i> <span data-locale-key="nav_ai_features">AI Features</span></h2>
-        <p>This page is under construction. AI-powered features will be configurable here soon.</p>
-      </div>
-    </main>
-  </div>
+                <div class="ai-features-container">
+                    <!-- Settings Panel -->
+                    <div class="settings-panel">
+                        <form id="ai-settings-form">
+                            <!-- General Settings -->
+                            <div class="form-section">
+                                <h3 data-locale-key="ai_general_settings">General Settings</h3>
+                                <div class="form-group toggle-group">
+                                    <label for="ai-enabled" data-locale-key="ai_enable_chatbot">Enable Chatbot</label>
+                                    <label class="switch">
+                                        <input type="checkbox" id="ai-enabled" name="enabled">
+                                        <span class="slider round"></span>
+                                    </label>
+                                </div>
+                            </div>
 
-  <script src="auth.js"></script>
-  <script src="translator.js"></script>
-  <script src="sidebar.js"></script>
-  <script src="script.js"></script>
+                            <!-- Channel Restrictions -->
+                            <div class="form-section">
+                                <h3 data-locale-key="ai_channel_restrictions">Channel Restrictions</h3>
+                                <div class="form-group">
+                                    <label for="ai-allowed-channels" data-locale-key="ai_allowed_channels">Allowed Channels (Leave empty to allow all)</label>
+                                    <select id="ai-allowed-channels" name="allowedChannels" multiple></select>
+                                    <small data-locale-key="ai_allowed_channels_desc">The bot will only speak in these channels without being pinged.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="ai-restricted-channels" data-locale-key="ai_restricted_channels">Restricted Channels</label>
+                                    <select id="ai-restricted-channels" name="restrictedChannels" multiple></select>
+                                    <small data-locale-key="ai_restricted_channels_desc">The bot will never speak in these channels, even if pinged.</small>
+                                </div>
+                            </div>
+
+                            <!-- Personality -->
+                            <div class="form-section">
+                                <h3 data-locale-key="ai_personality_setup">Personality & Instructions</h3>
+                                <div class="form-group">
+                                    <label for="ai-personality" data-locale-key="ai_personality">Personality</label>
+                                    <textarea id="ai-personality" name="personality" rows="4"></textarea>
+                                    <small data-locale-key="ai_personality_desc">Define the chatbot's personality. One trait per line.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="ai-extra-instructions" data-locale-key="ai_extra_instructions">Extra Instructions</label>
+                                    <textarea id="ai-extra-instructions" name="extraInstructions" rows="4"></textarea>
+                                    <small data-locale-key="ai_extra_instructions_desc">Provide specific, custom instructions for the bot to follow.</small>
+                                </div>
+                            </div>
+
+                            <!-- Knowledge Base -->
+                            <div class="form-section list-editor">
+                                <h3 data-locale-key="ai_knowledge_base">Knowledge Base</h3>
+                                <div id="knowledge-list"></div>
+                                <button type="button" id="add-knowledge-btn" class="button"><i class="material-icons">add</i> <span data-locale-key="ai_add_knowledge">Add Knowledge</span></button>
+                            </div>
+
+                            <!-- FAQ -->
+                            <div class="form-section list-editor">
+                                <h3 data-locale-key="ai_faq">FAQ</h3>
+                                <div class="form-group toggle-group">
+                                    <label for="ai-faq-enabled" data-locale-key="ai_enable_faq_tool">Enable FAQ Tool</label>
+                                    <label class="switch">
+                                        <input type="checkbox" id="ai-faq-enabled" name="faqEnabled">
+                                        <span class="slider round"></span>
+                                    </label>
+                                </div>
+                                <div id="faq-list"></div>
+                                <button type="button" id="add-faq-btn" class="button"><i class="material-icons">add</i> <span data-locale-key="ai_add_faq">Add FAQ</span></button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Live Test Panel -->
+                    <div class="test-panel">
+                        <h3 data-locale-key="ai_live_test">Live Test</h3>
+                        <p><small data-locale-key="ai_live_test_desc">Test your settings here before saving. Changes are reflected live.</small></p>
+                        <div class="chat-window" id="ai-test-chat-window">
+                            <!-- Messages will be appended here -->
+                        </div>
+                        <div class="chat-input">
+                            <input type="text" id="ai-test-input" placeholder="Type a message...">
+                            <button id="ai-test-send-btn" class="button primary-button"><i class="material-icons">send</i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="auth.js"></script>
+    <script src="translator.js"></script>
+    <script src="sidebar.js"></script>
+    <script src="ai_features.js"></script>
 </body>
 </html>
