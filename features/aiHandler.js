@@ -135,73 +135,69 @@ async function generateResponse(client, message) {
     console.log(`[LOG] [aiHandler] [generateResponse] Using model: ${model}, context limit: ${contextLimit}`);
 
     const conversation = await fetchConversationHistory(message, client, contextLimit);
-    console.log(`[LOG] [aiHandler] [generateResponse] Fetched conversation history:`, JSON.stringify(conversation, null, 2));
+    console.log(`[LOG] [aiHandler] [generateResponse] Fetched conversation history.`);
     
     const userLocale = client.config.language || 'en';
     const systemPromptContent = constructSystemPrompt(aiConfig, message.guild.name, client.user.username, message.channel, userLocale);
-    console.log(`[LOG] [aiHandler] [generateResponse] Constructed system prompt.`); // Don't log the full prompt, it's huge
+    console.log(`[LOG] [aiHandler] [generateResponse] Constructed system prompt.`);
 
     const messagesForAPI = [{ role: 'system', content: systemPromptContent }, ...conversation];
-    console.log(`[LOG] [aiHandler] [generateResponse] Sending initial payload to OpenAI API.`);
-
+    
     // Filter tools based on whether FAQ is enabled
     let availableTools = [...tools];
     if (aiConfig.faqEnabled === false) {
         availableTools = availableTools.filter(t => t.function.name !== 'read_faq');
     }
 
-    const completion = await openai.chat.completions.create({
-      model: model,
-      messages: messagesForAPI,
-      tools: availableTools.length > 0 ? availableTools : undefined,
-      tool_choice: availableTools.length > 0 ? "auto" : "none",
-    });
-    console.log('[LOG] [aiHandler] [generateResponse] Received response from OpenAI API:', JSON.stringify(completion, null, 2));
+    const maxToolCalls = 5; // Safety limit to prevent infinite loops
+    let toolCallCount = 0;
 
-    const responseMessage = completion.choices[0].message;
+    while (toolCallCount < maxToolCalls) {
+      console.log(`[LOG] [aiHandler] [generateResponse] Iteration ${toolCallCount + 1}. Sending payload to API.`);
+      const completion = await openai.chat.completions.create({
+        model: model,
+        messages: messagesForAPI,
+        tools: availableTools.length > 0 ? availableTools : undefined,
+        tool_choice: availableTools.length > 0 ? "auto" : "none",
+      });
+      console.log(`[LOG] [aiHandler] [generateResponse] Received API response for iteration ${toolCallCount + 1}:`, JSON.stringify(completion, null, 2));
 
-    if (responseMessage.tool_calls) {
-        console.log(`[LOG] [aiHandler] [generateResponse] Detected ${responseMessage.tool_calls.length} tool call(s).`);
-        const availableFunctions = getToolFunctions(client);
-        messagesForAPI.push(responseMessage);
+      const responseMessage = completion.choices[0].message;
 
-        for (const toolCall of responseMessage.tool_calls) {
-            const functionName = toolCall.function.name;
-            const functionToCall = availableFunctions[functionName];
-            const functionArgs = JSON.parse(toolCall.function.arguments);
-            console.log(`[LOG] [aiHandler] [generateResponse] Executing tool: ${functionName} with args:`, JSON.stringify(functionArgs, null, 2));
+      // If there are no tool calls, we have our final answer.
+      if (!responseMessage.tool_calls) {
+        console.log(`[LOG] [aiHandler] [generateResponse] No more tool calls. Final content: "${responseMessage.content}"`);
+        return responseMessage.content;
+      }
 
-            const functionResponse = await functionToCall(functionArgs, message);
-            console.log(`[LOG] [aiHandler] [generateResponse] Tool ${functionName} responded:`, JSON.stringify(functionResponse, null, 2));
+      // If there are tool calls, process them.
+      console.log(`[LOG] [aiHandler] [generateResponse] Detected ${responseMessage.tool_calls.length} tool call(s).`);
+      messagesForAPI.push(responseMessage); // Add the assistant's decision to call tools to the history
+      
+      const availableFunctions = getToolFunctions(client);
+      for (const toolCall of responseMessage.tool_calls) {
+        const functionName = toolCall.function.name;
+        const functionToCall = availableFunctions[functionName];
+        const functionArgs = JSON.parse(toolCall.function.arguments);
+        console.log(`[LOG] [aiHandler] [generateResponse] Executing tool: ${functionName} with args:`, JSON.stringify(functionArgs, null, 2));
 
-            if (functionResponse.success === false) {
-                console.error(`[LOG] [aiHandler] [generateResponse] Tool call failed for '${functionName}'. Reason: ${functionResponse.content}`);
-                // Don't return here, let the model know it failed.
-            }
+        const functionResponse = await functionToCall(functionArgs, message);
+        console.log(`[LOG] [aiHandler] [generateResponse] Tool ${functionName} responded:`, JSON.stringify(functionResponse, null, 2));
 
-            messagesForAPI.push({
-                tool_call_id: toolCall.id,
-                role: 'tool',
-                name: functionName,
-                content: JSON.stringify(functionResponse),
-            });
-        }
-
-        console.log(`[LOG] [aiHandler] [generateResponse] Sending second payload to OpenAI API with tool responses.`);
-        const secondCompletion = await openai.chat.completions.create({
-            model: model,
-            messages: messagesForAPI,
+        messagesForAPI.push({
+            tool_call_id: toolCall.id,
+            role: 'tool',
+            name: functionName,
+            content: JSON.stringify(functionResponse),
         });
-        console.log('[LOG] [aiHandler] [generateResponse] Received second response from OpenAI API:', JSON.stringify(secondCompletion, null, 2));
-
-        const finalContent = secondCompletion.choices[0].message.content;
-        console.log(`[LOG] [aiHandler] [generateResponse] Final content: "${finalContent}"`);
-        return finalContent;
+      }
+      
+      toolCallCount++; // Increment after processing a batch of tool calls.
     }
 
-    const finalContent = responseMessage.content;
-    console.log(`[LOG] [aiHandler] [generateResponse] No tool calls. Final content: "${finalContent}"`);
-    return finalContent;
+    console.error('[LOG] [aiHandler] [generateResponse] Exceeded maximum tool call limit.');
+    return client.getLocale('err_ai_response');
+
   } catch (error) {
     console.error('[LOG] [aiHandler] [generateResponse] CRITICAL ERROR:', error);
     return client.getLocale('err_ai_response');
