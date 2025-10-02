@@ -40,7 +40,12 @@ function initializeSidebar() {
     const serverOverviewLink = document.getElementById('server-overview-link');
     const serverSettingsLink = document.getElementById('server-settings-link');
 
-    const isServerContextPage = window.location.pathname.includes('/server.html') || window.location.pathname.includes('/settings.html');
+    const isServerContextPage = window.location.pathname.includes('/server.html')
+        || window.location.pathname.includes('/settings.html')
+        || window.location.pathname.includes('/github.html')
+        || window.location.pathname.includes('/music_system.html')
+        || window.location.pathname.includes('/server_stats.html');
+
     if (guildId && isServerContextPage) {
         if (serverManagementCategory) serverManagementCategory.style.display = 'block';
         if (serverOverviewLink) {
