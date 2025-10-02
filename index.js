@@ -195,6 +195,49 @@ async function tryInitMongo() {
   }
 }
 
+const defaultGithubRepoConfig = {
+    enabled: true,
+    secret: '',
+    commits: {
+        enabled: false, channelId: null,
+        branchFilter: { mode: 'blacklist', list: [] },
+        messageFilter: { mode: 'blacklist', list: [] },
+        authorFilter: { mode: 'blacklist', list: [] },
+    },
+    pullRequests: {
+        enabled: false, channelId: null,
+        eventFilter: ['opened', 'merged', 'closed', 'reopened'],
+        branchFilter: { base: [], head: [] },
+        labelFilter: { mode: 'blacklist', list: [] },
+        ignoreDrafts: true,
+    },
+    issues: {
+        enabled: false, channelId: null,
+        eventFilter: ['opened', 'closed', 'reopened'],
+        labelFilter: { mode: 'blacklist', list: [] },
+    },
+    releases: {
+        enabled: false, channelId: null,
+        typeFilter: ['published', 'prerelease'],
+    },
+    stars: { enabled: false, channelId: null },
+    forks: { enabled: false, channelId: null },
+    issueComments: { enabled: false, channelId: null },
+    pullRequestReviews: { enabled: false, channelId: null },
+};
+
+function mergeGithubConfig(config) {
+    if (!config) return JSON.parse(JSON.stringify(defaultGithubRepoConfig));
+    const merged = { ...defaultGithubRepoConfig, ...config };
+    for (const key of Object.keys(defaultGithubRepoConfig)) {
+        const defaultValue = defaultGithubRepoConfig[key];
+        if (typeof defaultValue === 'object' && defaultValue !== null && !Array.isArray(defaultValue)) {
+            merged[key] = { ...defaultValue, ...(config[key] || {}) };
+        }
+    }
+    return merged;
+}
+
 async function startDashboard() {
   if (!client.config.activateDashboard) return;
   const app = express();
@@ -324,32 +367,6 @@ async function startDashboard() {
         },
       };
 
-      const defaultGithubRepoConfig = {
-        enabled: true,
-        commits: {
-          enabled: false, channelId: null,
-          branchFilter: { mode: 'blacklist', list: [] },
-          messageFilter: { mode: 'blacklist', list: [] },
-          authorFilter: { mode: 'blacklist', list: [] },
-        },
-        pullRequests: {
-          enabled: false, channelId: null,
-          eventFilter: ['opened', 'merged', 'closed'],
-          branchFilter: { base: [], head: [] },
-          labelFilter: { mode: 'blacklist', list: [] },
-          ignoreDrafts: true,
-        },
-        issues: {
-          enabled: false, channelId: null,
-          eventFilter: ['opened', 'closed'],
-          labelFilter: { mode: 'blacklist', list: [] },
-        },
-        releases: {
-          enabled: false, channelId: null,
-          typeFilter: ['published', 'prerelease'],
-        },
-      };
-
       if (settings) {
         // Merge defaults into existing settings to ensure new fields are present
         settings.musicConfig = { ...defaultSettings.musicConfig, ...settings.musicConfig };
@@ -357,14 +374,7 @@ async function startDashboard() {
 
         // Deep merge for each GitHub repo config
         if (settings.githubRepos && Array.isArray(settings.githubRepos)) {
-          settings.githubRepos = settings.githubRepos.map(repo => {
-            const mergedRepo = { ...defaultGithubRepoConfig, ...repo };
-            mergedRepo.commits = { ...defaultGithubRepoConfig.commits, ...repo.commits };
-            mergedRepo.pullRequests = { ...defaultGithubRepoConfig.pullRequests, ...repo.pullRequests };
-            mergedRepo.issues = { ...defaultGithubRepoConfig.issues, ...repo.issues };
-            mergedRepo.releases = { ...defaultGithubRepoConfig.releases, ...repo.releases };
-            return mergedRepo;
-          });
+          settings.githubRepos = settings.githubRepos.map(repo => mergeGithubConfig(repo));
         }
 
       } else {
@@ -546,7 +556,10 @@ async function startDashboard() {
 
         let processed = false;
         for (const settings of relevantSettings) {
-            const repoConfig = settings.githubRepos.find(r => r.name === repoFullName);
+            const rawRepoConfig = settings.githubRepos.find(r => r.name === repoFullName);
+            if (!rawRepoConfig) continue;
+
+            const repoConfig = mergeGithubConfig(rawRepoConfig);
 
             // Verifica a assinatura para cada configuração
             const hmac = crypto.createHmac('sha256', repoConfig.secret);
