@@ -106,7 +106,8 @@ function constructSystemPrompt(aiConfig, guildName, botName, channel, userLocale
     systemPrompt += "1. NEVER use hate speech, slurs, or heavy insults.\n";
     systemPrompt += "2. BE RESPECTFUL and do not promote violence or dangerous acts.\n";
     systemPrompt += "3. When you use a tool, your final response MUST mention the action. Example: \"I searched for 'dinosaurs' and found...\" or \"I checked the FAQ and the answer is...\".\n";
-    systemPrompt += "4. If a tool fails, your response MUST be only the error message provided. Do not try again. Report the error.\n\n";
+    systemPrompt += "4. If a tool fails, your response MUST be only the error message provided. Do not try again. Report the error.\n";
+    systemPrompt += "5. BE DECISIVE: If a search tool does not yield a definitive answer after one or two attempts, make a best-effort guess based on the information you found and inform the user. DO NOT get stuck in a loop of repeated, slightly different searches.\n\n";
 
     systemPrompt += "---\nRemember your rules and respond to the user's last message.";
     return systemPrompt;
