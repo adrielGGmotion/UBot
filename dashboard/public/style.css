@@ -457,61 +457,228 @@ select:focus {
 
 .modal-content {
   background-color: var(--panel);
-  margin: 10% auto;
-  padding: var(--gap);
+  margin: 5% auto; /* Adjusted for larger modal */
+  padding: 0; /* Remove padding to allow for full-width header/footer */
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
-  width: 80%;
-  max-width: 600px;
+  width: 90%; /* Wider modal */
+  max-width: 900px; /* Increased max-width */
   box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
 }
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--gap);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+  color: var(--accent);
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: var(--gap);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  padding: var(--gap);
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
 
 .close-btn {
   color: var(--text-secondary);
-  float: right;
   font-size: 28px;
   font-weight: bold;
   cursor: pointer;
+  transition: color 0.2s ease;
 }
 
 .close-btn:hover,
 .close-btn:focus {
-  color: var(--text-primary);
+  color: var(--accent);
+}
+
+/* GitHub Modal Specifics */
+.repo-main-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+}
+
+.notification-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--gap);
+}
+
+.notification-card {
+  background-color: var(--bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease-in-out;
+}
+
+.notification-card:hover {
+    border-color: var(--accent);
+}
+
+.notification-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.notification-header h4 {
+  font-weight: 600;
+  font-size: 1.1rem;
+  flex-grow: 1; /* Pushes the switch to the end */
+}
+
+.notification-header .material-icons {
+  color: var(--accent);
+}
+
+.notification-body {
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* Custom Switch Toggle */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 28px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #333;
+  transition: .4s;
+  border-radius: 28px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--accent);
+}
+
+input:checked + .slider:before {
+  transform: translateX(22px);
 }
 
 
-/* Collapsible Sections */
-.collapsible-btn {
-  width: 100%;
+/* Styled Checkboxes & Inline Groups */
+.form-group-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-group-inline input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.checkbox-item label {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.checkbox-item input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid var(--border-color);
   background-color: var(--bg);
-  color: var(--text-primary);
   cursor: pointer;
-  padding: 15px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  text-align: left;
-  font-size: 1.1rem;
-  font-weight: 600;
+  position: relative;
   transition: all 0.2s ease;
 }
 
-.collapsible-btn:hover {
-  background-color: rgba(var(--accent-rgb), 0.1);
+.checkbox-item input[type="checkbox"]:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
 }
 
-.collapsible-content {
-  padding: 0 18px;
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease-out;
-  background-color: var(--bg);
-  border-radius: 0 0 var(--radius) var(--radius);
-  border: 1px solid var(--border-color);
-  border-top: none;
+.checkbox-item input[type="checkbox"]:checked::after {
+  content: '✔';
+  font-size: 12px;
+  color: var(--bg);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
-.collapsible-content .form-group {
-    padding: 10px 0;
+fieldset {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 15px;
+    margin-top: 10px;
+}
+
+fieldset legend {
+    padding: 0 10px;
+    font-weight: 600;
+    color: var(--text-secondary);
 }
 
 
