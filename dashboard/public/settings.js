@@ -139,6 +139,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const commits = repo.commits || {};
             document.getElementById('commits-enabled').checked = commits.enabled || false;
             document.getElementById('commits-channelId').value = commits.channelId || '';
+            const branchFilter = commits.branchFilter || { mode: 'whitelist', list: [] };
+            document.getElementById('commits-branch-mode').value = branchFilter.mode || 'whitelist';
+            document.getElementById('commits-branch-list').value = (branchFilter.list || []).join(', ');
 
             // Pull Requests
             const pulls = repo.pullRequests || {};
@@ -217,6 +220,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 commits: {
                     enabled: document.getElementById('commits-enabled').checked,
                     channelId: document.getElementById('commits-channelId').value,
+                    branchFilter: {
+                        mode: document.getElementById('commits-branch-mode').value,
+                        list: document.getElementById('commits-branch-list').value.split(',').map(b => b.trim()).filter(b => b),
+                    },
                 },
                 pullRequests: {
                     enabled: document.getElementById('pulls-enabled').checked,
