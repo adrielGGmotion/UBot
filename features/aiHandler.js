@@ -4,6 +4,7 @@ const { ChannelType } = require('discord.js');
 
 const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.OPENROUTER_API_KEY,
 });
 
 /**
@@ -187,7 +188,10 @@ async function generateResponse(client, message) {
 
     return responseMessage.content;
   } catch (error) {
-    console.error('Error generating AI response:', error);
+    console.error(`Error generating AI response for guild ${message.guild.id} in channel ${message.channel.id}:`, error);
+    if (error.response) {
+        console.error('API Response Error:', error.response.status, error.response.data);
+    }
     return client.getLocale('err_ai_response');
   }
 }
