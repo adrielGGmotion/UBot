@@ -4,7 +4,6 @@ const { ChannelType } = require('discord.js');
 
 const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
 });
 
 /**
@@ -107,7 +106,8 @@ function constructSystemPrompt(aiConfig, guildName, botName, channel, userLocale
     systemPrompt += "1. NEVER use hate speech, slurs, or heavy insults.\n";
     systemPrompt += "2. BE RESPECTFUL and do not promote violence or dangerous acts.\n";
     systemPrompt += "3. When you use a tool, your final response MUST mention the action. Example: \"I searched for 'dinosaurs' and found...\" or \"I checked the FAQ and the answer is...\".\n";
-    systemPrompt += "4. If a tool fails, your response MUST be only the error message provided. Do not try again. Report the error.\n\n";
+    systemPrompt += "4. If a tool fails, your response MUST be only the error message provided. Do not try again. Report the error.\n";
+    systemPrompt += "5. BE DECISIVE: If a search tool does not yield a definitive answer after one or two attempts, make a best-effort guess based on the information you found and inform the user. DO NOT get stuck in a loop of repeated, slightly different searches.\n\n";
 
     systemPrompt += "---\nRemember your rules and respond to the user's last message.";
     return systemPrompt;
@@ -145,57 +145,48 @@ async function generateResponse(client, message) {
         availableTools = availableTools.filter(t => t.function.name !== 'read_faq');
     }
 
-    const completion = await openai.chat.completions.create({
-      model: model,
-      messages: messagesForAPI,
-      tools: availableTools.length > 0 ? availableTools : undefined,
-      tool_choice: availableTools.length > 0 ? "auto" : "none",
-    });
+    const maxToolCalls = 5; // Safety limit to prevent infinite loops
+    let toolCallCount = 0;
 
-    const responseMessage = completion.choices[0].message;
+    while (toolCallCount < maxToolCalls) {
+      const completion = await openai.chat.completions.create({
+        model: model,
+        messages: messagesForAPI,
+        tools: availableTools.length > 0 ? availableTools : undefined,
+        tool_choice: availableTools.length > 0 ? "auto" : "none",
+      });
 
-    if (responseMessage.tool_calls) {
-        const availableFunctions = getToolFunctions(client);
-        messagesForAPI.push(responseMessage);
+      const responseMessage = completion.choices[0].message;
 
-        for (const toolCall of responseMessage.tool_calls) {
-            const functionName = toolCall.function.name;
-            const functionToCall = availableFunctions[functionName];
-            const functionArgs = JSON.parse(toolCall.function.arguments);
+      if (!responseMessage.tool_calls) {
+        return responseMessage.content;
+      }
 
-            const functionResponse = await functionToCall(functionArgs, message);
+      messagesForAPI.push(responseMessage);
 
-            // Even if a tool fails, we must report the result back to the model.
-            // The model can then decide how to respond to the user (e.g., "I tried to search, but it failed.")
-            if (functionResponse.success === false) {
-                console.error(`[aiHandler] Tool call failed for '${functionName}'. Reason: ${functionResponse.content}`);
-            }
+      const availableFunctions = getToolFunctions(client);
+      for (const toolCall of responseMessage.tool_calls) {
+        const functionName = toolCall.function.name;
+        const functionToCall = availableFunctions[functionName];
+        const functionArgs = JSON.parse(toolCall.function.arguments);
+        const functionResponse = await functionToCall(functionArgs, message);
 
-            messagesForAPI.push({
-                tool_call_id: toolCall.id,
-                role: 'tool',
-                name: functionName,
-                // We stringify the *entire* object, including the success status,
-                // so the model knows if the tool succeeded or failed.
-                content: JSON.stringify(functionResponse),
-            });
-        }
-
-        const secondCompletion = await openai.chat.completions.create({
-            model: model,
-            messages: messagesForAPI,
+        messagesForAPI.push({
+            tool_call_id: toolCall.id,
+            role: 'tool',
+            name: functionName,
+            content: JSON.stringify(functionResponse),
         });
+      }
 
-        return secondCompletion.choices[0].message.content;
+      toolCallCount++;
     }
 
-    return responseMessage.content;
+    console.error('Exceeded maximum tool call limit for a single response.');
+    return client.getLocale('err_ai_response');
+
   } catch (error) {
-    console.error(`[aiHandler] Failed to generate AI response for guild ${message.guild.id}. Error: ${error.message}`);
-    if (error.response) { // log more detailed API error if available
-        console.error(`[aiHandler] API Error Status: ${error.response.status}`);
-        console.error(`[aiHandler] API Error Data:`, error.response.data);
-    }
+    console.error('Error generating AI response:', error);
     return client.getLocale('err_ai_response');
   }
 }
