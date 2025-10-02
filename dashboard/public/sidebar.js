@@ -44,7 +44,8 @@ function initializeSidebar() {
         || window.location.pathname.includes('/settings.html')
         || window.location.pathname.includes('/github.html')
         || window.location.pathname.includes('/music_system.html')
-        || window.location.pathname.includes('/server_stats.html');
+        || window.location.pathname.includes('/server_stats.html')
+        || window.location.pathname.includes('/ai_features.html');
 
     if (guildId && isServerContextPage) {
         if (serverManagementCategory) serverManagementCategory.style.display = 'block';
@@ -58,7 +59,7 @@ function initializeSidebar() {
         }
 
             // Also update other server-specific links
-            const serverSpecificHrefs = ['github.html', 'music_system.html', 'server_stats.html'];
+            const serverSpecificHrefs = ['github.html', 'music_system.html', 'server_stats.html', 'ai_features.html'];
             serverSpecificHrefs.forEach(href => {
                 const link = document.querySelector(`a[href="${href}"]`);
                 if (link) {
