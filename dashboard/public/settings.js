@@ -130,39 +130,50 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (!isNew) {
             const repo = serverSettings.githubRepos[repoIndex];
-            document.getElementById('repo-name').value = repo.name;
-            document.getElementById('repo-secret').value = repo.secret;
+            const repoNameInput = document.getElementById('repo-name');
+            const repoSecretInput = document.getElementById('repo-secret');
+            if (repoNameInput) repoNameInput.value = repo.name;
+            if (repoSecretInput) repoSecretInput.value = repo.secret;
 
             // Commits
             const commits = repo.commits || {};
-            document.getElementById('commits-enabled').checked = commits.enabled;
-            document.getElementById('commits-channelId').value = commits.channelId || '';
+            const commitsEnabledInput = document.getElementById('commits-enabled');
+            const commitsChannelIdInput = document.getElementById('commits-channelId');
+            if (commitsEnabledInput) commitsEnabledInput.checked = commits.enabled;
+            if (commitsChannelIdInput) commitsChannelIdInput.value = commits.channelId || '';
 
             // Pull Requests
             const pulls = repo.pullRequests || {};
-            document.getElementById('pulls-enabled').checked = pulls.enabled;
-            document.getElementById('pulls-channelId').value = pulls.channelId || '';
-            document.getElementById('pulls-ignore-drafts').checked = pulls.ignoreDrafts !== false;
+            const pullsEnabledInput = document.getElementById('pulls-enabled');
+            const pullsChannelIdInput = document.getElementById('pulls-channelId');
+            const pullsIgnoreDraftsInput = document.getElementById('pulls-ignore-drafts');
+            if (pullsEnabledInput) pullsEnabledInput.checked = pulls.enabled;
+            if (pullsChannelIdInput) pullsChannelIdInput.value = pulls.channelId || '';
+            if (pullsIgnoreDraftsInput) pullsIgnoreDraftsInput.checked = pulls.ignoreDrafts !== false;
             (pulls.eventFilter || []).forEach(event => {
                 const checkbox = repoForm.querySelector(`input[type="checkbox"][value="${event}"]`);
-                if(checkbox) checkbox.checked = true;
+                if (checkbox) checkbox.checked = true;
             });
 
             // Issues
             const issues = repo.issues || {};
-            document.getElementById('issues-enabled').checked = issues.enabled;
-            document.getElementById('issues-channelId').value = issues.channelId || '';
-             (issues.eventFilter || []).forEach(event => {
-                const checkbox = repoModal.querySelector(`#repo-form input[type="checkbox"][value="${event}"]`);
+            const issuesEnabledInput = document.getElementById('issues-enabled');
+            const issuesChannelIdInput = document.getElementById('issues-channelId');
+            if (issuesEnabledInput) issuesEnabledInput.checked = issues.enabled;
+            if (issuesChannelIdInput) issuesChannelIdInput.value = issues.channelId || '';
+            (issues.eventFilter || []).forEach(event => {
+                const checkbox = repoForm.querySelector(`input[type="checkbox"][value="${event}"]`);
                 if (checkbox) checkbox.checked = true;
             });
 
             // Releases
             const releases = repo.releases || {};
-            document.getElementById('releases-enabled').checked = releases.enabled;
-            document.getElementById('releases-channelId').value = releases.channelId || '';
-             (releases.typeFilter || []).forEach(event => {
-                const checkbox = repoModal.querySelector(`#repo-form input[type="checkbox"][value="${event}"]`);
+            const releasesEnabledInput = document.getElementById('releases-enabled');
+            const releasesChannelIdInput = document.getElementById('releases-channelId');
+            if (releasesEnabledInput) releasesEnabledInput.checked = releases.enabled;
+            if (releasesChannelIdInput) releasesChannelIdInput.value = releases.channelId || '';
+            (releases.typeFilter || []).forEach(event => {
+                const checkbox = repoForm.querySelector(`input[type="checkbox"][value="${event}"]`);
                 if (checkbox) checkbox.checked = true;
             });
         }
