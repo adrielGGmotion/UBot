@@ -389,6 +389,13 @@ body {
   margin-bottom: var(--gap);
 }
 
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  padding-top: var(--gap);
+}
+
 /* Custom Checkbox */
 .form-group input[type="checkbox"] {
   appearance: none;
@@ -679,6 +686,26 @@ fieldset legend {
     padding: 0 10px;
     font-weight: 600;
     color: var(--text-secondary);
+}
+
+#github-repos-container .repo-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-radius: var(--radius);
+    background-color: var(--bg);
+    border: 1px solid var(--border-color);
+    margin-bottom: 10px; /* Add some space between items */
+    transition: all 0.2s ease;
+}
+
+#github-repos-container .repo-item:hover {
+    border-color: var(--accent);
+}
+
+#github-repos-container .repo-item span {
+    font-weight: 500;
 }
 
 
