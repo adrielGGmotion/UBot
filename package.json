@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "cookie-parser": "^1.4.7",
     "discord.js": "^14.22.1",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",

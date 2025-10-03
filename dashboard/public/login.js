@@ -15,8 +15,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (response.ok) {
-                const data = await response.json();
-                localStorage.setItem('dashboard-token', data.token);
+                // O token agora é gerenciado por um cookie httpOnly seguro.
+                // Apenas redirecionamos em caso de sucesso.
                 window.location.href = '/';
             } else {
                 throw new Error('Senha incorreta.');

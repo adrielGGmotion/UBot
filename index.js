@@ -6,6 +6,7 @@ const { Riffy } = require("riffy");
 const RiffyManager = require('./features/riffyManager.js');
 const githubNotifier = require('./features/githubNotifier.js');
 const express = require('express');
+const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
 
 const ROOT = process.cwd();
@@ -247,6 +248,7 @@ async function startDashboard() {
       req.rawBody = buf;
     }
   }));
+  app.use(cookieParser());
 
   const sessionTokens = new Set();
   const password = process.env.DASHBOARD_PASSWORD;
@@ -256,23 +258,58 @@ async function startDashboard() {
 
   const authMiddleware = (req, res, next) => {
     if (!password) return next();
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    if (token == null || !sessionTokens.has(token)) {
-      return res.sendStatus(401);
+
+    // Check for token in cookie first, then fallback to Authorization header
+    const cookieToken = req.cookies['dashboard-token'];
+    if (cookieToken && sessionTokens.has(cookieToken)) {
+        return next();
     }
-    next();
+
+    const authHeader = req.headers['authorization'];
+    const headerToken = authHeader && authHeader.split(' ')[1];
+    if (headerToken && sessionTokens.has(headerToken)) {
+        return next();
+    }
+
+    return res.status(401);
+  };
+
+  const pageAuthMiddleware = (req, res, next) => {
+    if (!password) return next();
+
+    const token = req.cookies['dashboard-token'];
+    if (token && sessionTokens.has(token)) {
+        return next();
+    }
+    res.redirect('/login.html');
   };
 
   app.post('/api/login', (req, res) => {
-    if (!password) return res.status(200).json({ token: client.getLocale('dev_mode_token') });
-    if (req.body.password === password) {
-      const token = crypto.randomBytes(32).toString('hex');
-      sessionTokens.add(token);
-      res.status(200).json({ token: token });
-    } else {
-      res.status(401).json({ error: client.getLocale('err_incorrect_password') });
+    if (!password) {
+        // In dev mode without a password, we can grant a session token.
+        const devToken = client.getLocale('dev_mode_token');
+        sessionTokens.add(devToken);
+        res.cookie('dashboard-token', devToken, { httpOnly: true, maxAge: 86400000 }); // 24 hours
+        return res.status(200).json({ token: devToken });
     }
+
+    if (req.body.password === password) {
+        const token = crypto.randomBytes(32).toString('hex');
+        sessionTokens.add(token);
+        res.cookie('dashboard-token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 86400000 }); // 24 hours
+        res.status(200).json({ token: token });
+    } else {
+        res.status(401).json({ error: client.getLocale('err_incorrect_password') });
+    }
+  });
+
+  app.post('/api/logout', (req, res) => {
+    const token = req.cookies['dashboard-token'];
+    if (token) {
+        sessionTokens.delete(token);
+    }
+    res.clearCookie('dashboard-token');
+    res.sendStatus(200);
   });
 
   app.get('/config.json', (req, res) => {
@@ -594,7 +631,32 @@ async function startDashboard() {
     }
   });
 
-  app.use('/', express.static(path.join(ROOT, 'dashboard', 'public')));
+  // --- Page Serving ---
+  // Serve login page unprotected
+  app.get('/login.html', (req, res) => {
+    res.sendFile(path.join(ROOT, 'dashboard', 'public', 'login.html'));
+  });
+
+  // Serve all other HTML files with the page authentication middleware
+  const protectedPages = [
+      'index.html', 'ai_features.html', 'github.html', 'management.html',
+      'music_system.html', 'profile.html', 'server.html', 'server_stats.html',
+      'stats.html', 'sidebar.html'
+  ];
+
+  app.get('/', pageAuthMiddleware, (req, res) => {
+    res.sendFile(path.join(ROOT, 'dashboard', 'public', 'index.html'));
+  });
+
+  protectedPages.forEach(page => {
+      app.get(`/${page}`, pageAuthMiddleware, (req, res) => {
+          res.sendFile(path.join(ROOT, 'dashboard', 'public', page));
+      });
+  });
+
+  // Serve static assets (JS, CSS, images) after protected routes
+  app.use(express.static(path.join(ROOT, 'dashboard', 'public')));
+
 
   app.post('/api/webhooks/github', async (req, res) => {
     if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
