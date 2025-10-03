@@ -117,10 +117,9 @@ function constructSystemPrompt(aiConfig, guildName, botName, channel, userLocale
  * Main function to generate the AI response.
  */
 async function generateResponse(client, message) {
-  console.log(`[LOG] [aiHandler] [generateResponse] Starting for message ${message.id}`);
   try {
     if (!process.env.OPENROUTER_API_KEY) {
-        console.error('[LOG] [aiHandler] [generateResponse] Aborting: OPENROUTER_API_KEY not found.');
+        console.error('OpenRouter API Key not found.');
         return client.getLocale('err_ai_response');
     }
 
@@ -133,17 +132,13 @@ async function generateResponse(client, message) {
     const aiConfig = serverSettings.aiConfig || {};
     const contextLimit = aiConfig.contextLimit || 15;
     const model = aiConfig.model || 'x-ai/grok-4-fast:free';
-    console.log(`[LOG] [aiHandler] [generateResponse] Using model: ${model}, context limit: ${contextLimit}`);
 
     const conversation = await fetchConversationHistory(message, client, contextLimit);
-    console.log(`[LOG] [aiHandler] [generateResponse] Fetched conversation history.`);
-    
     const userLocale = client.config.language || 'en';
     const systemPromptContent = constructSystemPrompt(aiConfig, message.guild.name, client.user.username, message.channel, userLocale);
-    console.log(`[LOG] [aiHandler] [generateResponse] Constructed system prompt.`);
 
     const messagesForAPI = [{ role: 'system', content: systemPromptContent }, ...conversation];
-    
+
     // Filter tools based on whether FAQ is enabled
     let availableTools = [...tools];
     if (aiConfig.faqEnabled === false) {
@@ -154,36 +149,27 @@ async function generateResponse(client, message) {
     let toolCallCount = 0;
 
     while (toolCallCount < maxToolCalls) {
-      console.log(`[LOG] [aiHandler] [generateResponse] Iteration ${toolCallCount + 1}. Sending payload to API.`);
       const completion = await openai.chat.completions.create({
         model: model,
         messages: messagesForAPI,
         tools: availableTools.length > 0 ? availableTools : undefined,
         tool_choice: availableTools.length > 0 ? "auto" : "none",
       });
-      console.log(`[LOG] [aiHandler] [generateResponse] Received API response for iteration ${toolCallCount + 1}:`, JSON.stringify(completion, null, 2));
 
       const responseMessage = completion.choices[0].message;
 
-      // If there are no tool calls, we have our final answer.
       if (!responseMessage.tool_calls) {
-        console.log(`[LOG] [aiHandler] [generateResponse] No more tool calls. Final content: "${responseMessage.content}"`);
         return responseMessage.content;
       }
 
-      // If there are tool calls, process them.
-      console.log(`[LOG] [aiHandler] [generateResponse] Detected ${responseMessage.tool_calls.length} tool call(s).`);
-      messagesForAPI.push(responseMessage); // Add the assistant's decision to call tools to the history
-      
+      messagesForAPI.push(responseMessage);
+
       const availableFunctions = getToolFunctions(client);
       for (const toolCall of responseMessage.tool_calls) {
         const functionName = toolCall.function.name;
         const functionToCall = availableFunctions[functionName];
         const functionArgs = JSON.parse(toolCall.function.arguments);
-        console.log(`[LOG] [aiHandler] [generateResponse] Executing tool: ${functionName} with args:`, JSON.stringify(functionArgs, null, 2));
-
         const functionResponse = await functionToCall(functionArgs, message);
-        console.log(`[LOG] [aiHandler] [generateResponse] Tool ${functionName} responded:`, JSON.stringify(functionResponse, null, 2));
 
         messagesForAPI.push({
             tool_call_id: toolCall.id,
@@ -192,15 +178,15 @@ async function generateResponse(client, message) {
             content: JSON.stringify(functionResponse),
         });
       }
-      
-      toolCallCount++; // Increment after processing a batch of tool calls.
+
+      toolCallCount++;
     }
 
-    console.error('[LOG] [aiHandler] [generateResponse] Exceeded maximum tool call limit.');
+    console.error('Exceeded maximum tool call limit for a single response.');
     return client.getLocale('err_ai_response');
 
   } catch (error) {
-    console.error('[LOG] [aiHandler] [generateResponse] CRITICAL ERROR:', error);
+    console.error('Error generating AI response:', error);
     return client.getLocale('err_ai_response');
   }
 }
@@ -210,27 +196,20 @@ async function generateResponse(client, message) {
  */
 async function processMessage(client, message) {
   if (message.author.id === client.user.id || !message.guild) return;
-  console.log(`[LOG] [aiHandler] Processing message ${message.id} in guild ${message.guild.id}`);
 
   const settingsCollection = client.getDbCollection('server-settings');
-  if (!settingsCollection) {
-    console.log(`[LOG] [aiHandler] Aborting: Could not get server-settings collection.`);
-    return;
-  }
+  if (!settingsCollection) return;
 
   const serverSettings = await settingsCollection.findOne({ guildId: message.guild.id }) || {};
   const aiConfig = serverSettings.aiConfig || {};
-  console.log(`[LOG] [aiHandler] Fetched AI Config for guild ${message.guild.id}: ${JSON.stringify(aiConfig, null, 2)}`);
 
   // 1. Check if the AI is enabled at all for this server.
   if (!aiConfig.enabled) {
-    console.log(`[LOG] [aiHandler] Aborting: AI is disabled for this server.`);
     return;
   }
 
   // 2. Check if the channel is explicitly restricted.
   if (aiConfig.restrictedChannels && aiConfig.restrictedChannels.includes(message.channel.id)) {
-    console.log(`[LOG] [aiHandler] Aborting: Channel ${message.channel.id} is restricted.`);
     return;
   }
 
@@ -244,23 +223,15 @@ async function processMessage(client, message) {
       isReplyingToBot = true;
     }
   }
-  
-  console.log(`[LOG] [aiHandler] Response conditions: isMentioned=${isMentioned}, isReplyingToBot=${isReplyingToBot}, isAllowedChannel=${isAllowedChannel}`);
 
   // Determine if the bot should respond:
   // - If it's mentioned or replied to.
   // - Or if it's in a designated "speak freely" channel.
   if (isMentioned || isReplyingToBot || isAllowedChannel) {
-    console.log(`[LOG] [aiHandler] Conditions met. Calling generateResponse.`);
     const response = await generateResponse(client, message);
     if (response) {
-      console.log(`[LOG] [aiHandler] Received response from generateResponse. Sending reply.`);
       await message.reply({ content: response, allowedMentions: { repliedUser: false } });
-    } else {
-      console.log(`[LOG] [aiHandler] generateResponse returned a falsy value. No reply will be sent.`);
     }
-  } else {
-      console.log(`[LOG] [aiHandler] Conditions not met. Ignoring message.`);
   }
 }
 
