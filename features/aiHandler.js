@@ -7,6 +7,26 @@ const openai = new OpenAI({
 });
 
 /**
+ * Maps a tool name to a user-friendly status message.
+ * @param {string} toolName - The name of the tool.
+ * @returns {string} - The status message.
+ */
+function getToolStatusMessage(toolName) {
+  const toolMessages = {
+    google_search: "🌐 Searching on Google...",
+    search_knowledge_base: "📚 Searching the knowledge base...",
+    read_faq: "❓ Searching the FAQ...",
+    play_music: "🎵 Playing music...",
+    pause_music: "⏸️ Pausing music...",
+    resume_music: "▶️ Resuming music...",
+    skip_music: "⏭️ Skipping music...",
+    stop_music: "⏹️ Stopping music...",
+    default: "⚙️ Using a tool...",
+  };
+  return toolMessages[toolName] || toolMessages.default;
+}
+
+/**
  * Fetches and formats the message history of a channel.
  * @param {import('discord.js').Message} message - The message that triggered the bot.
  * @param {import('discord.js').Client} client - The Discord client.
@@ -117,6 +137,7 @@ function constructSystemPrompt(aiConfig, guildName, botName, channel, userLocale
  * Main function to generate the AI response.
  */
 async function generateResponse(client, message) {
+  let statusMessage = null;
   try {
     if (!process.env.OPENROUTER_API_KEY) {
         console.error('OpenRouter API Key not found.');
@@ -159,7 +180,17 @@ async function generateResponse(client, message) {
       const responseMessage = completion.choices[0].message;
 
       if (!responseMessage.tool_calls) {
+        // If we had a status message, edit it to the final status before deleting.
+        if (statusMessage) {
+          await statusMessage.edit({ content: "✍️ Writing a response..." }).catch(console.error);
+          await statusMessage.delete().catch(console.error);
+        }
         return responseMessage.content;
+      }
+
+      // First time we see a tool call, create the status message.
+      if (!statusMessage && message.channel.isTextBased()) {
+        statusMessage = await message.channel.send({ content: "🧠 Thinking..." });
       }
 
       messagesForAPI.push(responseMessage);
@@ -167,6 +198,13 @@ async function generateResponse(client, message) {
       const availableFunctions = getToolFunctions(client);
       for (const toolCall of responseMessage.tool_calls) {
         const functionName = toolCall.function.name;
+
+        // Update the status message to reflect the current tool being used.
+        if (statusMessage) {
+          const statusText = getToolStatusMessage(functionName);
+          await statusMessage.edit({ content: statusText }).catch(console.error);
+        }
+
         const functionToCall = availableFunctions[functionName];
         const functionArgs = JSON.parse(toolCall.function.arguments);
         const functionResponse = await functionToCall(functionArgs, message);
@@ -183,10 +221,16 @@ async function generateResponse(client, message) {
     }
 
     console.error('Exceeded maximum tool call limit for a single response.');
+    if (statusMessage) {
+      await statusMessage.delete().catch(console.error);
+    }
     return client.getLocale('err_ai_response');
 
   } catch (error) {
     console.error('Error generating AI response:', error);
+    if (statusMessage) {
+      await statusMessage.delete().catch(console.error);
+    }
     return client.getLocale('err_ai_response');
   }
 }
