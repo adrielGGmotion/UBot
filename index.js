@@ -290,14 +290,14 @@ async function startDashboard() {
         const devToken = client.getLocale('dev_mode_token');
         sessionTokens.add(devToken);
         res.cookie('dashboard-token', devToken, { httpOnly: true, maxAge: 86400000 }); // 24 hours
-        return res.status(200).json({ token: devToken });
+        return res.sendStatus(200);
     }
 
     if (req.body.password === password) {
         const token = crypto.randomBytes(32).toString('hex');
         sessionTokens.add(token);
         res.cookie('dashboard-token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 86400000 }); // 24 hours
-        res.status(200).json({ token: token });
+        res.sendStatus(200);
     } else {
         res.status(401).json({ error: client.getLocale('err_incorrect_password') });
     }

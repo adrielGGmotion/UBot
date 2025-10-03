@@ -25,7 +25,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function handleAuthError(response) {
         if (response.status === 401) {
-            localStorage.removeItem('dashboard-token');
+            // The token is now a secure httpOnly cookie. Client-side JS cannot remove it.
+            // Just redirect to login. The server will handle auth status.
             window.location.href = '/login.html';
             return true;
         }
@@ -34,12 +35,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function fetchInfoAndTheme() {
         try {
-            const token = localStorage.getItem('dashboard-token');
-            if (!token) {
-                window.location.href = '/login.html';
-                return;
-            }
-            const response = await fetch('/api/info', { headers: { 'Authorization': `Bearer ${token}` } });
+            // The browser will automatically send the httpOnly cookie.
+            const response = await fetch('/api/info');
             if (handleAuthError(response)) return;
 
             const data = await response.json();
@@ -69,8 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!guildsListElement) return;
 
         try {
-            const token = localStorage.getItem('dashboard-token');
-            const response = await fetch('/api/guilds', { headers: { 'Authorization': `Bearer ${token}` } });
+            const response = await fetch('/api/guilds');
             if (handleAuthError(response)) return;
             const guilds = await response.json();
 
@@ -95,8 +91,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!totalCommandsElement && !chartCanvas) return;
 
         try {
-            const token = localStorage.getItem('dashboard-token');
-            const response = await fetch('/api/stats', { headers: { 'Authorization': `Bearer ${token}` } });
+            const response = await fetch('/api/stats');
             if (handleAuthError(response)) return;
             const stats = await response.json();
 
@@ -172,10 +167,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const avatar = getElement('avatar').value;
             profileStatus.textContent = i18n.t('dashboard_profile_saving');
             try {
-                const token = localStorage.getItem('dashboard-token');
                 const response = await fetch('/api/bot/profile', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: username || null, avatar: avatar || null }),
                 });
                 if (handleAuthError(response)) return;
