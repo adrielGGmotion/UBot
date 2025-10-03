@@ -126,8 +126,14 @@ function initializeSidebar() {
     if (logoutButton) {
         logoutButton.addEventListener('click', (e) => {
             e.preventDefault();
-            localStorage.removeItem('dashboard-token');
-            window.location.href = '/login.html';
+            // window.auth.logout is defined in auth.js and handles the full logout flow
+            if (window.auth && typeof window.auth.logout === 'function') {
+                window.auth.logout();
+            } else {
+                console.error('Logout function not found.');
+                // Fallback redirect
+                window.location.href = '/login.html';
+            }
         });
     }
 
