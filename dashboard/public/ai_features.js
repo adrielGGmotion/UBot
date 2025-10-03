@@ -99,8 +99,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const div = document.createElement('div');
         div.className = 'list-item';
         div.innerHTML = `
+            <i class="material-icons">description</i>
             <input type="text" class="knowledge-content" value="${content}" placeholder="Enter a piece of knowledge...">
-            <button type="button" class="button danger-button remove-item-btn"><i class="material-icons">remove</i></button>
+            <button type="button" class="btn btn-danger remove-item-btn"><i class="material-icons">delete</i></button>
         `;
         knowledgeList.appendChild(div);
         div.querySelector('.remove-item-btn').addEventListener('click', () => div.remove());
@@ -110,9 +111,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const div = document.createElement('div');
         div.className = 'list-item';
         div.innerHTML = `
+            <i class="material-icons">question_answer</i>
             <input type="text" class="faq-question" value="${question}" placeholder="Question">
             <input type="text" class="faq-answer" value="${answer}" placeholder="Answer">
-            <button type="button" class="button danger-button remove-item-btn"><i class="material-icons">remove</i></button>
+            <button type="button" class="btn btn-danger remove-item-btn"><i class="material-icons">delete</i></button>
         `;
         faqList.appendChild(div);
         div.querySelector('.remove-item-btn').addEventListener('click', () => div.remove());
@@ -125,10 +127,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Saving Settings ---
 
     const getFormData = () => {
-        const formData = new FormData(aiSettingsForm);
         const settings = {
-            enabled: formData.has('enabled'),
-            faqEnabled: formData.has('faqEnabled'),
+            enabled: document.getElementById('ai-enabled').checked,
+            faqEnabled: document.getElementById('ai-faq-enabled').checked,
             allowedChannels: Array.from(allowedChannelsSelect.selectedOptions).map(opt => opt.value),
             restrictedChannels: Array.from(restrictedChannelsSelect.selectedOptions).map(opt => opt.value),
             personality: document.getElementById('ai-personality').value,
@@ -152,6 +153,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     saveButton.addEventListener('click', async () => {
+        const originalButtonHTML = saveButton.innerHTML;
+        saveButton.innerHTML = `<i class="material-icons spin">sync</i> <span data-locale-key="saving">Saving...</span>`;
+        saveButton.disabled = true;
+        if(window.translate) window.translate();
+
         const settings = getFormData();
         try {
             const response = await fetch(`/api/guilds/${guildId}/ai-settings`, {
@@ -168,11 +174,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 throw new Error(errorData.error || 'Failed to save settings');
             }
 
-            // Simple feedback
-            alert('AI settings saved successfully!');
+            saveButton.innerHTML = `<i class="material-icons">check</i> <span data-locale-key="saved">Saved!</span>`;
+            if(window.translate) window.translate();
+
+
+            setTimeout(() => {
+                saveButton.innerHTML = originalButtonHTML;
+                saveButton.disabled = false;
+            }, 2000);
+
         } catch (error) {
             console.error('Error saving AI settings:', error);
-            alert(`Error: ${error.message}`);
+            saveButton.innerHTML = `<i class="material-icons">error</i> <span data-locale-key="save_error">Error!</span>`;
+            saveButton.classList.add('btn-danger');
+            if(window.translate) window.translate();
+
+            setTimeout(() => {
+                saveButton.innerHTML = originalButtonHTML;
+                saveButton.classList.remove('btn-danger');
+                saveButton.disabled = false;
+            }, 3000);
         }
     });
 

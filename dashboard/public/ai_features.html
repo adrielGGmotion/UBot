@@ -9,69 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <style>
-        .ai-features-container {
-            display: flex;
-            gap: 24px;
-            height: calc(100vh - 120px); /* Adjust based on your header/footer */
-        }
-        .settings-panel {
-            flex: 2;
-            overflow-y: auto;
-            padding-right: 16px;
-        }
-        .test-panel {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            border-left: 1px solid var(--border-color);
-            padding-left: 24px;
-        }
-        .chat-window {
-            flex-grow: 1;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 16px;
-            overflow-y: auto;
-            background-color: var(--background-color-light);
-            margin-bottom: 16px;
-        }
-        .chat-message {
-            margin-bottom: 12px;
-            padding: 8px 12px;
-            border-radius: 18px;
-            max-width: 85%;
-            word-wrap: break-word;
-        }
-        .chat-message.user {
-            background-color: var(--primary-color);
-            color: white;
-            margin-left: auto;
-            border-bottom-right-radius: 4px;
-        }
-        .chat-message.bot {
-            background-color: var(--widget-background-color);
-            border: 1px solid var(--border-color);
-            margin-right: auto;
-            border-bottom-left-radius: 4px;
-        }
-        .chat-input {
-            display: flex;
-        }
-        .chat-input input {
-            flex-grow: 1;
-            margin-right: 8px;
-        }
-        .list-editor .list-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 8px;
-        }
-        .list-editor .list-item input {
-            flex-grow: 1;
-        }
-    </style>
 </head>
 <body>
     <div class="main-container">
@@ -80,88 +17,84 @@
             <div class="widget full-width-widget">
                 <div class="widget-header">
                     <h2><i class="material-icons">psychology</i> <span data-locale-key="nav_ai_features">AI Features</span></h2>
-                    <button id="save-ai-settings-btn" class="button primary-button"><i class="material-icons">save</i> <span data-locale-key="save_settings">Save Settings</span></button>
+                    <button id="save-ai-settings-btn" class="btn btn-primary"><i class="material-icons">save</i> <span data-locale-key="save_settings">Save Settings</span></button>
                 </div>
 
                 <div class="ai-features-container">
-                    <!-- Settings Panel -->
                     <div class="settings-panel">
-                        <form id="ai-settings-form">
-                            <!-- General Settings -->
+                        <form id="ai-settings-form" class="settings-form">
                             <div class="form-section">
                                 <h3 data-locale-key="ai_general_settings">General Settings</h3>
-                                <div class="form-group toggle-group">
+                                <div class="form-group">
                                     <label for="ai-enabled" data-locale-key="ai_enable_chatbot">Enable Chatbot</label>
-                                    <label class="switch">
-                                        <input type="checkbox" id="ai-enabled" name="enabled">
-                                        <span class="slider round"></span>
-                                    </label>
+                                    <div class="form-group-inline">
+                                        <label class="switch">
+                                            <input type="checkbox" id="ai-enabled" name="enabled">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Channel Restrictions -->
                             <div class="form-section">
                                 <h3 data-locale-key="ai_channel_restrictions">Channel Restrictions</h3>
                                 <div class="form-group">
-                                    <label for="ai-allowed-channels" data-locale-key="ai_allowed_channels">Allowed Channels (Leave empty to allow all)</label>
+                                    <label for="ai-allowed-channels" data-locale-key="ai_allowed_channels">Allowed Channels</label>
                                     <select id="ai-allowed-channels" name="allowedChannels" multiple></select>
-                                    <small data-locale-key="ai_allowed_channels_desc">The bot will only speak in these channels without being pinged.</small>
+                                    <small data-locale-key="ai_allowed_channels_desc">The bot will speak freely in these channels without being mentioned. Leave empty to allow all channels.</small>
                                 </div>
                                 <div class="form-group">
                                     <label for="ai-restricted-channels" data-locale-key="ai_restricted_channels">Restricted Channels</label>
                                     <select id="ai-restricted-channels" name="restrictedChannels" multiple></select>
-                                    <small data-locale-key="ai_restricted_channels_desc">The bot will never speak in these channels, even if pinged.</small>
+                                    <small data-locale-key="ai_restricted_channels_desc">The bot will never speak in these channels, even if mentioned.</small>
                                 </div>
                             </div>
 
-                            <!-- Personality -->
                             <div class="form-section">
                                 <h3 data-locale-key="ai_personality_setup">Personality & Instructions</h3>
                                 <div class="form-group">
                                     <label for="ai-personality" data-locale-key="ai_personality">Personality</label>
-                                    <textarea id="ai-personality" name="personality" rows="4"></textarea>
-                                    <small data-locale-key="ai_personality_desc">Define the chatbot's personality. One trait per line.</small>
+                                    <textarea id="ai-personality" name="personality" class="form-textarea" rows="4"></textarea>
+                                    <small data-locale-key="ai_personality_desc">Define the chatbot's personality. Provide one trait or instruction per line.</small>
                                 </div>
                                 <div class="form-group">
                                     <label for="ai-extra-instructions" data-locale-key="ai_extra_instructions">Extra Instructions</label>
-                                    <textarea id="ai-extra-instructions" name="extraInstructions" rows="4"></textarea>
-                                    <small data-locale-key="ai_extra_instructions_desc">Provide specific, custom instructions for the bot to follow.</small>
+                                    <textarea id="ai-extra-instructions" name="extraInstructions" class="form-textarea" rows="4"></textarea>
+                                    <small data-locale-key="ai_extra_instructions_desc">Provide specific, hard-coded instructions for the bot to follow at all times.</small>
                                 </div>
                             </div>
 
-                            <!-- Knowledge Base -->
-                            <div class="form-section list-editor">
+                            <div class="form-section">
                                 <h3 data-locale-key="ai_knowledge_base">Knowledge Base</h3>
-                                <div id="knowledge-list"></div>
-                                <button type="button" id="add-knowledge-btn" class="button"><i class="material-icons">add</i> <span data-locale-key="ai_add_knowledge">Add Knowledge</span></button>
+                                <div id="knowledge-list" class="list-editor"></div>
+                                <button type="button" id="add-knowledge-btn" class="btn"><i class="material-icons">add</i> <span data-locale-key="ai_add_knowledge">Add Knowledge</span></button>
                             </div>
 
-                            <!-- FAQ -->
-                            <div class="form-section list-editor">
-                                <h3 data-locale-key="ai_faq">FAQ</h3>
-                                <div class="form-group toggle-group">
+                            <div class="form-section">
+                                <h3><span data-locale-key="ai_faq">FAQ</span></h3>
+                                <div class="form-group">
                                     <label for="ai-faq-enabled" data-locale-key="ai_enable_faq_tool">Enable FAQ Tool</label>
-                                    <label class="switch">
-                                        <input type="checkbox" id="ai-faq-enabled" name="faqEnabled">
-                                        <span class="slider round"></span>
-                                    </label>
+                                    <div class="form-group-inline">
+                                        <label class="switch">
+                                            <input type="checkbox" id="ai-faq-enabled" name="faqEnabled">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
                                 </div>
-                                <div id="faq-list"></div>
-                                <button type="button" id="add-faq-btn" class="button"><i class="material-icons">add</i> <span data-locale-key="ai_add_faq">Add FAQ</span></button>
+                                <div id="faq-list" class="list-editor"></div>
+                                <button type="button" id="add-faq-btn" class="btn"><i class="material-icons">add</i> <span data-locale-key="ai_add_faq">Add FAQ</span></button>
                             </div>
                         </form>
                     </div>
 
-                    <!-- Live Test Panel -->
                     <div class="test-panel">
-                        <h3 data-locale-key="ai_live_test">Live Test</h3>
-                        <p><small data-locale-key="ai_live_test_desc">Test your settings here before saving. Changes are reflected live.</small></p>
+                        <h3><i class="material-icons">science</i> <span data-locale-key="ai_live_test">Live Test</span></h3>
+                        <p class="text-secondary"><small data-locale-key="ai_live_test_desc">Test your settings here before saving. Changes are reflected live. Note: Tool usage is disabled in this test environment.</small></p>
                         <div class="chat-window" id="ai-test-chat-window">
-                            <!-- Messages will be appended here -->
                         </div>
-                        <div class="chat-input">
-                            <input type="text" id="ai-test-input" placeholder="Type a message...">
-                            <button id="ai-test-send-btn" class="button primary-button"><i class="material-icons">send</i></button>
+                        <div class="chat-input-container">
+                            <input type="text" id="ai-test-input" class="form-input" data-locale-key="dashboard_ai_chat_placeholder" placeholder="Send a message...">
+                            <button id="ai-test-send-btn" class="btn btn-primary"><i class="material-icons">send</i></button>
                         </div>
                     </div>
                 </div>
