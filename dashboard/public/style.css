@@ -751,3 +751,126 @@ fieldset legend {
     grid-template-columns: 1fr;
   }
 }
+
+/* --- 9. AI Features Page --- */
+.ai-features-container {
+  display: flex;
+  gap: var(--gap);
+  flex-wrap: wrap;
+}
+
+.settings-panel {
+  flex: 3;
+  min-width: 400px; /* Prevent it from getting too squished */
+}
+
+.test-panel {
+  flex: 2;
+  min-width: 300px;
+  background-color: var(--bg);
+  border-radius: var(--radius);
+  padding: var(--gap);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  max-height: 75vh; /* Set a max height */
+}
+
+.test-panel h3 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.test-panel .text-secondary {
+    color: var(--text-secondary);
+    margin-bottom: 15px;
+}
+
+.chat-window {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 10px;
+  background-color: var(--panel);
+  border-radius: var(--radius);
+  margin-bottom: 15px;
+  border: 1px solid var(--border-color);
+}
+
+.chat-message {
+  padding: 10px 15px;
+  border-radius: 18px;
+  margin-bottom: 10px;
+  max-width: 85%;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.chat-message.user {
+  background-color: var(--accent);
+  color: var(--bg);
+  margin-left: auto;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-message.bot {
+  background-color: var(--panel);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  margin-right: auto;
+  border-bottom-left-radius: 4px;
+}
+
+.chat-input-container {
+  display: flex;
+  gap: 10px;
+}
+
+.chat-input-container .form-input {
+  flex-grow: 1;
+}
+
+.list-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background-color: var(--bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+}
+
+.list-item input {
+  flex-grow: 1;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.list-item input:focus {
+  outline: none;
+}
+
+.list-item .btn {
+  padding: 5px;
+  min-width: auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
