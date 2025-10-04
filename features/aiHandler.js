@@ -152,7 +152,7 @@ async function generateResponse(client, message) {
     const serverSettings = await settingsCollection.findOne({ guildId: message.guild.id }) || {};
     const aiConfig = serverSettings.aiConfig || {};
     const contextLimit = aiConfig.contextLimit || 15;
-    const model = aiConfig.model || 'deepseek/deepseek-v3.1:free';
+    const model = aiConfig.model || 'z-ai/glm-4.5-air:free';
 
     const conversation = await fetchConversationHistory(message, client, contextLimit);
     const userLocale = client.config.language || 'en';
@@ -284,7 +284,7 @@ async function processMessage(client, message) {
  */
 async function generateStandaloneResponse(history, aiConfig) {
     const safeAiConfig = aiConfig || {};
-    const model = safeAiConfig.model || 'deepseek/deepseek-v3.1:free';
+    const model = safeAiConfig.model || 'z-ai/glm-4.5-air:free';
 
     const mockChannel = { name: 'Dashboard Test', type: ChannelType.GuildText };
     const mockGuild = { name: 'Test Server' };
