@@ -197,25 +197,42 @@ const getToolFunctions = (client) => ({
         const knowledge = settings?.aiConfig?.knowledge;
 
         if (!Array.isArray(knowledge) || knowledge.length === 0) {
-            return { success: false, content: "The knowledge base for this server is empty." };
+            return { success: true, content: "The knowledge base for this server is empty." };
         }
 
-        const lowerQuery = query.toLowerCase();
-        const foundEntries = knowledge.filter(entry =>
-            entry.content.toLowerCase().includes(lowerQuery)
-        );
+        const stopWords = new Set(['a', 'an', 'the', 'is', 'in', 'it', 'of', 'for', 'on', 'with', 'to', 'was', 'and', 'or', 'but']);
+        const keywords = query.toLowerCase().split(/\s+/).filter(word => !stopWords.has(word) && word.length > 1);
 
-        if (foundEntries.length > 0) {
-            const results = foundEntries.map(entry => entry.content).join('\n---\n');
-            return { success: true, content: `Found relevant information in the knowledge base:\n${results}` };
+        if (keywords.length === 0) {
+            return { success: true, content: `I couldn't extract any meaningful keywords from your query: "${query}". Please try a more specific search.` };
         }
 
-        return { success: false, content: `I searched the knowledge base but couldn't find anything for "${query}".` };
+        const scoredEntries = knowledge.map(entry => {
+            const lowerContent = entry.content.toLowerCase();
+            let score = 0;
+            keywords.forEach(keyword => {
+                if (lowerContent.includes(keyword)) {
+                    score++;
+                }
+            });
+            return { ...entry, score };
+        }).filter(entry => entry.score > 0);
+
+        if (scoredEntries.length === 0) {
+            return { success: true, content: `I searched the knowledge base but couldn't find anything matching the keywords: "${keywords.join(', ')}".` };
+        }
+
+        scoredEntries.sort((a, b) => b.score - a.score);
+
+        const topEntries = scoredEntries.slice(0, 3);
+        const results = topEntries.map(entry => entry.content).join('\n---\n');
+        return { success: true, content: `Found the most relevant information in the knowledge base based on your query:\n${results}` };
+
     } catch (error) {
         console.error('Error reading knowledge base from DB:', error);
         return { success: false, content: 'An error occurred while accessing the knowledge base.' };
     }
-  },
+},
 
   play_music: async ({ query }, originalMessage) => {
     const member = originalMessage.member;
