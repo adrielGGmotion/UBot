@@ -11,14 +11,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         await window.i18n.ready;
     }
 
-    const token = localStorage.getItem('dashboard-token');
-    if (!token) {
-        window.location.href = '/login.html';
-        return;
-    }
-
-    const headers = { 'Authorization': `Bearer ${token}` };
-
     // DOM Elements
     const serverNameTitle = document.getElementById('server-name-title');
     const settingsForm = document.getElementById('settings-form');
@@ -37,7 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function fetchGuildInfo() {
         try {
-            const res = await fetch('/api/guilds', { headers });
+            const res = await fetch('/api/guilds');
             if (res.status === 401) throw new Error('Unauthorized');
             const guilds = await res.json();
             const guild = guilds.find(g => g.id === guildId);
@@ -51,7 +43,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
             console.error('Failed to fetch guild info:', error);
             if (error.message === 'Unauthorized') {
-                localStorage.removeItem('dashboard-token');
                 window.location.href = '/login.html';
             }
         }
@@ -59,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function fetchSettings() {
         try {
-            const res = await fetch(`/api/guilds/${guildId}/settings`, { headers });
+            const res = await fetch(`/api/guilds/${guildId}/settings`);
             if (res.status === 401) throw new Error('Unauthorized');
             const data = await res.json();
             serverSettings = data.settings || {};
@@ -73,7 +64,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
             console.error('Failed to fetch settings:', error);
             if (error.message === 'Unauthorized') {
-                localStorage.removeItem('dashboard-token');
                 window.location.href = '/login.html';
             }
         }
@@ -287,7 +277,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const res = await fetch(`/api/guilds/${guildId}/settings`, {
                     method: 'POST',
-                    headers: { ...headers, 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData),
                 });
                 if (!res.ok) {

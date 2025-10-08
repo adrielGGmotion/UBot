@@ -10,7 +10,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function handleAuthError(response) {
         if (response.status === 401) {
-            localStorage.removeItem('dashboard-token');
             window.location.href = '/login.html';
             return true;
         }
@@ -19,17 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function fetchStats() {
         try {
-            const token = localStorage.getItem('dashboard-token');
-            if (!token) {
-                window.location.href = '/login.html';
-                return;
-            }
-
-            const response = await fetch('/api/stats', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+            const response = await fetch('/api/stats');
 
             if (handleAuthError(response)) return;
 
