@@ -741,59 +741,65 @@ async function startDashboard() {
   app.listen(port, () => console.log(client.getLocale('log_dashboard_running', { port: port })));
 }
 
+async function initializeRiffy() {
+    const nodes = client.config.music.nodes.map(node => ({
+        host: node.host,
+        port: node.port,
+        password: node.password,
+        secure: node.secure,
+        name: node.name
+    }));
+
+    client.riffy = new Riffy(
+        client,
+        nodes,
+        {
+            send: (payload) => {
+                const guild = client.guilds.cache.get(payload.d.guild_id);
+                if (guild) guild.shard.send(payload);
+            },
+            defaultSearchPlatform: "ytmsearch",
+            restVersion: "v4"
+        }
+    );
+
+    client.on("raw", (d) => {
+        if (client.riffy) {
+            client.riffy.updateVoiceState(d);
+        }
+    });
+
+    client.riffyManager = new RiffyManager(client);
+    client.riffyManager.connect();
+    console.log(client.getLocale('log_riffy_manager_connected'));
+}
+
 (async () => {
   try {
     await loadFeatures();
     const commandsToRegister = await loadSlashCommands();
     await loadFunctions();
     await loadEvents();
+
     if (process.env.REGISTER_COMMANDS === 'true') {
       await registerCommandsGlobally(commandsToRegister);
     }
+
     await tryInitMongo();
     await startDashboard();
+    await initializeRiffy();
 
     client.once('clientReady', async (readyClient) => {
-        const nodes = client.config.music.nodes.map(node => ({
-            host: node.host,
-            port: node.port,
-            password: node.password,
-            secure: node.secure,
-            name: node.name
-        }));
-
-        client.riffy = new Riffy(
-            client,
-            nodes,
-            {
-                send: (payload) => {
-                    const guild = client.guilds.cache.get(payload.d.guild_id);
-                    if (guild) guild.shard.send(payload);
-                },
-                defaultSearchPlatform: "ytmsearch",
-                restVersion: "v4"
-            }
-        );
-
-        await client.riffy.init(readyClient.user.id);
-        console.log(client.getLocale('log_riffy_initialized'));
-
-        client.riffyManager = new RiffyManager(client);
-        client.riffyManager.connect();
-        console.log(client.getLocale('log_riffy_manager_connected'));
-
-        // Moved the raw event listener here to prevent a race condition
-        client.on("raw", (d) => {
-            // Riffy is initialized in the clientReady event, so this should be safe
-            if (client.riffy) {
-                client.riffy.updateVoiceState(d);
-            }
-        });
+        if (client.riffy) {
+            await client.riffy.init(readyClient.user.id);
+            console.log(client.getLocale('log_riffy_initialized'));
+        }
 
         console.log(client.getLocale('bot_ready', { user: readyClient.user.tag }));
         const { statuses, statusrouter } = client.config;
         const intervalMs = typeof statusrouter === 'number' ? statusrouter : 15000;
         if (!Array.isArray(statuses) || !statuses.length) return;
+
         let i = 0;
         const setPresence = async () => {
             const status = statuses[i];
