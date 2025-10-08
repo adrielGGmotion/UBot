@@ -19,14 +19,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Wait for translations to be ready before executing any other logic.
     await waitForI18n();
 
-    const token = localStorage.getItem('dashboard-token');
-    if (!token) {
-        window.location.href = '/login.html';
-        return;
-    }
-
-    const headers = { 'Authorization': `Bearer ${token}` };
-
     // --- DOM Elements ---
     const serverNameTitle = document.getElementById('server-name-title');
     const onlineUsersCount = document.getElementById('online-users-count');
@@ -35,7 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Fetch Guild Info (for name) ---
     async function fetchGuildInfo() {
         try {
-            const res = await fetch('/api/guilds', { headers });
+            const res = await fetch('/api/guilds');
             if (res.status === 401) throw new Error('Unauthorized');
             const guilds = await res.json();
             const guild = guilds.find(g => g.id === guildId);
@@ -48,7 +40,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
             console.error('Failed to fetch guild info:', error);
             if (error.message === 'Unauthorized') {
-                localStorage.removeItem('dashboard-token');
                 window.location.href = '/login.html';
             }
         }
@@ -57,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Fetch Server Stats ---
     async function fetchServerStats() {
         try {
-            const res = await fetch(`/api/guilds/${guildId}/stats`, { headers });
+            const res = await fetch(`/api/guilds/${guildId}/stats`);
             if (res.status === 401) throw new Error('Unauthorized');
             const stats = await res.json();
 
@@ -107,7 +98,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
             console.error('Failed to fetch server stats:', error);
             if (error.message === 'Unauthorized') {
-                localStorage.removeItem('dashboard-token');
                 window.location.href = '/login.html';
             }
         }
