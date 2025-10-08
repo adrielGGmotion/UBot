@@ -26,9 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fetchGuildChannels = async () => {
         try {
             // We can get channels from the general settings endpoint
-            const response = await fetch(`/api/guilds/${guildId}/settings`, {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('dashboard-token')}` }
-            });
+            const response = await fetch(`/api/guilds/${guildId}/settings`);
             if (!response.ok) throw new Error('Failed to fetch guild channels');
             const data = await response.json();
             return data.availableChannels || [];
@@ -52,9 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const fetchAiSettings = async () => {
         try {
-            const response = await fetch(`/api/guilds/${guildId}/ai-settings`, {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('dashboard-token')}` }
-            });
+            const response = await fetch(`/api/guilds/${guildId}/ai-settings`);
             if (!response.ok) throw new Error('Failed to fetch AI settings');
             return await response.json();
         } catch (error) {
@@ -163,8 +159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const response = await fetch(`/api/guilds/${guildId}/ai-settings`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('dashboard-token')}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(settings)
             });
@@ -224,8 +219,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const response = await fetch(`/api/guilds/${guildId}/ai-test`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('dashboard-token')}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     history: testChatHistory,
