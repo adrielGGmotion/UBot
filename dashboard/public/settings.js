@@ -529,9 +529,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         await updatePlayerStatus();
-        setInterval(updatePlayerStatus, 5000);
-    }
-
+        setInterval(updatePlayerS
     function renderQueue(queue) {
         const queueList = document.querySelector('.queue-list');
         if (!queueList) return;
@@ -547,6 +545,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </li>
             `).join('');
         }
+    }
+tatus, 5000);
     }
 
 
