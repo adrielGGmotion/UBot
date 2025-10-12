@@ -47,6 +47,9 @@ class RiffyManager {
         const channel = this.client.channels.cache.get(player.textChannel);
         if (!channel) return;
 
+        // Await the thumbnail in case it's a promise, preventing a crash.
+        const thumbnailUrl = await track.info.thumbnail;
+
         let settings = null;
         if (this.client.db) {
             const settingsCollection = this.client.db.collection('server-settings');
@@ -54,14 +57,14 @@ class RiffyManager {
         }
 
         let embedColor = this.client.config.colors.primary;
-        if (settings?.musicConfig?.embedColor && track.info.thumbnail) {
+        if (settings?.musicConfig?.embedColor && thumbnailUrl) {
             try {
-                const palette = await Vibrant.from(track.info.thumbnail).getPalette();
+                const palette = await Vibrant.from(thumbnailUrl).getPalette();
                 if (palette.Vibrant) {
                     embedColor = palette.Vibrant.hex;
                 }
             } catch (err) {
-                console.error(`[Vibrant] Failed to extract color from ${track.info.thumbnail}:`, err);
+                console.error(`[Vibrant] Failed to extract color from ${thumbnailUrl}:`, err);
             }
         }
 
@@ -78,7 +81,7 @@ class RiffyManager {
                 { name: "Author", value: track.info.author, inline: true },
                 { name: "Requested by", value: requester, inline: true }
             )
-            .setThumbnail(track.info.thumbnail);
+            .setThumbnail(thumbnailUrl);
 
         const row = new ActionRowBuilder()
             .addComponents(
