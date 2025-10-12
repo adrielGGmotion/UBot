@@ -28,8 +28,14 @@
             <div class="form-section">
                 <h3 data-locale-key="settings_section_music">Music</h3>
                 <div class="form-group">
-                    <label for="dj-role" data-locale-key="settings_music_djrole">DJ Role</label>
-                    <input type="text" id="dj-role" name="musicConfig.djRole">
+                    <label for="manager-roles" data-locale-key="settings_music_manager_roles">Manager Roles</label>
+                    <select id="manager-roles" name="musicConfig.managerRoles" multiple></select>
+                    <small data-locale-key="settings_music_manager_roles_desc">Users with these roles can manage the music player.</small>
+                </div>
+                <div class="form-group">
+                    <label for="blacklisted-roles" data-locale-key="settings_music_blacklisted_roles">Blacklisted Roles</label>
+                    <select id="blacklisted-roles" name="musicConfig.blacklistedRoles" multiple></select>
+                    <small data-locale-key="settings_music_blacklisted_roles_desc">Users with these roles cannot use music commands.</small>
                 </div>
                 <div class="form-group">
                     <label for="music-autoplay" data-locale-key="settings_music_autoplay">Autoplay</label>
@@ -44,6 +50,13 @@
                 <button type="submit" class="btn btn-primary" data-locale-key="settings_save_changes">Save Changes</button>
             </div>
         </form>
+      </div>
+
+      <div class="widget large-widget" id="music-control-panel">
+        <h2 class="widget-title"><i class="material-icons">music_video</i> <span data-locale-key="music_control_panel_title">Music Control Panel</span></h2>
+        <div class="panel-content">
+          <!-- Dynamically loaded content -->
+        </div>
       </div>
     </main>
   </div>
