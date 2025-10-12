@@ -1,9 +1,11 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const Vibrant = require('node-vibrant/node');
+const InDiscordLyrics = require('./inDiscordLyrics.js');
 
 class RiffyManager {
     constructor(client) {
         this.client = client;
+        this.inDiscordLyrics = new InDiscordLyrics(this.client);
     }
 
     /**
@@ -45,6 +47,9 @@ class RiffyManager {
         const channel = this.client.channels.cache.get(player.textChannel);
         if (!channel) return;
 
+        // Await the thumbnail in case it's a promise, preventing a crash.
+        const thumbnailUrl = await track.info.thumbnail;
+
         let settings = null;
         if (this.client.db) {
             const settingsCollection = this.client.db.collection('server-settings');
@@ -52,14 +57,14 @@ class RiffyManager {
         }
 
         let embedColor = this.client.config.colors.primary;
-        if (settings?.musicConfig?.embedColor && track.info.thumbnail) {
+        if (settings?.musicConfig?.embedColor && thumbnailUrl) {
             try {
-                const palette = await Vibrant.from(track.info.thumbnail).getPalette();
+                const palette = await Vibrant.from(thumbnailUrl).getPalette();
                 if (palette.Vibrant) {
                     embedColor = palette.Vibrant.hex;
                 }
             } catch (err) {
-                console.error(`[Vibrant] Failed to extract color from ${track.info.thumbnail}:`, err);
+                console.error(`[Vibrant] Failed to extract color from ${thumbnailUrl}:`, err);
             }
         }
 
@@ -76,7 +81,7 @@ class RiffyManager {
                 { name: "Author", value: track.info.author, inline: true },
                 { name: "Requested by", value: requester, inline: true }
             )
-            .setThumbnail(track.info.thumbnail);
+            .setThumbnail(thumbnailUrl);
 
         const row = new ActionRowBuilder()
             .addComponents(
@@ -101,12 +106,14 @@ class RiffyManager {
         try {
             const message = await channel.send({ embeds: [embed], components: [row] });
             player.set("nowPlayingMessage", message);
+            this.inDiscordLyrics.start(player, message);
         } catch (error) {
             console.error(`[RiffyManager] Could not send 'Now Playing' message in guild ${player.guildId}:`, error);
         }
     }
 
     async onQueueEnd(player) {
+        this.inDiscordLyrics.stop(player.guildId);
         const timeout = player.get("destroyTimeout");
         if (timeout) clearTimeout(timeout);
 
@@ -182,6 +189,7 @@ class RiffyManager {
     }
 
     onPlayerDestroy(player) {
+        this.inDiscordLyrics.stop(player.guildId);
         // Clear the destroy timeout if the player is destroyed manually
         const timeout = player.get("destroyTimeout");
         if (timeout) clearTimeout(timeout);
