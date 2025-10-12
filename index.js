@@ -398,7 +398,8 @@ async function startDashboard() {
         knowledge: [],
         githubRepos: [],
         musicConfig: {
-          djRole: 'DJ',
+          managerRoles: [],
+          blacklistedRoles: [],
           autoplay: false,
           embedColor: false,
         },
@@ -437,6 +438,29 @@ async function startDashboard() {
       { upsert: true }
     );
     res.status(200).json({ success: client.getLocale('settings_updated') });
+  });
+
+  app.get('/api/guilds/:guildId/roles', authMiddleware, async (req, res) => {
+    const { guildId } = req.params;
+    try {
+      const guild = await client.guilds.fetch(guildId);
+      if (!guild) {
+        return res.status(404).json({ error: client.getLocale('err_guild_not_found') });
+      }
+      // Filter out @everyone role and select only relevant properties
+      const roles = guild.roles.cache
+        .filter(role => role.id !== guild.id)
+        .map(role => ({
+          id: role.id,
+          name: role.name,
+          color: role.hexColor,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically
+      res.json(roles);
+    } catch (error) {
+      console.error(`Failed to fetch roles for guild ${guildId}:`, error);
+      res.status(500).json({ error: 'Failed to fetch roles.' });
+    }
   });
 
   // --- AI FEATURES ENDPOINTS ---
@@ -541,25 +565,32 @@ async function startDashboard() {
     }
   });
 
-  // --- NOVOS ENDPOINTS DE MÚSICA ---
-  app.get('/api/guilds/:guildId/music', authMiddleware, (req, res) => {
+  // --- PLAYER STATUS ENDPOINT ---
+  app.get('/api/guilds/:guildId/player-status', authMiddleware, (req, res) => {
     const { guildId } = req.params;
     const player = client.riffy.players.get(guildId);
 
-    if (!player) {
-      return res.json({ playing: false });
+    if (!player || !player.queue.current) {
+        return res.json({ isPlaying: false });
     }
 
-    const { queue, state, volume, loop } = player;
-    const nowPlaying = queue.current;
+    const { queue, state, volume, loop, position } = player;
+    const track = queue.current;
 
     res.json({
-        playing: state === 'CONNECTED',
-        paused: player.paused,
-        nowPlaying: nowPlaying ? { title: nowPlaying.info.title, author: nowPlaying.info.author, uri: nowPlaying.info.uri } : null,
-        queue: queue.map(track => ({ title: track.info.title, author: track.info.author, uri: track.info.uri })),
+        isPlaying: state === 'CONNECTED',
+        isPaused: player.paused,
+        track: {
+            title: track.info.title,
+            author: track.info.author,
+            uri: track.info.uri,
+            artworkUrl: track.info.artworkUrl,
+            duration: track.info.length,
+            position: position,
+        },
+        queue: queue.map(t => ({ title: t.info.title, author: t.info.author })),
         volume,
-        loop
+        loop,
     });
   });
 
