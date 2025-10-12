@@ -1,9 +1,11 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const Vibrant = require('node-vibrant/node');
+const InDiscordLyrics = require('./inDiscordLyrics.js');
 
 class RiffyManager {
     constructor(client) {
         this.client = client;
+        this.inDiscordLyrics = new InDiscordLyrics(this.client);
     }
 
     /**
@@ -101,12 +103,14 @@ class RiffyManager {
         try {
             const message = await channel.send({ embeds: [embed], components: [row] });
             player.set("nowPlayingMessage", message);
+            this.inDiscordLyrics.start(player, message);
         } catch (error) {
             console.error(`[RiffyManager] Could not send 'Now Playing' message in guild ${player.guildId}:`, error);
         }
     }
 
     async onQueueEnd(player) {
+        this.inDiscordLyrics.stop(player.guildId);
         const timeout = player.get("destroyTimeout");
         if (timeout) clearTimeout(timeout);
 
@@ -182,6 +186,7 @@ class RiffyManager {
     }
 
     onPlayerDestroy(player) {
+        this.inDiscordLyrics.stop(player.guildId);
         // Clear the destroy timeout if the player is destroyed manually
         const timeout = player.get("destroyTimeout");
         if (timeout) clearTimeout(timeout);
