@@ -15,9 +15,9 @@
   "music": {
     "nodes": [
       {
-        "host": "lavalink.jirayu.net",
-        "port": 13592,
-        "password": "youshallnotpass",
+        "host": "140.238.179.182",
+        "port": 2333,
+        "password": "kirito",
         "secure": false,
         "name": "NODE"
       }
