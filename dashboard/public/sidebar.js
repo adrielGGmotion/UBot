@@ -37,35 +37,28 @@ function initializeSidebar() {
 
     // --- Server Management Category ---
     const serverManagementCategory = document.getElementById('server-management-category');
-    const serverOverviewLink = document.getElementById('server-overview-link');
-    const serverSettingsLink = document.getElementById('server-settings-link');
+    const serverLinks = [
+        { id: 'server-overview-link', href: 'server.html' },
+        { id: 'server-github-link', href: 'github.html' },
+        { id: 'server-ai-features-link', href: 'ai_features.html' },
+        { id: 'server-stats-link', href: 'server_stats.html' },
+        { id: 'server-music-system-link', href: 'music_system.html' }
+    ];
 
-    const isServerContextPage = window.location.pathname.includes('/server.html')
-        || window.location.pathname.includes('/settings.html')
-        || window.location.pathname.includes('/github.html')
-        || window.location.pathname.includes('/music_system.html')
-        || window.location.pathname.includes('/server_stats.html')
-        || window.location.pathname.includes('/ai_features.html');
+    const isServerContextPage = serverLinks.some(link => window.location.pathname.includes(`/${link.href}`));
 
     if (guildId && isServerContextPage) {
-        if (serverManagementCategory) serverManagementCategory.style.display = 'block';
-        if (serverOverviewLink) {
-            serverOverviewLink.style.display = 'flex';
-            serverOverviewLink.href = `server.html?id=${guildId}`;
-        }
-        if (serverSettingsLink) {
-            serverSettingsLink.style.display = 'flex';
-            serverSettingsLink.href = `settings.html?id=${guildId}`;
+        if (serverManagementCategory) {
+            serverManagementCategory.style.display = 'block';
         }
 
-            // Also update other server-specific links
-            const serverSpecificHrefs = ['github.html', 'music_system.html', 'server_stats.html', 'ai_features.html'];
-            serverSpecificHrefs.forEach(href => {
-                const link = document.querySelector(`a[href="${href}"]`);
-                if (link) {
-                    link.href = `${href}?id=${guildId}`;
-                }
-            });
+        serverLinks.forEach(linkInfo => {
+            const linkElement = document.getElementById(linkInfo.id);
+            if (linkElement) {
+                linkElement.style.display = 'flex';
+                linkElement.href = `${linkInfo.href}?id=${guildId}`;
+            }
+        });
     }
 
     // --- Active Page Highlighting ---
@@ -136,6 +129,26 @@ function initializeSidebar() {
             }
         });
     }
+
+    // --- Re-apply translations ---
+    // --- Fetch Bot Info ---
+    async function fetchBotInfo() {
+        try {
+            const res = await fetch('/api/bot-info');
+            if (!res.ok) throw new Error('Failed to fetch bot info');
+            const botInfo = await res.json();
+
+            const botNameHeader = document.getElementById('bot-name-header');
+            if (botNameHeader) {
+                botNameHeader.textContent = botInfo.name || 'Dashboard';
+            }
+        } catch (error) {
+            console.error('Error fetching bot info:', error);
+        }
+    }
+
+    // --- Initial Load ---
+    fetchBotInfo();
 
     // --- Re-apply translations ---
     if (window.applyTranslations) {

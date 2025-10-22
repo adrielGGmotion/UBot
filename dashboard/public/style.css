@@ -99,6 +99,10 @@ body {
   gap: 10px; /* Add some space between title and button */
 }
 
+.bot-title-link {
+  text-decoration: none;
+}
+
 .sidebar-header h1 {
   transition: opacity 0.3s ease;
   font-size: 1.6rem;
@@ -372,6 +376,65 @@ body {
     color: var(--text-primary);
 }
 
+
+/* --- 7. Server Overview Page --- */
+.server-header-info {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding-bottom: var(--gap);
+    margin-bottom: var(--gap);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.server-logo, .server-logo-placeholder {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.server-logo-placeholder {
+    background-color: var(--accent);
+    color: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    font-weight: 700;
+}
+
+#server-name-title {
+    flex-grow: 1;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+#leave-server-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.server-stats-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--gap);
+}
+
+.stat-card {
+    background-color: var(--bg);
+    padding: var(--gap);
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.stat-card h3 {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
 
 /* --- 7. Server Settings Page --- */
 .settings-form .form-section {
@@ -871,6 +934,15 @@ fieldset legend {
   100% { transform: rotate(360deg); }
 }
 
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 .spin {
   animation: spin 1s linear infinite;
+}
+
+#server-management-widget {
+    animation: fadeIn 0.5s ease-out forwards;
 }
