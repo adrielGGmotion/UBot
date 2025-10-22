@@ -1,8 +1,8 @@
 {
   "colors": {
     "primary": "#000000",
-    "accent1": "#00ff00",
-    "error": "#FF0000"
+    "accent1": "#80b0ff",
+    "error": "#ff5959"
   },
   "statuses": [
     { "name": "</> In development", "type": "PLAYING" }

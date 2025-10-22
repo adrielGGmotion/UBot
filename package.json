@@ -1,11 +1,13 @@
 {
   "dependencies": {
-    "cookie-parser": "^1.4.7",
-    "discord.js": "^14.22.1",
-    "dotenv": "^17.2.3",
-    "express": "^5.1.0",
+    "cookie-parser": "^1.4.6",
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.3.1",
+    "helmet": "^7.1.0",
     "mongoose": "^8.18.0",
-    "node-fetch": "^2.7.0",
+    "node-fetch": "^3.3.2",
     "node-vibrant": "^4.0.3",
     "openai": "^5.19.1",
     "riffy": "^1.0.7",
