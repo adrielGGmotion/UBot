@@ -38,17 +38,6 @@ window.applyTranslationsToDOM = applyTranslationsToDOM;
 async function initializeTranslations() {
     console.log("--- initializeTranslations started ---");
     let selectedLang = 'en'; // Default language
-    try {
-        const configResponse = await fetch('/config.json');
-        if (configResponse.ok) {
-            const config = await configResponse.json();
-            if (config && config.language) {
-                selectedLang = config.language;
-            }
-        }
-    } catch (e) {
-        console.error("Could not fetch config.json, defaulting to 'en'.", e);
-    }
 
     let loadedLocales = null;
     try {
