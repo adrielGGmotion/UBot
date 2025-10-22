@@ -8,9 +8,23 @@ module.exports = {
             const command = client.slashCommands.get(interaction.commandName);
             if (!command) return;
 
+            // Log the command usage
+            if (client.log) {
+                const user = { id: interaction.user.id, tag: interaction.user.tag };
+                const message = `Command used: /${interaction.commandName}`;
+                client.log(interaction.guildId, 'INFO', message, user);
+            }
+
             try {
                 await command.execute(interaction, client);
             } catch (error) {
+                // Log the error
+                if (client.log) {
+                    const user = { id: interaction.user.id, tag: interaction.user.tag };
+                    const message = `Error executing /${interaction.commandName}: ${error.message}`;
+                    client.log(interaction.guildId, 'ERROR', message, user);
+                }
+
                 // Discord API error code 10062 is for "Unknown Interaction"
                 // This error is thrown when an interaction is not acknowledged within 3 seconds.
                 // In such cases, we should not try to reply, as it will fail.

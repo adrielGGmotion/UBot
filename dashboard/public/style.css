@@ -446,6 +446,107 @@ body {
   border-bottom: none;
 }
 
+/* --- 8. Recent Activity Widget --- */
+.widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#logs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.log-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 15px;
+    padding: 10px;
+    background-color: var(--bg);
+    border-radius: var(--radius);
+    border-left: 4px solid var(--border-color);
+}
+
+.log-level {
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+}
+
+.log-level.info {
+    color: #3b82f6;
+    background-color: rgba(59, 130, 246, 0.1);
+}
+
+.log-level.warn {
+    color: #f59e0b;
+    background-color: rgba(245, 158, 11, 0.1);
+}
+
+.log-level.error {
+    color: var(--error);
+    background-color: rgba(255, 0, 0, 0.1);
+}
+
+.log-message {
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.log-timestamp {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.no-logs {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 20px;
+}
+
+.no-logs.error {
+    color: var(--error);
+}
+
+/* --- 9. Logs Modal --- */
+.log-filters {
+    display: flex;
+    gap: 15px;
+    margin-bottom: var(--gap);
+}
+
+.log-filters select {
+    flex-grow: 1;
+}
+
+#modal-logs-container {
+    height: 400px; /* Or adjust as needed */
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 10px;
+    background-color: var(--bg);
+}
+
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-top: var(--gap);
+}
+
+.pagination-controls button {
+    padding: 5px 10px;
+}
+
 .settings-form h3 {
   font-size: 1.2rem;
   color: var(--accent);

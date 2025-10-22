@@ -199,6 +199,13 @@ async function generateResponse(client, message) {
       for (const toolCall of responseMessage.tool_calls) {
         const functionName = toolCall.function.name;
 
+        // Log the tool usage
+        if (client.log) {
+            const user = { id: message.author.id, tag: message.author.tag };
+            const messageLog = `AI is using tool: ${functionName}`;
+            client.log(message.guild.id, 'INFO', messageLog, user);
+        }
+
         // Update the status message to reflect the current tool being used.
         if (statusMessage) {
           const statusText = getToolStatusMessage(functionName);
@@ -272,6 +279,13 @@ async function processMessage(client, message) {
   // - If it's mentioned or replied to.
   // - Or if it's in a designated "speak freely" channel.
   if (isMentioned || isReplyingToBot || isAllowedChannel) {
+    // Log the AI interaction
+    if (client.log) {
+        const user = { id: message.author.id, tag: message.author.tag };
+        const messageLog = `User message triggered AI in #${message.channel.name}`;
+        client.log(message.guild.id, 'INFO', messageLog, user);
+    }
+
     const response = await generateResponse(client, message);
     if (response) {
       await message.reply({ content: response, allowedMentions: { repliedUser: false } });

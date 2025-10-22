@@ -10,6 +10,7 @@
     "node-fetch": "^3.3.2",
     "node-vibrant": "^4.0.3",
     "openai": "^5.19.1",
-    "riffy": "^1.0.7"
+    "riffy": "^1.0.7",
+    "socket.io": "^4.8.1"
   }
 }

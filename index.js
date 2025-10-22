@@ -8,8 +8,8 @@ const githubNotifier = require('./features/githubNotifier.js');
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
-const rateLimit = require('express-rate-limit');
-const helmet = require('helmet');
+const http = require('http');
+const { Server } = require("socket.io");
 
 const ROOT = process.cwd();
 const CONFIG_PATH = path.join(ROOT, 'config.json');
@@ -244,6 +244,10 @@ function mergeGithubConfig(config) {
 async function startDashboard() {
   if (!client.config.activateDashboard) return;
   const app = express();
+  const server = http.createServer(app);
+  const io = new Server(server);
+  client.io = io;
+
   const port = process.env.DASHBOARD_PORT || 3000;
   app.use(helmet());
   app.use(express.json({
@@ -380,6 +384,53 @@ async function startDashboard() {
     } catch (error) {
         console.error(`Failed to leave guild ${guildId}:`, error);
         res.status(500).json({ error: 'Failed to leave guild.' });
+    }
+  });
+
+  app.get('/api/guilds/:guildId/logs', authMiddleware, async (req, res) => {
+    if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
+
+    const { guildId } = req.params;
+    const { level, period, page = 1, limit = 20 } = req.query;
+
+    try {
+        const Log = client.getDbCollection('logs');
+        const query = { guildId };
+
+        if (level && ['INFO', 'WARN', 'ERROR'].includes(level.toUpperCase())) {
+            query.level = level.toUpperCase();
+        }
+
+        if (period) {
+            const startDate = new Date();
+            if (period === 'day') startDate.setDate(startDate.getDate() - 1);
+            else if (period === 'week') startDate.setDate(startDate.getDate() - 7);
+            else if (period === 'month') startDate.setMonth(startDate.getMonth() - 1);
+            else if (period === 'year') startDate.setFullYear(startDate.getFullYear() - 1);
+            query.timestamp = { $gte: startDate };
+        }
+
+        const pageNum = parseInt(page, 10);
+        const limitNum = parseInt(limit, 10);
+        const skip = (pageNum - 1) * limitNum;
+
+        const logs = await Log.find(query)
+            .sort({ timestamp: -1 })
+            .skip(skip)
+            .limit(limitNum)
+            .lean();
+
+        const totalLogs = await Log.countDocuments(query);
+
+        res.json({
+            logs,
+            totalPages: Math.ceil(totalLogs / limitNum),
+            currentPage: pageNum,
+        });
+
+    } catch (error) {
+        console.error(`Failed to fetch logs for guild ${guildId}:`, error);
+        res.status(500).json({ error: 'Failed to fetch logs.' });
     }
   });
 
@@ -545,13 +596,13 @@ async function startDashboard() {
   app.post('/api/guilds/:guildId/ai-settings', authMiddleware, async (req, res) => {
       if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
       const { guildId } = req.params;
-      const aiConfig = req.body;
+      const { logLevels, ...aiConfig } = req.body;
 
       try {
           const settingsCollection = client.db.collection('server-settings');
           await settingsCollection.updateOne(
               { guildId },
-              { $set: { aiConfig: aiConfig } },
+              { $set: { aiConfig: aiConfig, logLevels: logLevels } },
               { upsert: true }
           );
           res.status(200).json({ success: 'AI settings updated successfully.' });
@@ -820,7 +871,14 @@ async function startDashboard() {
     }
   });
 
-  app.listen(port, () => console.log(client.getLocale('log_dashboard_running', { port: port })));
+  io.on('connection', (socket) => {
+    console.log('A user connected to the dashboard via WebSocket.');
+    socket.on('disconnect', () => {
+      console.log('User disconnected from WebSocket.');
+    });
+  });
+
+  server.listen(port, () => console.log(client.getLocale('log_dashboard_running', { port: port })));
 }
 
 async function initializeRiffy() {

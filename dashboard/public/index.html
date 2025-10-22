@@ -50,9 +50,49 @@
           <li><a href="https://discord.com/developers/docs" target="_blank" style="color:var(--accent); text-decoration: none;">Documentação Discord API</a></li>
         </ul>
       </div>
+        <div class="widget large-widget" id="recent-activity-widget">
+            <h2><i class="material-icons">history</i> <span data-locale-key="dashboard_recent_activity">Recent Activity</span></h2>
+            <div id="logs-list">
+                <!-- Log entries will be dynamically inserted here -->
+            </div>
+            <button id="see-more-logs-btn" class="btn" data-locale-key="dashboard_see_more">See More</button>
+        </div>
     </main>
   </div>
 
+    <!-- Log Viewer Modal -->
+    <div id="logs-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="material-icons">manage_search</i> <span data-locale-key="dashboard_log_viewer">Log Viewer</span></h3>
+                <span class="close-btn">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="log-filters">
+                    <select id="log-level-filter">
+                        <option value="" data-locale-key="dashboard_log_all_levels">All Levels</option>
+                        <option value="INFO">INFO</option>
+                        <option value="WARN">WARN</option>
+                        <option value="ERROR">ERROR</option>
+                    </select>
+                    <select id="log-period-filter">
+                        <option value="" data-locale-key="dashboard_log_all_time">All Time</option>
+                        <option value="day" data-locale-key="dashboard_log_last_24_hours">Last 24 hours</option>
+                        <option value="week" data-locale-key="dashboard_log_last_week">Last week</option>
+                        <option value="month" data-locale-key="dashboard_log_last_month">Last month</option>
+                    </select>
+                </div>
+                <div id="modal-logs-list">
+                    <!-- Detailed log entries will be inserted here -->
+                </div>
+            </div>
+            <div class="modal-footer" id="log-pagination-controls">
+                <!-- Pagination buttons will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+  <script src="/socket.io/socket.io.js"></script>
   <script src="auth.js"></script>
   <script src="translator.js"></script>
   <script src="script.js"></script>

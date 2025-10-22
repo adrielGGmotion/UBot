@@ -84,6 +84,28 @@
                                 <div id="faq-list" class="list-editor"></div>
                                 <button type="button" id="add-faq-btn" class="btn"><i class="material-icons">add</i> <span data-locale-key="ai_add_faq">Add FAQ</span></button>
                             </div>
+
+                            <div class="form-section">
+                                <h3 data-locale-key="dashboard_log_settings">Log Settings</h3>
+                                <div class="form-group">
+                                    <label data-locale-key="dashboard_log_levels_to_record">Log Levels to Record</label>
+                                    <div class="checkbox-group">
+                                        <div class="checkbox-item">
+                                            <input type="checkbox" id="log-level-info" name="logLevels" value="INFO">
+                                            <label for="log-level-info">INFO</label>
+                                        </div>
+                                        <div class="checkbox-item">
+                                            <input type="checkbox" id="log-level-warn" name="logLevels" value="WARN">
+                                            <label for="log-level-warn">WARN</label>
+                                        </div>
+                                        <div class="checkbox-item">
+                                            <input type="checkbox" id="log-level-error" name="logLevels" value="ERROR">
+                                            <label for="log-level-error">ERROR</label>
+                                        </div>
+                                    </div>
+                                    <small data-locale-key="dashboard_log_settings_desc">Select which log levels to save. Deselecting all will disable logging.</small>
+                                </div>
+                            </div>
                         </form>
                     </div>
 
