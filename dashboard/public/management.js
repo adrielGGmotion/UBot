@@ -22,90 +22,76 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- DOM Elements ---
     const serverNameTitle = document.getElementById('server-name-title');
     const onlineUsersCount = document.getElementById('online-users-count');
-    const commandUsageChartCtx = document.getElementById('command-usage-chart').getContext('2d');
+    const serverLogoContainer = document.getElementById('server-logo-container');
+    const leaveServerBtn = document.getElementById('leave-server-btn');
 
-    // --- Fetch Guild Info (for name) ---
-    async function fetchGuildInfo() {
+    // --- Fetch Guild Data (Info & Stats) ---
+    async function fetchGuildData() {
         try {
-            const res = await fetch('/api/guilds');
-            if (res.status === 401) throw new Error('Unauthorized');
-            const guilds = await res.json();
+            // Fetch basic guild info (for name and icon)
+            const guildInfoRes = await fetch('/api/guilds');
+            if (guildInfoRes.status === 401) throw new Error('Unauthorized');
+            const guilds = await guildInfoRes.json();
             const guild = guilds.find(g => g.id === guildId);
+
             if (guild) {
-                // Use i18n for the title
-                serverNameTitle.innerHTML = `<i class="material-icons">dns</i> <span>${i18n.t('dashboard_server_managing_title', { serverName: guild.name })}</span>`;
+                serverNameTitle.textContent = i18n.t('dashboard_server_managing_title', { serverName: guild.name });
+
+                // Handle Server Logo
+                if (guild.icon) {
+                    const iconUrl = `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`;
+                    serverLogoContainer.innerHTML = `<img src="${iconUrl}" alt="${guild.name} Logo" class="server-logo">`;
+                } else {
+                    serverLogoContainer.innerHTML = `<div class="server-logo-placeholder">${guild.name.charAt(0)}</div>`;
+                }
             } else {
-                serverNameTitle.innerHTML = `<i class="material-icons">error</i> <span>${i18n.t('err_guild_not_found')}</span>`;
+                serverNameTitle.textContent = i18n.t('err_guild_not_found');
             }
-        } catch (error) {
-            console.error('Failed to fetch guild info:', error);
-            if (error.message === 'Unauthorized') {
-                window.location.href = '/login.html';
-            }
-        }
-    }
 
-    // --- Fetch Server Stats ---
-    async function fetchServerStats() {
-        try {
-            const res = await fetch(`/api/guilds/${guildId}/stats`);
-            if (res.status === 401) throw new Error('Unauthorized');
-            const stats = await res.json();
+            // Fetch guild stats (for online members)
+            const statsRes = await fetch(`/api/guilds/${guildId}/stats`);
+            if (statsRes.status === 401) throw new Error('Unauthorized');
+            const stats = await statsRes.json();
 
-            // Populate Online Users
             if (onlineUsersCount) {
                 onlineUsersCount.textContent = stats.onlineMembers || 'N/A';
             }
 
-            // Populate Command Usage Chart
-            if (commandUsageChartCtx && stats.commandUsage) {
-                const commandLabels = Object.keys(stats.commandUsage);
-                const commandCounts = Object.values(stats.commandUsage);
-
-                new Chart(commandUsageChartCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: commandLabels,
-                        datasets: [{
-                            label: 'Command Usage',
-                            data: commandCounts,
-                            backgroundColor: [
-                                'rgba(255, 99, 132, 0.8)',
-                                'rgba(54, 162, 235, 0.8)',
-                                'rgba(255, 206, 86, 0.8)',
-                                'rgba(75, 192, 192, 0.8)',
-                                'rgba(153, 102, 255, 0.8)',
-                                'rgba(255, 159, 64, 0.8)'
-                            ],
-                            borderColor: 'rgba(255, 255, 255, 0.1)',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'top',
-                                labels: {
-                                    color: 'var(--text-primary)'
-                                }
-                            }
-                        }
-                    }
-                });
-            }
         } catch (error) {
-            console.error('Failed to fetch server stats:', error);
+            console.error('Failed to fetch guild data:', error);
             if (error.message === 'Unauthorized') {
                 window.location.href = '/login.html';
             }
         }
     }
 
+    // --- Event Listeners ---
+    if (leaveServerBtn) {
+        leaveServerBtn.addEventListener('click', async () => {
+            const confirmationText = i18n.t('server_actions_leave_confirm');
+            if (confirm(confirmationText)) {
+                try {
+                    const res = await fetch(`/api/guilds/${guildId}/leave`, {
+                        method: 'POST',
+                    });
+
+                    if (res.ok) {
+                        // Redirect to the dashboard index on successful leave
+                        window.location.href = '/index.html';
+                    } else {
+                        const errorData = await res.json();
+                        alert(i18n.t('server_actions_leave_error', { error: errorData.message || 'Unknown error' }));
+                    }
+                } catch (error) {
+                    console.error('Error leaving server:', error);
+                    alert(i18n.t('server_actions_leave_error', { error: error.message }));
+                }
+            }
+        });
+    }
+
     // --- Initial Load ---
-    await fetchGuildInfo();
-    await fetchServerStats();
+    await fetchGuildData();
 
     // Re-apply translations if the function exists
     if (window.applyTranslations) {

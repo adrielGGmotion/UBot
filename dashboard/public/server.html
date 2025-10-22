@@ -21,17 +21,26 @@
         </aside>
 
         <main class="dashboard-grid">
-            <div class="widget large-widget">
-                <h2 id="server-name-title"><i class="material-icons">dns</i> <span data-locale-key="dashboard_loading_server">Loading...</span></h2>
-                <div class="server-overview">
-                    <div class="overview-item">
+            <div class="widget large-widget" id="server-management-widget">
+                <div class="server-header-info">
+                    <div id="server-logo-container">
+                        <!-- Server logo will be dynamically inserted here -->
+                    </div>
+                    <h2 id="server-name-title">
+                        <span data-locale-key="dashboard_loading_server">Loading...</span>
+                    </h2>
+                    <button id="leave-server-btn" class="btn btn-danger">
+                        <i class="material-icons">exit_to_app</i>
+                        <span data-locale-key="server_actions_leave">Leave Server</span>
+                    </button>
+                </div>
+
+                <div class="server-stats-container">
+                    <div class="stat-card">
                         <h3 data-locale-key="server_overview_online_users">Online Users</h3>
                         <p id="online-users-count">...</p>
                     </div>
-                    <div class="overview-item chart-container">
-                        <h3 data-locale-key="server_overview_command_usage">Command Usage</h3>
-                        <canvas id="command-usage-chart"></canvas>
-                    </div>
+                    <!-- More stat cards can be added here in the future -->
                 </div>
             </div>
         </main>
@@ -40,7 +49,6 @@
     <script src="auth.js"></script>
     <script src="translator.js"></script>
     <script src="sidebar.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="management.js"></script>
 </body>
 </html>

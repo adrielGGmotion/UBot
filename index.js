@@ -343,6 +343,33 @@ async function startDashboard() {
     res.json(guilds);
   });
 
+  app.get('/api/bot-info', authMiddleware, (req, res) => {
+    if (!client.user) {
+        return res.status(503).json({ error: 'Bot not logged in' });
+    }
+    res.json({
+        name: client.user.username,
+        avatar: client.user.displayAvatarURL(),
+        id: client.user.id
+    });
+  });
+
+  app.post('/api/guilds/:guildId/leave', authMiddleware, async (req, res) => {
+    const { guildId } = req.params;
+    try {
+        const guild = await client.guilds.fetch(guildId);
+        if (guild) {
+            await guild.leave();
+            res.status(200).json({ success: `Successfully left guild: ${guild.name}` });
+        } else {
+            res.status(404).json({ error: 'Guild not found.' });
+        }
+    } catch (error) {
+        console.error(`Failed to leave guild ${guildId}:`, error);
+        res.status(500).json({ error: 'Failed to leave guild.' });
+    }
+  });
+
   app.get('/api/stats', authMiddleware, async (req, res) => {
     if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
     try {

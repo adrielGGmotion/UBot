@@ -1,5 +1,7 @@
 <div class="sidebar-header">
-    <h1 data-locale-key="dashboard_title">Dashboard</h1>
+    <a href="/index.html" class="bot-title-link">
+        <h1 id="bot-name-header" data-locale-key="dashboard_title">Dashboard</h1>
+    </a>
     <button id="sidebar-toggle" class="nav-link">
         <i class="material-icons">menu_open</i>
         <span data-locale-key="nav_toggle_sidebar">Collapse</span>
@@ -21,25 +23,23 @@
     </a>
 
     <div id="server-management-category" class="sidebar-category" data-locale-key="nav_category_server_management" style="display: none;">Server Management</div>
-    <a href="#" id="server-overview-link" class="nav-link" style="display: none;">
+    <a href="server.html" id="server-overview-link" class="nav-link" style="display: none;">
         <i class="material-icons">dvr</i>
         <span data-locale-key="nav_server_overview">Overview</span>
     </a>
-
-    <div class="sidebar-category" data-locale-key="nav_category_general">General</div>
-    <a href="github.html" class="nav-link">
+    <a href="github.html" id="server-github-link" class="nav-link" style="display: none;">
         <i class="material-icons">code</i>
         <span data-locale-key="nav_github">GitHub</span>
     </a>
-    <a href="ai_features.html" class="nav-link">
+    <a href="ai_features.html" id="server-ai-features-link" class="nav-link" style="display: none;">
         <i class="material-icons">psychology</i>
         <span data-locale-key="nav_ai_features">AI Features</span>
     </a>
-    <a href="server_stats.html" class="nav-link">
+    <a href="server_stats.html" id="server-stats-link" class="nav-link" style="display: none;">
         <i class="material-icons">query_stats</i>
         <span data-locale-key="nav_server_stats">Server Statistics</span>
     </a>
-    <a href="music_system.html" class="nav-link">
+    <a href="music_system.html" id="server-music-system-link" class="nav-link" style="display: none;">
         <i class="material-icons">music_note</i>
         <span data-locale-key="nav_music_system">Music System</span>
     </a>
