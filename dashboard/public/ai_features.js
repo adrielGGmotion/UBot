@@ -86,6 +86,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         faqList.innerHTML = '';
         (settings.faq || []).forEach(item => createFaqItem(item.question, item.answer));
+
+        // Populate log level checkboxes
+        if (settings.logLevels) {
+            document.querySelectorAll('input[name="logLevels"]').forEach(checkbox => {
+                checkbox.checked = settings.logLevels.includes(checkbox.value);
+            });
+        }
     };
 
 
@@ -131,7 +138,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             personality: document.getElementById('ai-personality').value,
             extraInstructions: document.getElementById('ai-extra-instructions').value,
             knowledge: [],
-            faq: []
+            faq: [],
+            logLevels: Array.from(document.querySelectorAll('input[name="logLevels"]:checked')).map(cb => cb.value)
         };
 
         document.querySelectorAll('#knowledge-list .list-item').forEach(item => {

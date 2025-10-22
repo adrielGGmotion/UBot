@@ -16,6 +16,18 @@ const serverSettingsSchema = new mongoose.Schema({
   guildId: { type: String, required: true, unique: true },
 }, { strict: false });
 
+// A schema for audit logs.
+const logSchema = new mongoose.Schema({
+    guildId: { type: String, required: true, index: true },
+    level: { type: String, required: true, enum: ['INFO', 'WARN', 'ERROR'] },
+    message: { type: String, required: true },
+    user: {
+        id: { type: String },
+        tag: { type: String },
+    },
+    timestamp: { type: Date, default: Date.now, index: true },
+});
+
 
 // --- One-time Data Migration ---
 
@@ -71,6 +83,7 @@ module.exports = {
       // Register models
       mongoose.model('Faq', faqSchema);
       mongoose.model('server-settings', serverSettingsSchema);
+      mongoose.model('Log', logSchema);
 
       // Perform one-time data migrations
       await migrateFaqData(client.db, client);

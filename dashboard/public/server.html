@@ -43,6 +43,16 @@
                     <!-- More stat cards can be added here in the future -->
                 </div>
             </div>
+
+            <div class="widget large-widget" id="recent-activity-widget">
+                <div class="widget-header">
+                    <h2><i class="material-icons">history</i> <span data-locale-key="server_activity_title">Recent Activity</span></h2>
+                    <button id="see-more-logs-btn" class="btn"><span data-locale-key="server_activity_see_more">See More</span></button>
+                </div>
+                <div id="logs-container">
+                    <!-- Logs will be dynamically inserted here -->
+                </div>
+            </div>
         </main>
     </div>
 
@@ -50,5 +60,39 @@
     <script src="translator.js"></script>
     <script src="sidebar.js"></script>
     <script src="management.js"></script>
+
+    <!-- Logs Modal -->
+    <div id="logs-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-locale-key="server_activity_modal_title">Detailed Logs</h3>
+                <span class="close-btn">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="log-filters">
+                    <select id="log-level-filter">
+                        <option value="" data-locale-key="log_filter_all_levels">All Levels</option>
+                        <option value="INFO">INFO</option>
+                        <option value="WARN">WARN</option>
+                        <option value="ERROR">ERROR</option>
+                    </select>
+                    <select id="log-period-filter">
+                        <option value="" data-locale-key="log_filter_all_time">All Time</option>
+                        <option value="day" data-locale-key="log_filter_last_24h">Last 24 hours</option>
+                        <option value="week" data-locale-key="log_filter_last_week">Last 7 days</option>
+                        <option value="month" data-locale-key="log_filter_last_month">Last 30 days</option>
+                    </select>
+                </div>
+                <div id="modal-logs-container">
+                    <!-- Detailed logs will be loaded here -->
+                </div>
+                <div class="pagination-controls">
+                    <button id="prev-page-btn">&lt;</button>
+                    <span id="page-info">Page 1 of 1</span>
+                    <button id="next-page-btn">&gt;</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

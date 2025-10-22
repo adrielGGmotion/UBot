@@ -183,8 +183,177 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // --- Log Viewer ---
+    const logsModal = getElement('logs-modal', false);
+    const seeMoreLogsBtn = getElement('see-more-logs-btn', false);
+    const closeModalBtn = logsModal ? logsModal.querySelector('.close-btn') : null;
+    const logLevelFilter = getElement('log-level-filter', false);
+    const logPeriodFilter = getElement('log-period-filter', false);
+
+    let currentLogPage = 1;
+    let currentLogLevel = '';
+    let currentLogPeriod = '';
+
+    const formatTimestamp = (isoString) => {
+        const date = new Date(isoString);
+        return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+    };
+
+    const renderLogs = (logs, container) => {
+        container.innerHTML = logs.length ? '' : `<p>${i18n.t('dashboard_log_no_logs')}</p>`;
+        logs.forEach(log => {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-level-${log.level.toLowerCase()}`;
+            logEntry.innerHTML = `
+                <span class="log-timestamp">${formatTimestamp(log.timestamp)}</span>
+                <span class="log-level">${log.level}</span>
+                <span class="log-message">${log.message}</span>
+                ${log.user ? `<span class="log-user" title="User ID: ${log.user.id}">${log.user.tag}</span>` : ''}
+            `;
+            container.appendChild(logEntry);
+        });
+    };
+
+    const renderPagination = (totalPages, currentPage, container) => {
+        container.innerHTML = '';
+        if (totalPages <= 1) return;
+
+        // Previous Button
+        const prevBtn = document.createElement('button');
+        prevBtn.textContent = '<<';
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.addEventListener('click', () => {
+            currentLogPage--;
+            fetchLogsForModal();
+        });
+        container.appendChild(prevBtn);
+
+        // Page Info
+        const pageInfo = document.createElement('span');
+        pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+        container.appendChild(pageInfo);
+
+        // Next Button
+        const nextBtn = document.createElement('button');
+        nextBtn.textContent = '>>';
+        nextBtn.disabled = currentPage >= totalPages;
+        nextBtn.addEventListener('click', () => {
+            currentLogPage++;
+            fetchLogsForModal();
+        });
+        container.appendChild(nextBtn);
+    };
+
+    async function fetchRecentLogs() {
+        const logsList = getElement('logs-list', false);
+        if (!logsList) return;
+
+        try {
+            // Fetch the last 5 logs for the first guild in the list (or a default)
+            // This is a simplification; in a real multi-server dash, you'd select a guild.
+            // For this project, we assume a single-server context for the main page logs.
+            const guildsResponse = await fetch('/api/guilds');
+            if (handleAuthError(guildsResponse)) return;
+            const guilds = await guildsResponse.json();
+            if (!guilds.length) return;
+            const guildId = guilds[0].id;
+
+            const response = await fetch(`/api/guilds/${guildId}/logs?page=1&limit=5`);
+            if (handleAuthError(response)) return;
+            const data = await response.json();
+            renderLogs(data.logs, logsList);
+        } catch (error) {
+            console.error('Failed to fetch recent logs:', error);
+            logsList.innerHTML = `<p>${i18n.t('dashboard_log_fetch_error')}</p>`;
+        }
+    }
+
+    async function fetchLogsForModal() {
+        const modalLogsList = getElement('modal-logs-list', false);
+        const paginationContainer = getElement('log-pagination-controls', false);
+        if (!modalLogsList) return;
+
+        try {
+            const guildsResponse = await fetch('/api/guilds');
+            if (handleAuthError(guildsResponse)) return;
+            const guilds = await guildsResponse.json();
+            if (!guilds.length) return;
+            const guildId = guilds[0].id;
+
+            const response = await fetch(`/api/guilds/${guildId}/logs?level=${currentLogLevel}&period=${currentLogPeriod}&page=${currentLogPage}&limit=20`);
+            if (handleAuthError(response)) return;
+            const data = await response.json();
+
+            renderLogs(data.logs, modalLogsList);
+            renderPagination(data.totalPages, data.currentPage, paginationContainer);
+        } catch (error) {
+            console.error('Failed to fetch modal logs:', error);
+            modalLogsList.innerHTML = `<p>${i18n.t('dashboard_log_fetch_error')}</p>`;
+        }
+    }
+
+    if (seeMoreLogsBtn) {
+        seeMoreLogsBtn.addEventListener('click', () => {
+            currentLogPage = 1;
+            fetchLogsForModal();
+            logsModal.style.display = 'block';
+        });
+    }
+
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', () => {
+            logsModal.style.display = 'none';
+        });
+    }
+
+    window.addEventListener('click', (event) => {
+        if (event.target === logsModal) {
+            logsModal.style.display = 'none';
+        }
+    });
+
+    if (logLevelFilter) {
+        logLevelFilter.addEventListener('change', () => {
+            currentLogLevel = logLevelFilter.value;
+            currentLogPage = 1;
+            fetchLogsForModal();
+        });
+    }
+
+    if (logPeriodFilter) {
+        logPeriodFilter.addEventListener('change', () => {
+            currentLogPeriod = logPeriodFilter.value;
+            currentLogPage = 1;
+            fetchLogsForModal();
+        });
+    }
+
+    // --- WebSocket Connection ---
+    const socket = io();
+
+    socket.on('new_log', (log) => {
+        const logsList = getElement('logs-list', false);
+        if (logsList) {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-level-${log.level.toLowerCase()}`;
+            logEntry.innerHTML = `
+                <span class="log-timestamp">${formatTimestamp(log.timestamp)}</span>
+                <span class="log-level">${log.level}</span>
+                <span class="log-message">${log.message}</span>
+                ${log.user ? `<span class="log-user" title="User ID: ${log.user.id}">${log.user.tag}</span>` : ''}
+            `;
+            logsList.prepend(logEntry);
+
+            // Keep the list tidy by removing the oldest log entry if it exceeds a certain number
+            if (logsList.children.length > 10) {
+                logsList.lastChild.remove();
+            }
+        }
+    });
+
     // Execute all fetch operations
     fetchInfoAndTheme();
     fetchGuilds();
     fetchStats();
+    fetchRecentLogs();
 });
