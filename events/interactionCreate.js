@@ -5,15 +5,6 @@ module.exports = {
     async execute(client, interaction) {
         // Handle slash commands
         if (interaction.isChatInputCommand()) {
-            // Defer the reply immediately to prevent the interaction from timing out.
-            try {
-                await interaction.deferReply();
-            } catch (error) {
-                console.error(client.getLocale('log_defer_reply_error'), error);
-                // If defer fails, it's likely the interaction is no longer valid.
-                return;
-            }
-
             const command = client.slashCommands.get(interaction.commandName);
             if (!command) return;
 
@@ -27,33 +18,28 @@ module.exports = {
             try {
                 await command.execute(interaction, client);
             } catch (error) {
-                // Log the error
+                console.error(`Error executing /${interaction.commandName}`, error);
+
+                // Log the detailed error
                 if (client.log) {
                     const user = { id: interaction.user.id, tag: interaction.user.tag };
-                    const message = `Error executing /${interaction.commandName}: ${error.message}`;
-                    client.log(interaction.guildId, 'ERROR', message, user);
+                    const errorMessageLog = `Error executing /${interaction.commandName}: ${error.message}`;
+                    client.log(interaction.guildId, 'ERROR', errorMessageLog, user);
                 }
 
-                // Discord API error code 10062 is for "Unknown Interaction"
-                // This error is thrown when an interaction is not acknowledged within 3 seconds.
-                // In such cases, we should not try to reply, as it will fail.
-                if (error.code === 10062) {
-                    console.error(client.getLocale('log_interaction_ack_fail', { commandName: interaction.commandName }));
-                    return; // Stop execution to prevent a crash
-                }
-
-                console.error(client.getLocale('log_command_exec_error', { commandName: interaction.commandName }), error);
-
+                // Attempt to notify the user about the error, if possible.
                 try {
                     const errorMessage = client.getLocale('command_error');
-                    if (interaction.replied || interaction.deferred) {
-                        await interaction.followUp({ content: errorMessage, ephemeral: true });
-                    } else {
+                    // Use editReply if we already deferred, otherwise reply.
+                    if (interaction.deferred) {
+                        await interaction.editReply({ content: errorMessage, ephemeral: true, embeds: [], components: [] });
+                    } else if (!interaction.replied) {
                         await interaction.reply({ content: errorMessage, ephemeral: true });
                     }
-                } catch (followUpError) {
-                    // Log the follow-up error as well, as it might be a different issue (e.g., channel permissions)
-                    console.error(client.getLocale('log_interaction_feedback_fail', { commandName: interaction.commandName }), followUpError);
+                    // If it was already replied to, we can't do much, but the error is logged.
+                } catch (replyError) {
+                    // If replying fails, log that too. The original interaction might be gone.
+                    console.error(`Failed to send error feedback for /${interaction.commandName}`, replyError);
                 }
             }
             return;
