@@ -14,24 +14,33 @@ module.exports = {
     const query = interaction.options.getString('query');
 
     if (!channel) {
-      return interaction.reply({ content: client.getLocale('cmd_music_not_in_vc_generic'), ephemeral: true });
+        return interaction.reply({ content: client.getLocale('cmd_music_not_in_vc'), ephemeral: true });
     }
-    
+
     const permissions = channel.permissionsFor(client.user);
     if (!permissions.has('Connect') || !permissions.has('Speak')) {
         return interaction.reply({ content: client.getLocale('cmd_play_no_perms'), ephemeral: true });
     }
 
-    // Defensive check to ensure Lavalink nodes are connected.
-    if (client.riffy.nodes.size === 0) {
+    if (!client.riffy || client.riffy.nodes.size === 0) {
+        console.error("Riffy client not initialized or no nodes available.");
         return interaction.reply({ content: client.getLocale('cmd_play_no_lavalink_nodes'), ephemeral: true });
     }
 
-    await interaction.deferReply();
-
     try {
+        await interaction.deferReply();
+
         const resolve = await client.riffy.resolve({ query: query, requester: interaction.user });
         const { loadType, tracks, playlistInfo } = resolve;
+
+        if (loadType === 'error') {
+            console.error('Lavalink load error:', resolve.error);
+            return interaction.editReply({ content: client.getLocale('cmd_play_load_error') });
+        }
+
+        if (loadType === 'empty') {
+            return interaction.editReply({ content: client.getLocale('cmd_play_no_results') });
+        }
 
         const player = client.riffy.players.get(interaction.guildId) || client.riffy.createConnection({
             guildId: interaction.guildId,
@@ -45,41 +54,29 @@ module.exports = {
 
         const embed = new EmbedBuilder().setColor(client.config.colors.primary);
 
-        switch (loadType) {
-            case 'playlist':
-                for (const track of tracks) {
-                    player.queue.add(track);
-                }
-                embed.setTitle(client.getLocale('cmd_play_playlist_added_title'))
-                    .setDescription(client.getLocale('cmd_play_playlist_added_description', { playlistName: playlistInfo.name, trackCount: tracks.length }));
-                await interaction.editReply({ embeds: [embed] });
-                if (!player.playing && !player.paused) player.play();
-                break;
-
-            case 'search':
-            case 'track':
-                const track = tracks.shift();
+        if (loadType === 'playlist') {
+            for (const track of tracks) {
                 player.queue.add(track);
-                embed.setTitle(client.getLocale('cmd_play_track_added_title'))
-                    .setDescription(`[${track.info.title}](${track.info.uri})`);
-                await interaction.editReply({ embeds: [embed] });
-                if (!player.playing && !player.paused) player.play();
-                break;
+            }
+            embed.setTitle(client.getLocale('cmd_play_playlist_added_title'))
+                 .setDescription(client.getLocale('cmd_play_playlist_added_description', { playlistName: playlistInfo.name, trackCount: tracks.length }));
+        } else {
+            const track = tracks.shift();
+            player.queue.add(track);
+            embed.setTitle(client.getLocale('cmd_play_track_added_title'))
+                 .setDescription(`[${track.info.title}](${track.info.uri})`);
+        }
 
-            case 'empty':
-                return interaction.editReply({ content: client.getLocale('cmd_play_no_results') });
+        await interaction.editReply({ embeds: [embed] });
 
-            case 'error':
-                console.error(client.getLocale('log_lavalink_load_error'), resolve);
-                return interaction.editReply({ content: client.getLocale('cmd_play_load_error') });
-
-            default:
-                console.warn(client.getLocale('log_play_unknown_load_type', { loadType: loadType }));
-                return interaction.editReply({ content: client.getLocale('cmd_play_unexpected_result') });
+        if (!player.playing && !player.paused) {
+            player.play();
         }
     } catch (error) {
-        console.error(client.getLocale('log_play_processing_error'), error);
-        await interaction.editReply({ content: client.getLocale('cmd_play_generic_error') });
+        console.error('Error in /play command:', error);
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply({ content: client.getLocale('cmd_play_generic_error'), embeds: [], components: [] });
+        }
     }
   }
 };
