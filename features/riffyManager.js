@@ -1,6 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const Vibrant = require('node-vibrant/node');
 const InDiscordLyrics = require('./inDiscordLyrics.js');
+const crypto = require('crypto');
 
 class RiffyManager {
     constructor(client) {
@@ -44,12 +45,14 @@ class RiffyManager {
     }
 
     async onTrackStart(player, track) {
+        this.client.emit('playerUpdate', player.guildId);
         const channel = this.client.channels.cache.get(player.textChannel);
         if (!channel) return;
 
-        // Await the thumbnail in case it's a promise, preventing a crash.
-        const thumbnailUrl = await track.info.thumbnail;
+        const sessionToken = crypto.randomBytes(16).toString('hex');
+        player.set('sessionToken', sessionToken);
 
+        const thumbnailUrl = await track.info.thumbnail;
         let settings = null;
         if (this.client.db) {
             const settingsCollection = this.client.db.collection('server-settings');
@@ -60,9 +63,7 @@ class RiffyManager {
         if (settings?.musicConfig?.embedColor && thumbnailUrl) {
             try {
                 const palette = await Vibrant.from(thumbnailUrl).getPalette();
-                if (palette.Vibrant) {
-                    embedColor = palette.Vibrant.hex;
-                }
+                if (palette.Vibrant) embedColor = palette.Vibrant.hex;
             } catch (err) {
                 console.error(`[Vibrant] Failed to extract color from ${thumbnailUrl}:`, err);
             }
@@ -83,24 +84,16 @@ class RiffyManager {
             )
             .setThumbnail(thumbnailUrl);
 
+        const dashboardURL = this.client.config.dashboardURL || `http://localhost:${process.env.DASHBOARD_PORT || 3000}`;
+        const visualizerUrl = `${dashboardURL}/visualizer.html?guildId=${player.guildId}&token=${sessionToken}`;
+
         const row = new ActionRowBuilder()
             .addComponents(
-                new ButtonBuilder()
-                    .setCustomId('music_pause_resume')
-                    .setLabel('⏯️ Pause/Resume')
-                    .setStyle(ButtonStyle.Primary),
-                new ButtonBuilder()
-                    .setCustomId('music_skip')
-                    .setLabel('⏭️ Skip')
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId('music_stop')
-                    .setLabel('⏹️ Stop')
-                    .setStyle(ButtonStyle.Danger),
-                new ButtonBuilder()
-                    .setCustomId('music_loop')
-                    .setLabel('🔁 Loop')
-                    .setStyle(ButtonStyle.Secondary)
+                new ButtonBuilder().setCustomId('music_pause_resume').setLabel('⏯️').setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId('music_skip').setLabel('⏭️').setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId('music_stop').setLabel('⏹️').setStyle(ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId('music_loop').setLabel('🔁').setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setLabel('Live Player').setStyle(ButtonStyle.Link).setURL(visualizerUrl)
             );
 
         try {
@@ -113,6 +106,7 @@ class RiffyManager {
     }
 
     async onQueueEnd(player) {
+        this.client.emit('playerUpdate', player.guildId);
         this.inDiscordLyrics.stop(player.guildId);
         const timeout = player.get("destroyTimeout");
         if (timeout) clearTimeout(timeout);
@@ -189,6 +183,7 @@ class RiffyManager {
     }
 
     onPlayerDestroy(player) {
+        this.client.emit('playerUpdate', player.guildId);
         this.inDiscordLyrics.stop(player.guildId);
         // Clear the destroy timeout if the player is destroyed manually
         const timeout = player.get("destroyTimeout");
