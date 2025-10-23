@@ -252,6 +252,7 @@ async function startDashboard() {
   client.io = io;
 
   const port = process.env.DASHBOARD_PORT || 3000;
+  app.set('trust proxy', 1);
   app.use(helmet());
   app.use(express.json({
     verify: (req, res, buf) => {
