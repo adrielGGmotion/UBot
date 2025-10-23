@@ -1,9 +1,5 @@
+const fetch = require('node-fetch');
 const { EmbedBuilder } = require('discord.js');
-
-let fetch;
-import('node-fetch').then(module => {
-  fetch = module.default;
-});
 
 class InDiscordLyrics {
     constructor(client) {

@@ -9,7 +9,7 @@ module.exports = {
     const player = client.riffy.players.get(interaction.guildId);
 
     if (!player || !player.playing) {
-      return interaction.reply({ content: client.getLocale('cmd_music_not_playing'), ephemeral: true });
+      return interaction.editReply({ content: client.getLocale('cmd_music_not_playing'), ephemeral: true });
     }
 
     const track = player.queue.current;
@@ -46,6 +46,6 @@ module.exports = {
             value: `\`${formatDuration(position)}\` ${createProgressBar(position, duration)} \`${formatDuration(duration)}\``
         });
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.editReply({ embeds: [embed] });
   }
 };

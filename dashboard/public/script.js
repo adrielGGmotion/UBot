@@ -35,22 +35,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function fetchInfoAndTheme() {
         try {
-            const [infoResponse, themeResponse] = await Promise.all([
-                fetch('/api/info'),
-                fetch('/api/client-config')
-            ]);
+            // The browser will automatically send the httpOnly cookie.
+            const response = await fetch('/api/info');
+            if (handleAuthError(response)) return;
 
-            if (handleAuthError(infoResponse) || handleAuthError(themeResponse)) return;
-
-            const info = await infoResponse.json();
-            const theme = await themeResponse.json();
-
-            if (theme.colors) {
-                document.documentElement.style.setProperty('--primary', theme.colors.primary);
-                document.documentElement.style.setProperty('--accent', theme.colors.accent1);
-                document.documentElement.style.setProperty('--accent-rgb', hexToRgb(theme.colors.accent1));
-                document.documentElement.style.setProperty('--error', theme.colors.error);
-            }
+            const data = await response.json();
 
             const botNameElement = getElement('bot-name', false);
             const guildCountElement = getElement('guild-count', false);
