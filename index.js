@@ -249,7 +249,6 @@ async function startDashboard() {
   client.io = io;
 
   const port = process.env.DASHBOARD_PORT || 3000;
-  app.use(helmet());
   app.use(express.json({
     verify: (req, res, buf) => {
       req.rawBody = buf;
@@ -291,15 +290,7 @@ async function startDashboard() {
     res.redirect('/login.html');
   };
 
-  const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // Limit each IP to 5 requests per windowMs
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many login attempts from this IP, please try again after 15 minutes." }
-  });
-
-  app.post('/api/login', loginLimiter, (req, res) => {
+  app.post('/api/login', (req, res) => {
     if (!password) {
         // In dev mode without a password, we can grant a session token.
         const devToken = client.getLocale('dev_mode_token');
@@ -327,10 +318,8 @@ async function startDashboard() {
     res.sendStatus(200);
   });
 
-  app.get('/api/client-config', (req, res) => {
-    res.json({
-      colors: client.config.colors || {}
-    });
+  app.get('/config.json', (req, res) => {
+      res.sendFile(path.join(__dirname, 'config.json'));
   });
 
   app.get('/api/info', (req, res) => {
@@ -452,7 +441,7 @@ async function startDashboard() {
   });
 
   app.get('/api/locales/:lang', (req, res) => {
-    const lang = path.basename(req.params.lang);
+    const lang = req.params.lang;
     const langFilePath = path.join(ROOT, 'languages', `${lang}.json`);
     if (fs.existsSync(langFilePath)) {
       res.sendFile(langFilePath);
@@ -462,7 +451,7 @@ async function startDashboard() {
   });
 
   app.get('/api/dashboard/locales/:lang', (req, res) => {
-    const lang = path.basename(req.params.lang);
+    const lang = req.params.lang;
     const langFilePath = path.join(ROOT, 'dashboard', 'languages', `${lang}.json`);
     if (fs.existsSync(langFilePath)) {
       res.sendFile(langFilePath);
@@ -521,22 +510,11 @@ async function startDashboard() {
   app.post('/api/guilds/:guildId/settings', authMiddleware, async (req, res) => {
     if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
     const { guildId } = req.params;
-
-    // Sanitize input by only taking expected properties
     const { aiChannelIds, aiConfig, faq, knowledge, githubRepos, musicConfig } = req.body;
-    const cleanSettings = {
-      aiChannelIds,
-      aiConfig,
-      faq,
-      knowledge,
-      githubRepos,
-      musicConfig
-    };
-
     const settingsCollection = client.db.collection('server-settings');
     await settingsCollection.updateOne(
       { guildId },
-      { $set: cleanSettings },
+      { $set: { aiChannelIds, aiConfig, faq, knowledge, githubRepos, musicConfig } },
       { upsert: true }
     );
     res.status(200).json({ success: client.getLocale('settings_updated') });

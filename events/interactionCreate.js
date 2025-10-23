@@ -5,6 +5,15 @@ module.exports = {
     async execute(client, interaction) {
         // Handle slash commands
         if (interaction.isChatInputCommand()) {
+            // Defer the reply immediately to prevent the interaction from timing out.
+            try {
+                await interaction.deferReply();
+            } catch (error) {
+                console.error(client.getLocale('log_defer_reply_error'), error);
+                // If defer fails, it's likely the interaction is no longer valid.
+                return;
+            }
+
             const command = client.slashCommands.get(interaction.commandName);
             if (!command) return;
 

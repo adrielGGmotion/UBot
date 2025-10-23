@@ -10,32 +10,24 @@ module.exports = {
         .setRequired(true)),
 
   async execute(interaction, client) {
-    // Defer the reply immediately to prevent the interaction from timing out.
-    try {
-        await interaction.deferReply();
-    } catch (error) {
-        console.error(client.getLocale('log_defer_reply_error'), error);
-        // If defer fails, it's likely the interaction is no longer valid.
-        // We log the error and return to prevent a crash.
-        return;
-    }
-
     const { channel } = interaction.member.voice;
     const query = interaction.options.getString('query');
 
     if (!channel) {
-      return interaction.editReply({ content: client.getLocale('cmd_music_not_in_vc_generic'), ephemeral: true });
+      return interaction.reply({ content: client.getLocale('cmd_music_not_in_vc_generic'), ephemeral: true });
     }
     
     const permissions = channel.permissionsFor(client.user);
     if (!permissions.has('Connect') || !permissions.has('Speak')) {
-        return interaction.editReply({ content: client.getLocale('cmd_play_no_perms'), ephemeral: true });
+        return interaction.reply({ content: client.getLocale('cmd_play_no_perms'), ephemeral: true });
     }
 
     // Defensive check to ensure Lavalink nodes are connected.
     if (client.riffy.nodes.size === 0) {
-        return interaction.editReply({ content: client.getLocale('cmd_play_no_lavalink_nodes'), ephemeral: true });
+        return interaction.reply({ content: client.getLocale('cmd_play_no_lavalink_nodes'), ephemeral: true });
     }
+
+    await interaction.deferReply();
 
     try {
         const resolve = await client.riffy.resolve({ query: query, requester: interaction.user });

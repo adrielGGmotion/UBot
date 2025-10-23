@@ -32,6 +32,6 @@ module.exports = {
       .setTitle(client.getLocale('cmd_autoplay_embed_title'))
       .setDescription(client.getLocale('cmd_autoplay_embed_description', { status }));
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.editReply({ embeds: [embed] });
   }
 };

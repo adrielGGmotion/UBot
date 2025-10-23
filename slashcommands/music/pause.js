@@ -8,20 +8,20 @@ module.exports = {
   async execute(interaction, client) {
     const { channel } = interaction.member.voice;
     if (!channel) {
-      return interaction.reply({ content: client.getLocale('cmd_music_not_in_vc_generic'), ephemeral: true });
+      return interaction.editReply({ content: client.getLocale('cmd_music_not_in_vc_generic'), ephemeral: true });
     }
 
     const player = client.riffy.players.get(interaction.guildId);
     if (!player || !player.playing) {
-      return interaction.reply({ content: client.getLocale('cmd_music_not_playing'), ephemeral: true });
+      return interaction.editReply({ content: client.getLocale('cmd_music_not_playing'), ephemeral: true });
     }
 
     if (player.voiceChannel !== channel.id) {
-        return interaction.reply({ content: client.getLocale('cmd_music_not_in_same_vc'), ephemeral: true });
+        return interaction.editReply({ content: client.getLocale('cmd_music_not_in_same_vc'), ephemeral: true });
     }
 
     if (player.paused) {
-        return interaction.reply({ content: client.getLocale('cmd_pause_already_paused'), ephemeral: true });
+        return interaction.editReply({ content: client.getLocale('cmd_pause_already_paused'), ephemeral: true });
     }
 
     player.pause(true);
@@ -30,6 +30,6 @@ module.exports = {
         .setColor(client.config.colors.primary)
         .setDescription(client.getLocale('cmd_pause_success'));
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.editReply({ embeds: [embed] });
   }
 };

@@ -9,7 +9,7 @@ module.exports = {
     const player = client.riffy.players.get(interaction.guildId);
 
     if (!player || player.queue.isEmpty) {
-      return interaction.reply({ content: client.getLocale('cmd_queue_empty'), ephemeral: true });
+      return interaction.editReply({ content: client.getLocale('cmd_queue_empty'), ephemeral: true });
     }
 
     const queue = player.queue;
@@ -34,7 +34,7 @@ module.exports = {
         new ButtonBuilder().setCustomId('next_page').setLabel('➡️').setStyle(ButtonStyle.Primary).setDisabled(page >= totalPages - 1)
     );
 
-    const message = await interaction.reply({
+    const message = await interaction.editReply({
         embeds: [generateEmbed(page * itemsPerPage)],
         components: [row],
         fetchReply: true
