@@ -6,10 +6,13 @@ const { Riffy } = require("riffy");
 const RiffyManager = require('./features/riffyManager.js');
 const githubNotifier = require('./features/githubNotifier.js');
 const express = require('express');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
 const http = require('http');
 const { Server } = require("socket.io");
+const axios = require('axios');
 
 const ROOT = process.cwd();
 const CONFIG_PATH = path.join(ROOT, 'config.json');
@@ -770,6 +773,11 @@ async function startDashboard() {
     res.sendFile(path.join(ROOT, 'dashboard', 'public', 'login.html'));
   });
 
+  // Serve visualizer page publicly
+  app.get('/visualizer.html', (req, res) => {
+    res.sendFile(path.join(ROOT, 'dashboard', 'public', 'visualizer.html'));
+  });
+
   // Serve all other HTML files with the page authentication middleware
   const protectedPages = [
       'index.html', 'ai_features.html', 'github.html', 'management.html',
@@ -873,9 +881,100 @@ async function startDashboard() {
 
   io.on('connection', (socket) => {
     console.log('A user connected to the dashboard via WebSocket.');
+
+    let currentGuildId = null;
+
+    socket.on('joinVisualizer', (guildId) => {
+        socket.join(guildId);
+        currentGuildId = guildId;
+        console.log(`Socket joined room for guild: ${guildId}`);
+        // Send initial player state when a client joins
+        sendPlayerUpdate(guildId);
+    });
+
+    socket.on('musicControl', async (data) => {
+        const { guildId, sessionToken, action, value } = data;
+        const player = client.riffy.players.get(guildId);
+        if (!player) return;
+
+        const expectedToken = player.get('sessionToken');
+        if (expectedToken !== sessionToken) {
+            socket.emit('unauthorized');
+            return;
+        }
+
+        switch(action) {
+            case 'play_pause':
+                player.pause(!player.paused);
+                break;
+            case 'skip':
+                player.stop();
+                break;
+            case 'seek':
+                player.seek(value.position);
+                break;
+            case 'volume':
+                player.setVolume(value.level);
+                break;
+            case 'repeat':
+                const currentLoop = player.loop;
+                const nextLoop = currentLoop === 'queue' ? 'track' : currentLoop === 'track' ? 'none' : 'queue';
+                player.setLoop(nextLoop);
+                break;
+        }
+    });
+
     socket.on('disconnect', () => {
       console.log('User disconnected from WebSocket.');
+      if(currentGuildId) {
+        socket.leave(currentGuildId);
+      }
     });
+  });
+
+    async function fetchLyrics(artist, title) {
+        try {
+            const response = await axios.get(`https://lrclib.net/api/get`, { params: { artist_name: artist, track_name: title } });
+            if (response.data && response.data.syncedLyrics) {
+                return response.data.syncedLyrics;
+            }
+            return response.data.plainLyrics || "Lyrics not found.";
+        } catch (error) {
+            console.error('Error fetching lyrics from LRCLib:', error.message);
+            return "Could not retrieve lyrics.";
+        }
+    }
+
+  async function sendPlayerUpdate(guildId) {
+    const player = client.riffy.players.get(guildId);
+    let data;
+
+    if (!player || !player.queue.current) {
+        data = { isPlaying: false };
+    } else {
+        const track = player.queue.current;
+        const lyrics = await fetchLyrics(track.info.author, track.info.title);
+        data = {
+            isPlaying: player.state === 'CONNECTED',
+            isPaused: player.paused,
+            track: {
+                title: track.info.title,
+                author: track.info.author,
+                uri: track.info.uri,
+                artworkUrl: await track.info.thumbnail,
+                duration: track.info.length,
+                position: player.position,
+            },
+            volume: player.volume,
+            loop: player.loop,
+            lyrics: lyrics
+        };
+    }
+    io.to(guildId).emit('playerUpdate', data);
+  }
+
+  client.on('playerUpdate', (guildId) => {
+      sendPlayerUpdate(guildId);
   });
 
   server.listen(port, () => console.log(client.getLocale('log_dashboard_running', { port: port })));
