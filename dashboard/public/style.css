@@ -62,9 +62,14 @@ body {
   width: 88px; /* Width for just icons and padding */
 }
 
+.sidebar.collapsed .sidebar-header {
+  justify-content: center;
+}
+
 .sidebar.collapsed .sidebar-header h1 {
   visibility: hidden; /* Hide text */
   opacity: 0;
+  width: 0;
 }
 
 .sidebar.collapsed .sidebar-header::before {
@@ -123,6 +128,7 @@ body {
 
 .dashboard-grid {
   flex: 1;
+  min-width: 0; /* Prevents the grid from overflowing when the sidebar is collapsed */
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: var(--gap);
