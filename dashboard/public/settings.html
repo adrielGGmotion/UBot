@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot Settings</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/settings.css">
+</head>
+<body>
+    <div class="main-container">
+        <aside class="sidebar"></aside>
+        <main class="dashboard-grid">
+            <div class="widget">
+                <div class="widget-header">
+                    <h2><i class="material-icons">palette</i> Appearance</h2>
+                    <button id="save-appearance" class="btn btn-primary"><i class="material-icons">save</i> Save</button>
+                </div>
+                <div class="widget-content">
+                    <div class="form-section">
+                        <div class="form-group">
+                            <label for="primary-color">Primary Color</label>
+                            <div class="color-picker-group">
+                                <input type="color" id="primary-color-picker" class="color-picker-input">
+                                <input type="text" id="primary-color-text" class="form-input color-text-input">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="accent-color">Accent Color</label>
+                            <div class="color-picker-group">
+                                <input type="color" id="accent-color-picker" class="color-picker-input">
+                                <input type="text" id="accent-color-text" class="form-input color-text-input">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="error-color">Error Color</label>
+                            <div class="color-picker-group">
+                                <input type="color" id="error-color-picker" class="color-picker-input">
+                                <input type="text" id="error-color-text" class="form-input color-text-input">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="auth.js"></script>
+    <script src="translator.js"></script>
+    <script src="sidebar.js"></script>
+    <script src="js/settings.js"></script>
+</body>
+</html>

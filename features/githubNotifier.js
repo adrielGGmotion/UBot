@@ -20,8 +20,9 @@ function branchMatches(text, patterns) {
  * @param {Client} client O cliente Discord.
  * @param {string} channelId O ID do canal de destino.
  * @param {EmbedBuilder} embed O embed a ser enviado.
+ * @param {string} guildId O ID da guild.
  */
-async function sendMessage(client, channelId, embed) {
+async function sendMessage(client, channelId, embed, guildId) {
     if (!channelId) {
         console.error(`[GitHub Notifier] Tentativa de envio para um channelId nulo.`);
         return;
@@ -29,6 +30,8 @@ async function sendMessage(client, channelId, embed) {
     try {
         const channel = await client.channels.fetch(channelId);
         if (channel && channel.isTextBased()) {
+            const settings = await client.getGuildSettings(guildId);
+            embed.setColor(embed.data.color || settings.colors.primary);
             await channel.send({ embeds: [embed] });
         } else {
             console.error(`[GitHub Notifier] Canal ${channelId} não encontrado ou não é um canal de texto.`);
@@ -43,8 +46,9 @@ async function sendMessage(client, channelId, embed) {
  * @param {Client} client O cliente Discord.
  * @param {object} config A configuração do repositório para a guild.
  * @param {object} payload O payload do evento do GitHub.
+ * @param {string} guildId O ID da guild.
  */
-function handlePushEvent(client, config, payload) {
+function handlePushEvent(client, config, payload, guildId) {
     const { commits: commitConfig } = config;
     if (!commitConfig || !commitConfig.enabled || !payload.commits || payload.commits.length === 0) {
         return;
@@ -94,7 +98,7 @@ function handlePushEvent(client, config, payload) {
 
     embed.setDescription(description.substring(0, 4000)); // Limita a descrição para evitar erros
 
-    sendMessage(client, commitConfig.channelId, embed);
+    sendMessage(client, commitConfig.channelId, embed, guildId);
 }
 
 /**
@@ -102,8 +106,9 @@ function handlePushEvent(client, config, payload) {
  * @param {Client} client O cliente Discord.
  * @param {object} config A configuração do repositório para a guild.
  * @param {object} payload O payload do evento do GitHub.
+ * @param {string} guildId O ID da guild.
  */
-function handlePullRequestEvent(client, config, payload) {
+function handlePullRequestEvent(client, config, payload, guildId) {
     const { pullRequests: prConfig } = config;
     if (!prConfig.enabled) return;
 
@@ -171,7 +176,7 @@ function handlePullRequestEvent(client, config, payload) {
         embed.setDescription(`${pr.title}\n\n${pr.body.substring(0, 500)}${pr.body.length > 500 ? '...' : ''}`);
     }
 
-    sendMessage(client, prConfig.channelId, embed);
+    sendMessage(client, prConfig.channelId, embed, guildId);
 }
 
 /**
@@ -179,8 +184,9 @@ function handlePullRequestEvent(client, config, payload) {
  * @param {Client} client O cliente Discord.
  * @param {object} config A configuração do repositório para a guild.
  * @param {object} payload O payload do evento do GitHub.
+ * @param {string} guildId O ID da guild.
  */
-function handleIssuesEvent(client, config, payload) {
+function handleIssuesEvent(client, config, payload, guildId) {
     const { issues: issuesConfig } = config;
     if (!issuesConfig.enabled) return;
 
@@ -228,7 +234,7 @@ function handleIssuesEvent(client, config, payload) {
     }
     embed.setDescription(description);
 
-    sendMessage(client, issuesConfig.channelId, embed);
+    sendMessage(client, issuesConfig.channelId, embed, guildId);
 }
 
 /**
@@ -236,8 +242,9 @@ function handleIssuesEvent(client, config, payload) {
  * @param {Client} client O cliente Discord.
  * @param {object} config A configuração do repositório para a guild.
  * @param {object} payload O payload do evento do GitHub.
+ * @param {string} guildId O ID da guild.
  */
-function handleReleaseEvent(client, config, payload) {
+function handleReleaseEvent(client, config, payload, guildId) {
     const { releases: releaseConfig } = config;
     if (!releaseConfig.enabled || payload.action !== 'published') return;
 
@@ -266,7 +273,7 @@ function handleReleaseEvent(client, config, payload) {
     }
     embed.setDescription(description);
 
-    sendMessage(client, releaseConfig.channelId, embed);
+    sendMessage(client, releaseConfig.channelId, embed, guildId);
 }
 
 /**
@@ -274,8 +281,9 @@ function handleReleaseEvent(client, config, payload) {
  * @param {Client} client O cliente Discord.
  * @param {object} config A configuração do repositório para a guild.
  * @param {object} payload O payload do evento do GitHub.
+ * @param {string} guildId O ID da guild.
  */
-function handleStarEvent(client, config, payload) {
+function handleStarEvent(client, config, payload, guildId) {
     const { stars: starsConfig } = config;
     if (!starsConfig.enabled || payload.action !== 'started') {
         return;
@@ -289,7 +297,7 @@ function handleStarEvent(client, config, payload) {
         .setDescription(`The repository now has **${payload.repository.stargazers_count}** stars!`)
         .setTimestamp();
 
-    sendMessage(client, starsConfig.channelId, embed);
+    sendMessage(client, starsConfig.channelId, embed, guildId);
 }
 
 /**
@@ -297,8 +305,9 @@ function handleStarEvent(client, config, payload) {
  * @param {Client} client O cliente Discord.
  * @param {object} config A configuração do repositório para a guild.
  * @param {object} payload O payload do evento do GitHub.
+ * @param {string} guildId O ID da guild.
  */
-function handleForkEvent(client, config, payload) {
+function handleForkEvent(client, config, payload, guildId) {
     const { forks: forksConfig } = config;
     if (!forksConfig.enabled) {
         return;
@@ -313,7 +322,7 @@ function handleForkEvent(client, config, payload) {
         .setDescription(`Forked to **[${forkee.full_name}](${forkee.html_url})**. The repository now has **${payload.repository.forks_count}** forks.`)
         .setTimestamp();
 
-    sendMessage(client, forksConfig.channelId, embed);
+    sendMessage(client, forksConfig.channelId, embed, guildId);
 }
 
 /**
@@ -321,8 +330,9 @@ function handleForkEvent(client, config, payload) {
  * @param {Client} client O cliente Discord.
  * @param {object} config A configuração do repositório para a guild.
  * @param {object} payload O payload do evento do GitHub.
+ * @param {string} guildId O ID da guild.
  */
-function handleIssueCommentEvent(client, config, payload) {
+function handleIssueCommentEvent(client, config, payload, guildId) {
     const { issueComments: commentsConfig } = config;
     if (!commentsConfig.enabled || payload.action !== 'created') {
         return;
@@ -337,7 +347,7 @@ function handleIssueCommentEvent(client, config, payload) {
         .setDescription(`**${issue.title}**\n\n${comment.body.substring(0, 1500)}${comment.body.length > 1500 ? '...' : ''}`)
         .setTimestamp(new Date(comment.created_at));
 
-    sendMessage(client, commentsConfig.channelId, embed);
+    sendMessage(client, commentsConfig.channelId, embed, guildId);
 }
 
 /**
@@ -345,8 +355,9 @@ function handleIssueCommentEvent(client, config, payload) {
  * @param {Client} client O cliente Discord.
  * @param {object} config A configuração do repositório para a guild.
  * @param {object} payload O payload do evento do GitHub.
+ * @param {string} guildId O ID da guild.
  */
-function handlePullRequestReviewEvent(client, config, payload) {
+function handlePullRequestReviewEvent(client, config, payload, guildId) {
     const { pullRequestReviews: reviewsConfig } = config;
     if (!reviewsConfig.enabled || payload.action !== 'submitted') {
         return;
@@ -381,7 +392,7 @@ function handlePullRequestReviewEvent(client, config, payload) {
         .setDescription(`**${pr.title}**\n\n${review.body ? review.body.substring(0, 1500) : '*No comment provided.*'}`)
         .setTimestamp(new Date(review.submitted_at));
 
-    sendMessage(client, reviewsConfig.channelId, embed);
+    sendMessage(client, reviewsConfig.channelId, embed, guildId);
 }
 
 module.exports = {
