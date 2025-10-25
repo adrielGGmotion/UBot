@@ -16,6 +16,21 @@ const serverSettingsSchema = new mongoose.Schema({
   guildId: { type: String, required: true, unique: true },
 }, { strict: false });
 
+// A schema for guild-specific settings.
+const guildSettingSchema = new mongoose.Schema({
+  guildId: { type: String, required: true, unique: true },
+  colors: {
+    primary: { type: String },
+    accent1: { type: String },
+    error: { type: String },
+  },
+  lavalink: {
+    host: { type: String },
+    port: { type: Number },
+    password: { type: String },
+  },
+}, { strict: false });
+
 // A schema for audit logs.
 const logSchema = new mongoose.Schema({
     guildId: { type: String, required: true, index: true },
@@ -83,6 +98,7 @@ module.exports = {
       // Register models
       mongoose.model('Faq', faqSchema);
       mongoose.model('server-settings', serverSettingsSchema);
+      mongoose.model('guild-settings', guildSettingSchema);
       mongoose.model('Log', logSchema);
 
       // Perform one-time data migrations

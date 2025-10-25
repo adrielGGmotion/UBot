@@ -42,7 +42,8 @@ function initializeSidebar() {
         { id: 'server-github-link', href: 'github.html' },
         { id: 'server-ai-features-link', href: 'ai_features.html' },
         { id: 'server-stats-link', href: 'server_stats.html' },
-        { id: 'server-music-system-link', href: 'music_system.html' }
+        { id: 'server-music-system-link', href: 'music_system.html' },
+        { id: 'server-settings-link', href: 'settings.html' }
     ];
 
     const isServerContextPage = serverLinks.some(link => window.location.pathname.includes(`/${link.href}`));

@@ -7,6 +7,8 @@ module.exports = {
 
   async execute(interaction, client) {
     const { channel } = interaction.member.voice;
+    const settings = await client.getGuildSettings(interaction.guildId);
+
     if (!channel) {
       return interaction.editReply({ content: client.getLocale('cmd_music_not_in_vc_generic'), ephemeral: true });
     }
@@ -27,7 +29,7 @@ module.exports = {
     player.pause(true);
 
     const embed = new EmbedBuilder()
-        .setColor(client.config.colors.primary)
+        .setColor(settings.colors.primary)
         .setDescription(client.getLocale('cmd_pause_success'));
 
     await interaction.editReply({ embeds: [embed] });

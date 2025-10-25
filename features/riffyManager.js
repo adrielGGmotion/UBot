@@ -53,14 +53,10 @@ class RiffyManager {
         player.set('sessionToken', sessionToken);
 
         const thumbnailUrl = await track.info.thumbnail;
-        let settings = null;
-        if (this.client.db) {
-            const settingsCollection = this.client.db.collection('server-settings');
-            settings = await settingsCollection.findOne({ guildId: player.guildId });
-        }
+        const settings = await this.client.getGuildSettings(player.guildId);
 
-        let embedColor = this.client.config.colors.primary;
-        if (settings?.musicConfig?.embedColor && thumbnailUrl) {
+        let embedColor = settings.colors.primary;
+        if (settings.music.embedColor && thumbnailUrl) {
             try {
                 const palette = await Vibrant.from(thumbnailUrl).getPalette();
                 if (palette.Vibrant) embedColor = palette.Vibrant.hex;
@@ -111,15 +107,9 @@ class RiffyManager {
         const timeout = player.get("destroyTimeout");
         if (timeout) clearTimeout(timeout);
 
-        if (!this.client.db) {
-            this.startDestroyTimer(player);
-            return;
-        }
+        const settings = await this.client.getGuildSettings(player.guildId);
 
-        const settingsCollection = this.client.db.collection('server-settings');
-        const settings = await settingsCollection.findOne({ guildId: player.guildId });
-
-        if (settings?.musicConfig?.autoplay) {
+        if (settings.music.autoplay) {
             this.handleAutoplay(player);
         } else {
             this.startDestroyTimer(player);
@@ -168,11 +158,12 @@ class RiffyManager {
         }
     }
 
-    startDestroyTimer(player) {
+    async startDestroyTimer(player) {
         const channel = this.client.channels.cache.get(player.textChannel);
+        const settings = await this.client.getGuildSettings(player.guildId);
         if (channel) {
             const embed = new EmbedBuilder()
-                .setColor(this.client.config.colors.primary)
+                .setColor(settings.colors.primary)
                 .setDescription("✅ Queue has ended. Leaving voice channel in 2 minutes if nothing is added.");
             channel.send({ embeds: [embed] }).catch(e => console.error(`[RiffyManager] Could not send queue end message: ${e.message}`));
         }
