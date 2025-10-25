@@ -12,6 +12,7 @@ module.exports = {
   async execute(interaction, client) {
     const { channel } = interaction.member.voice;
     const query = interaction.options.getString('query');
+    const settings = await client.getGuildSettings(interaction.guildId);
 
     if (!channel) {
         return interaction.reply({ content: client.getLocale('cmd_music_not_in_vc'), ephemeral: true });
@@ -52,7 +53,7 @@ module.exports = {
         const destroyTimeout = player.get("destroyTimeout");
         if (destroyTimeout) clearTimeout(destroyTimeout);
 
-        const embed = new EmbedBuilder().setColor(client.config.colors.primary);
+        const embed = new EmbedBuilder().setColor(settings.colors.primary);
 
         if (loadType === 'playlist') {
             for (const track of tracks) {

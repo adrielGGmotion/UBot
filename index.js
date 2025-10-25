@@ -109,6 +109,9 @@ async function loadFunctions() {
       } else if (exported && typeof exported.init === 'function') {
         await exported.init(client);
         console.log(client.getLocale('log_function_loaded_init', { path: relativePath }));
+      } else if (exported && typeof exported.install === 'function') {
+        exported.install(client);
+        console.log(`Loaded function module from ${relativePath}`);
       }
     } catch (err) {
       console.error(client.getLocale('err_function_load', { path: path.relative(ROOT, file), message: err.message }));
@@ -523,6 +526,32 @@ async function startDashboard() {
     res.status(200).json({ success: client.getLocale('settings_updated') });
   });
 
+  app.get('/api/guilds/:guildId/guild-settings', authMiddleware, async (req, res) => {
+    if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
+    const { guildId } = req.params;
+    try {
+      const settings = await client.getGuildSettings(guildId);
+      res.json(settings);
+    } catch (error) {
+      console.error(`Failed to fetch guild settings for guild ${guildId}:`, error);
+      res.status(500).json({ error: 'Failed to fetch guild settings.' });
+    }
+  });
+
+  app.post('/api/guilds/:guildId/guild-settings', authMiddleware, async (req, res) => {
+    if (!client.db) return res.status(503).json({ error: client.getLocale('err_db_not_connected') });
+    const { guildId } = req.params;
+    const settings = req.body;
+    try {
+      const GuildSettings = client.getDbCollection('guild-settings');
+      await GuildSettings.updateOne({ guildId }, { $set: settings }, { upsert: true });
+      res.status(200).json({ success: 'Settings updated successfully.' });
+    } catch (error) {
+      console.error(`Failed to save guild settings for guild ${guildId}:`, error);
+      res.status(500).json({ error: 'Failed to save guild settings.' });
+    }
+  });
+
   app.get('/api/guilds/:guildId/roles', authMiddleware, async (req, res) => {
     const { guildId } = req.params;
     try {
@@ -815,28 +844,28 @@ async function startDashboard() {
                 // Assinatura válida, processa o evento
                 switch (githubEvent) {
                     case 'push':
-                        githubNotifier.handlePushEvent(client, repoConfig, payload);
+                        githubNotifier.handlePushEvent(client, repoConfig, payload, settings.guildId);
                         break;
                     case 'pull_request':
-                        githubNotifier.handlePullRequestEvent(client, repoConfig, payload);
+                        githubNotifier.handlePullRequestEvent(client, repoConfig, payload, settings.guildId);
                         break;
                     case 'issues':
-                        githubNotifier.handleIssuesEvent(client, repoConfig, payload);
+                        githubNotifier.handleIssuesEvent(client, repoConfig, payload, settings.guildId);
                         break;
                     case 'release':
-                        githubNotifier.handleReleaseEvent(client, repoConfig, payload);
+                        githubNotifier.handleReleaseEvent(client, repoConfig, payload, settings.guildId);
                         break;
                     case 'watch':
-                        githubNotifier.handleStarEvent(client, repoConfig, payload);
+                        githubNotifier.handleStarEvent(client, repoConfig, payload, settings.guildId);
                         break;
                     case 'fork':
-                        githubNotifier.handleForkEvent(client, repoConfig, payload);
+                        githubNotifier.handleForkEvent(client, repoConfig, payload, settings.guildId);
                         break;
                     case 'issue_comment':
-                        githubNotifier.handleIssueCommentEvent(client, repoConfig, payload);
+                        githubNotifier.handleIssueCommentEvent(client, repoConfig, payload, settings.guildId);
                         break;
                     case 'pull_request_review':
-                        githubNotifier.handlePullRequestReviewEvent(client, repoConfig, payload);
+                        githubNotifier.handlePullRequestReviewEvent(client, repoConfig, payload, settings.guildId);
                         break;
                 }
                 processed = true;

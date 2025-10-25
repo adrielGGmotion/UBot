@@ -7,9 +7,9 @@
 /* --- 1. Root Variables & Color Palette --- */
 :root {
   /* Core Palette (from config.json) */
-  --bg: #000000;
-  --accent: #00ff00;
-  --error: #FF0000;
+  --bg: var(--primary-color, #000000);
+  --accent: var(--accent-color, #00ff00);
+  --error: var(--error-color, #FF0000);
 
   /* Derived & UI-specific Palette */
   --panel: #111111; /* A very dark grey for panels, softer than pure black */

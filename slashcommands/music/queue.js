@@ -7,6 +7,7 @@ module.exports = {
 
   async execute(interaction, client) {
     const player = client.riffy.players.get(interaction.guildId);
+    const settings = await client.getGuildSettings(interaction.guildId);
 
     if (!player || player.queue.isEmpty) {
       return interaction.editReply({ content: client.getLocale('cmd_queue_empty'), ephemeral: true });
@@ -20,7 +21,7 @@ module.exports = {
     const generateEmbed = (start) => {
         const current = queue.slice(start, start + itemsPerPage);
         const embed = new EmbedBuilder()
-            .setColor(client.config.colors.primary)
+            .setColor(settings.colors.primary)
             .setTitle(client.getLocale('cmd_queue_embed_title'))
             .setThumbnail(interaction.guild.iconURL())
             .setDescription(`**${client.getLocale('cmd_queue_embed_now_playing')}:** [${player.queue.current.info.title}](${player.queue.current.info.uri})\n\n**${client.getLocale('cmd_queue_embed_up_next')}:**\n` +

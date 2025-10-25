@@ -7,6 +7,7 @@ module.exports = {
 
   async execute(interaction, client) {
     const player = client.riffy.players.get(interaction.guildId);
+    const settings = await client.getGuildSettings(interaction.guildId);
 
     if (!player || !player.playing) {
       return interaction.editReply({ content: client.getLocale('cmd_music_not_playing'), ephemeral: true });
@@ -31,7 +32,7 @@ module.exports = {
     };
 
     const embed = new EmbedBuilder()
-        .setColor(client.config.colors.primary)
+        .setColor(settings.colors.primary)
         .setAuthor({ name: client.getLocale('cmd_nowplaying_author') })
         .setTitle(track.info.title)
         .setURL(track.info.uri)

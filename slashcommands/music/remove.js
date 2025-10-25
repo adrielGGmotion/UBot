@@ -12,6 +12,8 @@ module.exports = {
 
   async execute(interaction, client) {
     const { channel } = interaction.member.voice;
+    const settings = await client.getGuildSettings(interaction.guildId);
+
     if (!channel) {
       return interaction.editReply({ content: client.getLocale('cmd_music_not_in_vc_generic'), ephemeral: true });
     }
@@ -34,7 +36,7 @@ module.exports = {
     const removedTrack = player.queue.remove(position - 1);
 
     const embed = new EmbedBuilder()
-        .setColor(client.config.colors.primary)
+        .setColor(settings.colors.primary)
         .setDescription(client.getLocale('cmd_remove_success', { trackTitle: removedTrack.info.title }));
 
     await interaction.reply({ embeds: [embed] });
