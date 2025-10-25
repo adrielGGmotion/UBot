@@ -13,14 +13,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorColorText = document.getElementById('error-color-text');
     const saveButton = document.getElementById('save-appearance');
 
-    function syncColorInputs(picker, text) {
-        picker.addEventListener('input', () => text.value = picker.value);
-        text.addEventListener('input', () => picker.value = text.value);
+    function syncColorInputs(picker, text, cssVariable) {
+        picker.addEventListener('input', () => {
+            text.value = picker.value;
+            document.documentElement.style.setProperty(cssVariable, picker.value);
+        });
+        text.addEventListener('input', () => {
+            picker.value = text.value;
+            document.documentElement.style.setProperty(cssVariable, text.value);
+        });
     }
 
-    syncColorInputs(primaryColorPicker, primaryColorText);
-    syncColorInputs(accentColorPicker, accentColorText);
-    syncColorInputs(errorColorPicker, errorColorText);
+    syncColorInputs(primaryColorPicker, primaryColorText, '--primary-color');
+    syncColorInputs(accentColorPicker, accentColorText, '--accent-color');
+    syncColorInputs(errorColorPicker, errorColorText, '--error-color');
 
     async function fetchSettings() {
         try {
